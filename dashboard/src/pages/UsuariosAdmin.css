@@ -1,0 +1,12 @@
+.form-usuario-box { max-width: 800px; margin: 0 auto; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+.form-grid .input-group:last-child { grid-column: span 2; }
+.permissoes-section h4 { margin-bottom: 1rem; color: #111; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+.checkbox-grid { display: flex; flex-direction: column; gap: 1rem; }
+.checkbox-container { display: flex; align-items: flex-start; gap: 1rem; cursor: pointer; padding: 1rem; border: 1px solid #eaeaea; border-radius: 6px; transition: 0.2s;}
+.checkbox-container:hover { background-color: #f9fafb; border-color: #dca200; }
+.checkbox-container input { width: 20px; height: 20px; margin-top: 2px; accent-color: #dca200; cursor: pointer; }
+.checkbox-container strong { display: block; color: #333; margin-bottom: 0.2rem;}
+.checkbox-container p { margin: 0; font-size: 0.85rem; color: #666; }
+.btn-save-user { background-color: #10b981; color: #fff; border: none; padding: 1rem 2rem; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 2rem; transition: 0.2s; }
+.btn-save-user:hover { background-color: #059669; }

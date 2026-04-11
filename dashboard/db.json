@@ -1,0 +1,61 @@
+{
+  "grafico-vendas": [
+    { "mes": "Set", "totalVendas": 12000 },
+    { "mes": "Out", "totalVendas": 19000 },
+    { "mes": "Nov", "totalVendas": 15000 },
+    { "mes": "Dez", "totalVendas": 28000 },
+    { "mes": "Jan", "totalVendas": 22000 },
+    { "mes": "Fev", "totalVendas": 31000 }
+  ],
+  "top-produtos": [
+    { "ref": "CAT-001", "name": "Filtro Lubrificante", "brand": "CATERPILLAR", "amount": 342 },
+    { "ref": "KOM-002", "name": "Rolamento de Esfera", "brand": "KOMATSU", "amount": 215 },
+    { "ref": "GEN-003", "name": "Bomba Hidráulica 50L", "brand": "GENÉRICA", "amount": 94 },
+    { "ref": "JD-004", "name": "Correia Dentada Heavy", "brand": "JOHN DEERE", "amount": 88 },
+    { "ref": "VOL-005", "name": "Sensor de Pressão", "brand": "VOLVO", "amount": 42 }
+  ],
+  "pedidos": [
+    {
+      "id": "1001",
+      "dataCriacao": "2026-02-27T10:00:00Z",
+      "clienteNome": "João Silva",
+      "valorTotal": 1450.00,
+      "status": "PENDENTE",
+      "cliente": { "nome": "João Silva", "telefone": "19 99999-9999", "email": "joao@email.com", "comprasAnteriores": 3, "empresa": "" },
+      "endereco": { "rua": "Rua das Flores", "numero": "123", "bairro": "Centro", "cidade": "Piracicaba", "estado": "SP", "cep": "13400-000" },
+      "prazoEntrega": "3 a 5 dias úteis",
+      "itens": [
+        { "quantidade": 2, "precoUnitario": 725.00, "produto": { "name": "Filtro Lubrificante", "ref": "CAT-001", "image": "https://via.placeholder.com/60/1e1e1e/dca200?text=Peca", "category": "Filtros", "brand": "CATERPILLAR" } }
+      ]
+    },
+    {
+      "id": "1002",
+      "dataCriacao": "2026-02-26T14:30:00Z",
+      "clienteNome": "Fazenda Alvorada",
+      "valorTotal": 8500.00,
+      "status": "EM_PREPARACAO",
+      "cliente": { "nome": "Carlos Mendes", "telefone": "19 98888-8888", "email": "compras@alvorada.com.br", "comprasAnteriores": 12, "empresa": "Fazenda Alvorada LTDA" },
+      "endereco": { "rua": "Rodovia SP 304, km 150", "numero": "S/N", "bairro": "Zona Rural", "cidade": "Piracicaba", "estado": "SP", "cep": "13400-999" },
+      "prazoEntrega": "Transportadora (7 dias)",
+      "itens": [
+        { "quantidade": 1, "precoUnitario": 8500.00, "produto": { "name": "Bomba Hidráulica 50L", "ref": "GEN-003", "image": "https://via.placeholder.com/60/1e1e1e/dca200?text=Peca", "category": "Hidráulica", "brand": "GENÉRICA" } }
+        
+      ]
+    },
+    {
+      "id": "1003",
+      "dataCriacao": "2026-02-26T14:30:00Z",
+      "clienteNome": "Fazenda Alvorada",
+      "valorTotal": 8500.00,
+      "status": "EM_PREPARACAO",
+      "cliente": { "nome": "Carlos Mendes", "telefone": "19 98888-8888", "email": "compras@alvorada.com.br", "comprasAnteriores": 12, "empresa": "Fazenda Alvorada LTDA" },
+      "endereco": { "rua": "Rodovia SP 304, km 150", "numero": "S/N", "bairro": "Zona Rural", "cidade": "Piracicaba", "estado": "SP", "cep": "13400-999" },
+      "prazoEntrega": "Transportadora (7 dias)",
+      "itens": [
+        { "quantidade": 1, "precoUnitario": 8500.00, "produto": { "name": "Bomba Hidráulica 50L", "ref": "GEN-003", "image": "https://via.placeholder.com/60/1e1e1e/dca200?text=Peca", "category": "Hidráulica", "brand": "GENÉRICA" } }
+        
+      ]
+    }
+    
+  ]
+}

@@ -1,0 +1,82 @@
+.institutional-page {
+  padding-top: 3rem;
+  padding-bottom: 4rem;
+}
+
+.institutional-hero {
+  border: 1px solid #353535;
+  border-radius: 14px;
+  padding: 2rem;
+  background: linear-gradient(180deg, #191919 0%, #111 100%);
+  margin-bottom: 1.6rem;
+}
+
+.institutional-kicker {
+  color: var(--text-yellow);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 0.7rem;
+}
+
+.institutional-hero h1 {
+  font-size: 2.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.institutional-hero p {
+  color: #c8c8c8;
+  max-width: 900px;
+  line-height: 1.65;
+}
+
+.institutional-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.institutional-card {
+  background-color: #161616;
+  border: 1px solid #2f2f2f;
+  border-radius: 10px;
+  padding: 1.2rem;
+}
+
+.institutional-card h3 {
+  color: var(--text-yellow);
+  margin-bottom: 0.6rem;
+}
+
+.institutional-card p {
+  color: #c4c4c4;
+  line-height: 1.6;
+}
+
+.institutional-contact {
+  border: 1px solid #5e4a1f;
+  border-radius: 10px;
+  padding: 1.2rem;
+  background: linear-gradient(180deg, #231b10 0%, #161616 100%);
+}
+
+.institutional-contact h2 {
+  margin-bottom: 0.6rem;
+}
+
+.institutional-contact p {
+  color: #d5d5d5;
+  line-height: 1.65;
+}
+
+@media (max-width: 950px) {
+  .institutional-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .institutional-hero h1 {
+    font-size: 2rem;
+  }
+}

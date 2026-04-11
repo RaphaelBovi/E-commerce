@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pastractor-postgres-dev
+    environment:
+      POSTGRES_DB: pastractor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pastractor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: pastractor-backend-dev
+    working_dir: /app
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: pastractor
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/pom.xml:/app/pom.xml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: pastractor-frontend-dev
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+## MODIFIQUEI AQUI ##
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile.dev
+    container_name: pastractor-dashboard-dev
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080/api
+      VITE_MASTER_CODE: M4ST3R_P4SSTr4ct0r 
+    volumes:
+      - ./dashboard:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    ports:
+      - "3000:5173"
+## MODIFIQUEI AQUI ##
+
+volumes:
+  postgres_data_dev:

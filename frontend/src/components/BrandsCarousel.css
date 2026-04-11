@@ -1,0 +1,49 @@
+.brands-container {
+  background-color: var(--bg-graphite);
+  overflow: hidden;
+  border-top: 2px solid var(--text-yellow);
+  border-bottom: 2px solid var(--text-yellow);
+  display: flex;
+  width: 100%;
+}
+.brands-track {
+  display: flex;
+  width: max-content;
+  animation: scrollBrands 20s linear infinite;
+}
+.brands-container:hover .brands-track {
+  animation-play-state: paused;
+}
+.brand-block {
+  min-width: 200px;
+  height: 80px;
+  background-color: var(--bg-graphite);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  border-right: 1px solid #333; 
+  transition: background-color 0.3s, color 0.3s;
+  cursor: pointer;
+  border: none;
+}
+
+
+.brand-block:hover {
+  background-color: var(--text-yellow);
+  color: #121212;
+}
+
+
+
+@keyframes scrollBrands {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}

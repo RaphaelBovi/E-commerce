@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:${PGHOST:postgres}}:${DB_PORT:${PGPORT:5432}}/${DB_NAME:${PGDATABASE:pastractor}}
+    username: ${DB_USER:${PGUSER:postgres}}
+    password: ${DB_PASSWORD:${PGPASSWORD:postgres}}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false

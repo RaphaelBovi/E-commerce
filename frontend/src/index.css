@@ -1,0 +1,85 @@
+:root {
+  --bg-dark: #121212;
+  --bg-graphite: #1e1e1e;
+  --bg-gray: #2d2d2d;
+  --bg-light-gray: #f5f5f5;
+  --text-main: #e0e0e0;
+  --text-dark: #333333;
+  --text-yellow: #dca200;
+  --btn-gold: #dca200;
+  --btn-text: #121212;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.highlight-text {
+  color: var(--text-yellow);
+}
+
+.btn-gold {
+  background-color: var(--btn-gold);
+  color: var(--btn-text);
+  border: none;
+  padding: 0.8rem 1.2rem;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.btn-gold:hover {
+  opacity: 0.85;
+}
+
+.responsive-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (max-width: 599px) {
+  .responsive-grid { grid-template-columns: 1fr; }
+}
+@media (min-width: 600px) and (max-width: 1023px) {
+  .responsive-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .responsive-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 1440px) and (max-width: 1919px) {
+  .responsive-grid { grid-template-columns: repeat(6, 1fr); }
+}
+@media (min-width: 1920px) {
+  .responsive-grid { grid-template-columns: repeat(8, 1fr); }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Roboto Condensed', sans-serif
+}
+
+h1, h2, h3, h4, .logo, .btn-gold {
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+}

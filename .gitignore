@@ -1,0 +1,47 @@
+# ===========================
+# SEGURANÇA — nunca versionar
+# ===========================
+acessos*
+*.env
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+
+# ===========================
+# Java / Maven
+# ===========================
+backend/target/
+*.class
+*.jar
+*.war
+*.log
+
+# ===========================
+# Spring Boot
+# ===========================
+backend/src/main/resources/application-prod.yml
+backend/src/main/resources/application-local.yml
+
+# ===========================
+# Node / Frontend
+# ===========================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+dashboard/node_modules/
+dashboard/dist/
+
+# ===========================
+# IDEs
+# ===========================
+.idea/
+.vscode/
+*.iml
+
+# ===========================
+# Sistema operacional
+# ===========================
+.DS_Store
+Thumbs.db

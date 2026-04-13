@@ -21,7 +21,6 @@ import pastractor.Rapha.Product.Entity.Dtos.ProductCategoryResponse;
 import pastractor.Rapha.Product.Service.ProductService;
 
 @RestController
-@CrossOrigin
 @RequestMapping("/api/product-category")
 public class ProductCategoryController {
 

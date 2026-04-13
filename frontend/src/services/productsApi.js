@@ -4,7 +4,6 @@ const normalizeProduct = (product) => ({
   ...product,
   price: Number(product.price),
   qnt: Number(product.qnt),
-  marca: product.marca ?? "",
 });
 
 export async function fetchProducts() {

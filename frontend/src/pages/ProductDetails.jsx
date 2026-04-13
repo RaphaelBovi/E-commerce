@@ -39,8 +39,6 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
     setQuantity(quantity + 1);
   };
 
-  const brandLabel = product.name.split('-')[1]?.trim() || 'Padrão';
-
   return (
     <main className="container details-page">
       <div className="product-layout">
@@ -99,8 +97,7 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
           <FaClipboardList aria-hidden />
           Descrição
         </h3>
-        <p><strong>Aplicação:</strong> Compatibilidade conforme ficha técnica do fabricante (ajuste este texto no template).</p>
-        <p><strong>Marca / linha:</strong> {brandLabel}</p>
+        <p><strong>Descrição:</strong> Informações do produto — personalize este texto no template.</p>
         <p><strong>Garantia:</strong> Conforme política comercial da sua loja.</p>
         <p>Dúvidas? Inclua aqui canais de atendimento (chat, e-mail ou mensagens).</p>
       </div>

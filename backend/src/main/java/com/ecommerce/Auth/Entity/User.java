@@ -10,6 +10,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -42,17 +43,13 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String fullName;
 
-    @Column(nullable = false)
-    @CPF(message = "CPF inválido")
+    @Column(nullable = false, unique = true, length = 11)
     private String cpf;
 
     @Column(nullable = false)
-    @BirthDate
-    @Pattern(regexp = "\\d{10,11}")
     private LocalDate birthDate;
 
-    @Column(nullable = false)
-    @Pattern(regexp = "\\d{10,11}")
+    @Column(nullable = false, length = 11)
     private String phone;
 
     @Column(nullable = false)
@@ -61,7 +58,7 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String city;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2)
     private String state;
 
     @Column(nullable = false, length = 8)
@@ -80,5 +77,25 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
     }
 }

@@ -16,6 +16,82 @@
   box-shadow: var(--shadow-lg);
 }
 
+.login-page-box--wide {
+  max-width: 440px;
+}
+
+.login-page--register {
+  align-items: flex-start;
+  padding-top: 2.5rem;
+  padding-bottom: 3rem;
+}
+
+.login-page-box--register {
+  max-width: 560px;
+}
+
+.login-page-form--register {
+  text-align: left;
+}
+
+.register-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.register-span-2 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 540px) {
+  .register-fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .register-span-2 {
+    grid-column: auto;
+  }
+}
+
+.login-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  padding: 0.25rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.login-tab {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.login-tab.is-active {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.login-page-title {
+  font-size: 1.35rem;
+  text-align: center;
+  margin-bottom: 0.35rem;
+  color: var(--text);
+}
+
 .login-page-mark {
   width: 56px;
   height: 56px;
@@ -27,13 +103,6 @@
   align-items: center;
   justify-content: center;
   font-size: 1.35rem;
-}
-
-.login-page-box h1 {
-  font-size: 1.35rem;
-  text-align: center;
-  margin-bottom: 0.35rem;
-  color: var(--text);
 }
 
 .login-page-sub {

@@ -8,6 +8,7 @@ export default function ProductCard({
   variant = 'default',
   badgeText = '',
   oldPrice = null,
+  layout = 'grid',
 }) {
   const formattedPrice = product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const installmentPrice = (product.price / 6).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -15,8 +16,12 @@ export default function ProductCard({
     ? oldPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
     : null;
 
+  const layoutClass = layout === 'list' ? 'product-card--layout-list' : '';
+
   return (
-    <div className={`product-card ${variant !== 'default' ? `product-card-${variant}` : ''}`}>
+    <div
+      className={`product-card ${variant !== 'default' ? `product-card-${variant}` : ''} ${layoutClass}`.trim()}
+    >
       {badgeText ? <span className="product-badge">{badgeText}</span> : null}
       <Link to={`/produto/${product.id}`} className="product-link">
         <div className="image-container">

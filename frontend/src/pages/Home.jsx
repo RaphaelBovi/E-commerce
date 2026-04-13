@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import AutoCarousel from '../components/AutoCarousel';
-import BrandsCarousel from '../components/BrandsCarousel';
 import './Home.css';
 
 export default function Home({ onAddToCart, products, isLoadingProducts, productsError }) {
@@ -13,8 +12,6 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
 
   return (
     <main className="home-main">
-      <BrandsCarousel products={products} />
-
       <section className="home-hero container">
         <div className="hero-content">
           <p className="hero-kicker">Bem-vindo</p>

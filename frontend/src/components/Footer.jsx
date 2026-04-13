@@ -47,7 +47,7 @@ export default function Footer() {
       </div>
 
       <div className="container footer-legal">
-        <p>Template de loja virtual — personalize marcas, textos e integrações conforme seu projeto.</p>
+        <p>Template de loja virtual — personalize textos e integrações conforme seu projeto.</p>
       </div>
     </footer>
   );

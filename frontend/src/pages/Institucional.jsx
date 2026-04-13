@@ -10,8 +10,8 @@ export default function Institucional() {
           Uma vitrine <span className="highlight-text">moderna</span> para o seu e-commerce
         </h1>
         <p>
-          Esta página é um modelo: substitua os textos pela história da sua marca, diferenciais e informações
-          de contato. O layout prioriza leitura clara e confiança — ideais para lojas que vendem online.
+          Esta página é um modelo: substitua pelos textos da sua empresa, diferenciais e informações
+          de contato. O layout prioriza leitura clara e confiança.
         </p>
       </section>
 

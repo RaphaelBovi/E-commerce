@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { FaListUl, FaTh } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import './Catalog.css';
 
 const itemsPerPage = 12;
+const VIEW_STORAGE_KEY = 'catalogLayoutMode';
 
 const toNumberOrNull = (value) => {
   if (value === '' || value === null || value === undefined) return null;
@@ -13,20 +15,13 @@ const toNumberOrNull = (value) => {
 
 const normalizeText = (value) => String(value || '').toLowerCase().trim();
 
-const extractBrand = (product) => {
-  if (product?.brand) return String(product.brand).trim();
-  const parts = String(product?.name || '').split('-');
-  if (parts.length > 1) return parts[parts.length - 1].trim();
-  return 'Padrão';
-};
-
 export default function Catalog({
   onAddToCart,
   products = [],
   isLoadingProducts,
   productsError,
   pageTitle = 'Catálogo',
-  pageSubtitle = 'Filtre por nome, referência, marca ou faixa de preço',
+  pageSubtitle = 'Filtre por nome, referência, categoria ou faixa de preço',
   pageVariant = 'catalog',
   showFilters = true,
   initialFilters = {},
@@ -40,9 +35,16 @@ export default function Catalog({
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const filterFormRef = useRef(null);
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(VIEW_STORAGE_KEY);
+      return saved === 'list' || saved === 'grid' ? saved : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
 
   const forcedCategory = forcedFilters.category || '';
-  const forcedBrand = forcedFilters.brand || '';
   const forcedMinPrice = toNumberOrNull(forcedFilters.minPrice);
   const forcedMaxPrice = toNumberOrNull(forcedFilters.maxPrice);
 
@@ -50,14 +52,16 @@ export default function Catalog({
     window.scrollTo(0, 0);
   }, []);
 
-  const allBrands = useMemo(() => {
-    const brands = products.map(extractBrand).filter(Boolean);
-    return [...new Set(brands)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  }, [products]);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(VIEW_STORAGE_KEY, viewMode);
+    } catch {
+      /* ignore */
+    }
+  }, [viewMode]);
 
   const effectiveFilters = useMemo(() => {
     const querySearch = searchParams.get('q') || initialFilters.q || '';
-    const queryBrand = searchParams.get('brand') || initialFilters.brand || '';
     const queryCategory = searchParams.get('category') || initialFilters.category || '';
     const queryMinPrice = searchParams.get('min') ?? initialFilters.minPrice ?? '';
     const queryMaxPrice = searchParams.get('max') ?? initialFilters.maxPrice ?? '';
@@ -65,29 +69,25 @@ export default function Catalog({
 
     return {
       q: querySearch,
-      brand: forcedBrand || queryBrand,
       category: forcedCategory || queryCategory,
       minPrice: forcedMinPrice ?? toNumberOrNull(queryMinPrice),
       maxPrice: forcedMaxPrice ?? toNumberOrNull(queryMaxPrice),
       sortBy: querySort,
     };
-  }, [searchParams, initialFilters, forcedBrand, forcedCategory, forcedMinPrice, forcedMaxPrice]);
+  }, [searchParams, initialFilters, forcedCategory, forcedMinPrice, forcedMaxPrice]);
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = normalizeText(effectiveFilters.q);
-    const normalizedBrand = normalizeText(effectiveFilters.brand);
     const normalizedCategory = normalizeText(effectiveFilters.category);
 
     const results = products.filter((product) => {
-      const brand = extractBrand(product);
-      const searchableText = `${product.name} ${product.ref} ${brand} ${product.category}`;
+      const searchableText = `${product.name} ${product.ref} ${product.category}`;
       const hasSearchMatch = normalizedSearch ? normalizeText(searchableText).includes(normalizedSearch) : true;
-      const hasBrandMatch = normalizedBrand ? normalizeText(brand) === normalizedBrand : true;
       const hasCategoryMatch = normalizedCategory ? normalizeText(product.category) === normalizedCategory : true;
       const hasMinPriceMatch = effectiveFilters.minPrice !== null ? product.price >= effectiveFilters.minPrice : true;
       const hasMaxPriceMatch = effectiveFilters.maxPrice !== null ? product.price <= effectiveFilters.maxPrice : true;
 
-      return hasSearchMatch && hasBrandMatch && hasCategoryMatch && hasMinPriceMatch && hasMaxPriceMatch;
+      return hasSearchMatch && hasCategoryMatch && hasMinPriceMatch && hasMaxPriceMatch;
     });
 
     if (effectiveFilters.sortBy === 'price-asc') {
@@ -123,14 +123,12 @@ export default function Catalog({
 
     const formData = new FormData(event.currentTarget);
     const q = String(formData.get('q') || '').trim();
-    const brand = String(formData.get('brand') || '').trim();
     const category = String(formData.get('category') || '').trim();
     const min = String(formData.get('min') || '').trim();
     const max = String(formData.get('max') || '').trim();
     const sort = String(formData.get('sort') || '').trim();
 
     if (q) nextParams.set('q', q);
-    if (brand) nextParams.set('brand', brand);
     if (category) nextParams.set('category', category);
     if (min) nextParams.set('min', min);
     if (max) nextParams.set('max', max);
@@ -203,35 +201,20 @@ export default function Catalog({
 
             <aside className={`catalog-filters ${isMobileFilterOpen ? 'is-open' : ''}`}>
               <div className="filters-header-mobile">
-                <h3>Filtros de Busca</h3>
+                <h3>Filtros</h3>
                 <button type="button" onClick={() => setIsMobileFilterOpen(false)}>Fechar</button>
               </div>
               <form ref={filterFormRef} onSubmit={applyFilters}>
-                <h3 className="filters-title-desktop">Filtros de Busca</h3>
+                <h3 className="filters-title-desktop">Filtros</h3>
 
-                <label htmlFor="search-input">Produto ou referência</label>
+                <label htmlFor="search-input">Nome ou referência</label>
                 <input
                   name="q"
                   id="search-input"
                   type="text"
                   defaultValue={effectiveFilters.q}
-                  placeholder="Ex.: bomba, ref, marca"
+                  placeholder="Ex.: produto, REF-001"
                 />
-
-                <label htmlFor="brand-select">Marca</label>
-                <select
-                  name="brand"
-                  id="brand-select"
-                  defaultValue={effectiveFilters.brand}
-                  disabled={Boolean(forcedBrand)}
-                >
-                  <option value="">Todas as marcas</option>
-                  {allBrands.map((brand) => (
-                    <option key={brand} value={brand}>
-                      {brand}
-                    </option>
-                  ))}
-                </select>
 
                 <label htmlFor="category-select">Categoria</label>
                 <select
@@ -240,7 +223,7 @@ export default function Catalog({
                   defaultValue={effectiveFilters.category}
                   disabled={Boolean(forcedCategory)}
                 >
-                  <option value="">Todas as categorias</option>
+                  <option value="">Todas</option>
                   <option value="mais-vendidos">Mais vendidos</option>
                   <option value="novidades">Novidades</option>
                   <option value="geral">Geral</option>
@@ -285,7 +268,7 @@ export default function Catalog({
                   <option value="name-asc">Nome (A-Z)</option>
                 </select>
 
-                <button type="submit" className="btn-gold filter-btn">Aplicar Filtros</button>
+                <button type="submit" className="btn-gold filter-btn">Aplicar filtros</button>
                 <button type="button" className="clear-filter-btn" onClick={clearFilters}>Limpar</button>
               </form>
             </aside>
@@ -307,21 +290,54 @@ export default function Catalog({
               <p>Tente ajustar os filtros para ampliar os resultados.</p>
             </div>
           ) : (
-            <div className={`catalog-grid ${pageVariant === 'launch' ? 'catalog-grid-launch' : ''}`}>
-              {currentItems.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={onAddToCart}
-                  {...getCardProps(product)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="catalog-view-toolbar">
+                <span className="catalog-view-label">Visualização</span>
+                <div className="catalog-view-toggle" role="group" aria-label="Modo de visualização">
+                  <button
+                    type="button"
+                    className={`catalog-view-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
+                    onClick={() => setViewMode('grid')}
+                    aria-pressed={viewMode === 'grid'}
+                    title="Grade"
+                  >
+                    <FaTh aria-hidden />
+                    Grade
+                  </button>
+                  <button
+                    type="button"
+                    className={`catalog-view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+                    onClick={() => setViewMode('list')}
+                    aria-pressed={viewMode === 'list'}
+                    title="Lista"
+                  >
+                    <FaListUl aria-hidden />
+                    Lista
+                  </button>
+                </div>
+              </div>
+              <div
+                className={`catalog-grid catalog-grid--${viewMode} ${
+                  pageVariant === 'launch' ? 'catalog-grid-launch' : ''
+                }`}
+              >
+                {currentItems.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={onAddToCart}
+                    layout={viewMode}
+                    {...getCardProps(product)}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
           {totalPages > 1 && (
             <div className="pagination">
               <button
+                type="button"
                 onClick={() => paginate(safeCurrentPage - 1)}
                 disabled={safeCurrentPage === 1}
                 className="page-btn"
@@ -331,6 +347,7 @@ export default function Catalog({
 
               {[...Array(totalPages)].map((_, index) => (
                 <button
+                  type="button"
                   key={index + 1}
                   onClick={() => paginate(index + 1)}
                   className={`page-btn ${safeCurrentPage === index + 1 ? 'active' : ''}`}
@@ -340,6 +357,7 @@ export default function Catalog({
               ))}
 
               <button
+                type="button"
                 onClick={() => paginate(safeCurrentPage + 1)}
                 disabled={safeCurrentPage === totalPages}
                 className="page-btn"

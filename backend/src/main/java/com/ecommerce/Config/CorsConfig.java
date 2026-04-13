@@ -1,4 +1,4 @@
-package pastractor.Rapha.Config;
+package com.ecommerce.Config;
 
 import java.util.Arrays;
 

@@ -1,4 +1,4 @@
-package pastractor.Rapha.Product.Repository;
+package com.ecommerce.Product.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import pastractor.Rapha.Product.Entity.ProductCategory;
+import com.ecommerce.Product.Entity.ProductCategory;
 
 @Repository
 public interface ProductCategoryRepository extends JpaRepository<ProductCategory, UUID> {

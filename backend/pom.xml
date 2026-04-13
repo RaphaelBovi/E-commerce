@@ -8,11 +8,11 @@
 		<version>4.0.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>pastractor</groupId>
-	<artifactId>Rapha</artifactId>
+	<groupId>com.ecommerce</groupId>
+	<artifactId>ecommerce</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Rapha</name>
-	<description>Demo project for Spring Boot</description>
+	<name>ecommerce</name>
+	<description>E-commerce platform</description>
 	<url/>
 	<licenses>
 		<license/>

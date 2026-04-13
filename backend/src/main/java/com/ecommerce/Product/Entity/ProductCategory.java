@@ -1,4 +1,4 @@
-package pastractor.Rapha.Product.Entity;
+package com.ecommerce.Product.Entity;
 
 import java.math.BigDecimal;
 import java.util.UUID;

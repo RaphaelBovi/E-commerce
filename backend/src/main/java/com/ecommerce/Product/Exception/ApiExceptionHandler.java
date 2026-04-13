@@ -1,4 +1,4 @@
-package pastractor.Rapha.Product.Exception;
+package com.ecommerce.Product.Exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

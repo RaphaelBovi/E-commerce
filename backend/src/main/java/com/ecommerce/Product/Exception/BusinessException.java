@@ -1,4 +1,4 @@
-package pastractor.Rapha.Product.Exception;
+package com.ecommerce.Product.Exception;
 
 public class BusinessException extends RuntimeException {
     public BusinessException(String message) {

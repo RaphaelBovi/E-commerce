@@ -1,9 +1,9 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: pastractor-postgres
+    container_name: ecommerce-postgres
     environment:
-      POSTGRES_DB: pastractor
+      POSTGRES_DB: ecommerce
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pastractor"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecommerce"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,12 +21,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pastractor-backend
+    container_name: ecommerce-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: pastractor
+      DB_NAME: ecommerce
       DB_USER: postgres
       DB_PASSWORD: postgres
       APP_CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
@@ -43,28 +43,4 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: http://localhost:8080/api
-    container_name: pastractor-frontend
-    depends_on:
-      - backend
-    ports:
-      - "3000:80"
-    restart: unless-stopped
-  
-## MODIFIQUEI AQUI ##
-  dashboard:
-      build:
-        context: ./dashboard
-        dockerfile: Dockerfile
-        args:
-          VITE_API_BASE_URL: http://localhost:8080/api
-          VITE_MASTER_CODE: M4ST3R_P4SSTr4ct0r
-      container_name: pastractor-dashboard
-      depends_on:
-        - backend
-      ports:
-        - "5173:80"
-      restart: unless-stopped
-## MODIFIQUEI AQUI ##
-
-volumes:
-  postgres_data:
+    container_name: ecommerce

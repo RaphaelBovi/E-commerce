@@ -1,13 +1,13 @@
-package pastractor.Rapha;
+package com.ecommerce;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class RaphaApplication {
+public class EcommerceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(RaphaApplication.class, args);
+		SpringApplication.run(EcommerceApplication.class, args);
 	}
 
 }

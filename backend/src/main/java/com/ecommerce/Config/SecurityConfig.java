@@ -1,4 +1,4 @@
-package pastractor.Rapha.Config;
+package com.ecommerce.Config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

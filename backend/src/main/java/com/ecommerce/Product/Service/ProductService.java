@@ -1,12 +1,12 @@
-package pastractor.Rapha.Product.Service;
+package com.ecommerce.Product.Service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import pastractor.Rapha.Product.Entity.Dtos.ProductCategoryRequest;
-import pastractor.Rapha.Product.Entity.Dtos.ProductCategoryResponse;
-import pastractor.Rapha.Product.Exception.BusinessException;
-import pastractor.Rapha.Product.Exception.ResourceNotFoundException;
-import pastractor.Rapha.Product.Repository.ProductCategoryRepository;
+import com.ecommerce.Product.Entity.Dtos.ProductCategoryRequest;
+import com.ecommerce.Product.Entity.Dtos.ProductCategoryResponse;
+import com.ecommerce.Product.Exception.BusinessException;
+import com.ecommerce.Product.Exception.ResourceNotFoundException;
+import com.ecommerce.Product.Repository.ProductCategoryRepository;
 
 import java.util.List;
 import java.util.UUID;

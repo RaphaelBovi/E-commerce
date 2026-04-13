@@ -1,11 +1,10 @@
-package pastractor.Rapha.Product.Controller;
+package com.ecommerce.Product.Controller;
 
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,9 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import pastractor.Rapha.Product.Entity.Dtos.ProductCategoryRequest;
-import pastractor.Rapha.Product.Entity.Dtos.ProductCategoryResponse;
-import pastractor.Rapha.Product.Service.ProductService;
+import com.ecommerce.Product.Entity.Dtos.ProductCategoryRequest;
+import com.ecommerce.Product.Entity.Dtos.ProductCategoryResponse;
+import com.ecommerce.Product.Service.ProductService;
 
 @RestController
 @RequestMapping("/api/product-category")

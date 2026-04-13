@@ -1,4 +1,4 @@
-package pastractor.Rapha.Product.Entity.Dtos;
+package com.ecommerce.Product.Entity.Dtos;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -6,7 +6,7 @@ import java.util.UUID;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import pastractor.Rapha.Product.Entity.ProductCategory;
+import com.ecommerce.Product.Entity.ProductCategory;
 
 @Data
 @NoArgsConstructor

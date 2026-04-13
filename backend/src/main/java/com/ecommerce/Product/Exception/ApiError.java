@@ -1,4 +1,4 @@
-package pastractor.Rapha.Product.Exception;
+package com.ecommerce.Product.Exception;
 
 import java.time.Instant;
 

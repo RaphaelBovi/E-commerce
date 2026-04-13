@@ -1,82 +1,89 @@
 .institutional-page {
-  padding-top: 3rem;
-  padding-bottom: 4rem;
+  padding-top: 2rem;
+  padding-bottom: 3.5rem;
 }
 
 .institutional-hero {
-  border: 1px solid #353535;
-  border-radius: 14px;
-  padding: 2rem;
-  background: linear-gradient(180deg, #191919 0%, #111 100%);
-  margin-bottom: 1.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 2.25rem;
+  background: var(--surface);
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .institutional-kicker {
-  color: var(--text-yellow);
-  font-size: 0.9rem;
-  font-weight: 800;
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 0.7rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.6rem;
 }
 
 .institutional-hero h1 {
-  font-size: 2.6rem;
-  margin-bottom: 0.9rem;
+  font-size: clamp(1.5rem, 3vw, 2.15rem);
+  margin-bottom: 0.85rem;
+  line-height: 1.2;
+  color: var(--text);
 }
 
 .institutional-hero p {
-  color: #c8c8c8;
-  max-width: 900px;
+  color: var(--text-secondary);
+  max-width: 46rem;
   line-height: 1.65;
+  font-size: 1rem;
 }
 
 .institutional-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.25rem;
 }
 
 .institutional-card {
-  background-color: #161616;
-  border: 1px solid #2f2f2f;
-  border-radius: 10px;
-  padding: 1.2rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.35rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .institutional-card h3 {
-  color: var(--text-yellow);
-  margin-bottom: 0.6rem;
+  color: var(--text);
+  margin-bottom: 0.55rem;
+  font-size: 1.05rem;
 }
 
 .institutional-card p {
-  color: #c4c4c4;
+  color: var(--text-secondary);
   line-height: 1.6;
+  font-size: 0.92rem;
 }
 
 .institutional-contact {
-  border: 1px solid #5e4a1f;
-  border-radius: 10px;
-  padding: 1.2rem;
-  background: linear-gradient(180deg, #231b10 0%, #161616 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, var(--primary-soft) 0%, var(--surface) 55%);
 }
 
 .institutional-contact h2 {
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.55rem;
+  color: var(--text);
+  font-size: 1.2rem;
 }
 
 .institutional-contact p {
-  color: #d5d5d5;
+  color: var(--text-secondary);
   line-height: 1.65;
+  max-width: 40rem;
+  font-size: 0.95rem;
 }
 
 @media (max-width: 950px) {
   .institutional-grid {
     grid-template-columns: 1fr;
-  }
-
-  .institutional-hero h1 {
-    font-size: 2rem;
   }
 }

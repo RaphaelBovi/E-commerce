@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import AuthProvider from './context/AuthProvider';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
@@ -13,6 +14,7 @@ import Institucional from './pages/Institucional';
 import { products as fallbackProducts } from './data/mockData';
 import { fetchProducts } from './services/productsApi';
 import Checkout from './pages/Checkout';
+import Login from './pages/Login';
 
 function App() {
   const [cartItems, setCartItems] = useState([]);
@@ -34,7 +36,7 @@ function App() {
       } catch (error) {
         if (isMounted) {
           console.error("Erro na API:", error); 
-          setProductsError('Não foi possível carregar produtos da API. Exibindo catálogo local.');
+          setProductsError('Não foi possível carregar o catálogo pela API. Exibindo dados locais de exemplo.');
         }
       } finally {
         if (isMounted) {
@@ -83,6 +85,7 @@ function App() {
   const totalCartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   return (
     <BrowserRouter>
+      <AuthProvider>
       <div className="app">
         <Navbar
           cartCount={totalCartItemsCount}
@@ -154,11 +157,13 @@ function App() {
             }
           />
           <Route path="/checkout" element={<Checkout cartItems={cartItems} onClearCart={() => setCartItems([])} />} />
+          <Route path="/login" element={<Login />} />
         </Routes>
 
         <Footer />
         <WhatsAppButton />
       </div>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

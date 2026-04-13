@@ -2,13 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './BrandsCarousel.css';
 
-const fallbackBrands = ['MAHLE', 'DISA', 'NTN', 'BOSCH', 'CATERPILLAR', 'KOMATSU', 'CUMMINS', 'JCB'];
+const fallbackBrands = ['MARCA A', 'MARCA B', 'MARCA C', 'MARCA D', 'MARCA E', 'MARCA F'];
 
 const extractBrand = (product) => {
   if (product?.brand) return String(product.brand).toUpperCase();
   const parts = String(product?.name || '').split('-');
   if (parts.length > 1) return parts[parts.length - 1].trim().toUpperCase();
-  return 'GENUINA';
+  return 'PADRÃO';
 };
 
 export default function BrandsCarousel({ products = [] }) {

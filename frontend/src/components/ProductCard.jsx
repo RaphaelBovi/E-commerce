@@ -28,7 +28,7 @@ export default function ProductCard({
         <Link to={`/produto/${product.id}`} className="product-link">
           <p className="product-ref">{product.ref}: {product.name}</p>
         </Link>
-        <p className="payment-method">À vista no PIX</p>
+        <p className="payment-method">À vista com desconto</p>
         {formattedOldPrice ? <p className="product-old-price">{formattedOldPrice}</p> : null}
         <p className="product-price">{formattedPrice}</p>
         <p className="product-installments">Em até 6x de {installmentPrice} sem juros</p>

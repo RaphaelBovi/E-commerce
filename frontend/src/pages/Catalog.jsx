@@ -17,7 +17,7 @@ const extractBrand = (product) => {
   if (product?.brand) return String(product.brand).trim();
   const parts = String(product?.name || '').split('-');
   if (parts.length > 1) return parts[parts.length - 1].trim();
-  return 'Genuína';
+  return 'Padrão';
 };
 
 export default function Catalog({
@@ -25,8 +25,8 @@ export default function Catalog({
   products = [],
   isLoadingProducts,
   productsError,
-  pageTitle = 'Catálogo de Peças',
-  pageSubtitle = 'Encontre rapidamente a peça ideal para o seu maquinário',
+  pageTitle = 'Catálogo',
+  pageSubtitle = 'Filtre por nome, referência, marca ou faixa de preço',
   pageVariant = 'catalog',
   showFilters = true,
   initialFilters = {},
@@ -181,11 +181,9 @@ export default function Catalog({
           Exibindo {currentItems.length} de {filteredProducts.length} produto(s) filtrado(s)
         </p>
       </header>
-      {productsError && (
-        <p className="catalog-subtitle" style={{ color: '#ffdd57' }}>
-          {productsError}
-        </p>
-      )}
+      {productsError ? (
+        <p className="catalog-banner catalog-banner--warn">{productsError}</p>
+      ) : null}
       {isLoadingProducts && (
         <p className="catalog-subtitle">
           Carregando produtos...

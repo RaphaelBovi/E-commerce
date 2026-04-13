@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import AutoCarousel from '../components/AutoCarousel';
-import BrandsCarousel from '../components/BrandsCarousel'; 
+import BrandsCarousel from '../components/BrandsCarousel';
 import './Home.css';
 
 export default function Home({ onAddToCart, products, isLoadingProducts, productsError }) {
@@ -12,33 +12,34 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
   const gerais = products.filter(p => p.category === 'geral').slice(0, 6);
 
   return (
-    <main>
-      <BrandsCarousel products={products} /> 
+    <main className="home-main">
+      <BrandsCarousel products={products} />
 
       <section className="home-hero container">
         <div className="hero-content">
-          <p className="hero-kicker">Distribuidora especializada</p>
-          <h1>Performance para seu <span className="highlight-text">maquinário pesado</span></h1>
+          <p className="hero-kicker">Bem-vindo</p>
+          <h1>Produtos com <span className="highlight-text">qualidade</span> e preço justo</h1>
           <p className="hero-description">
-            Peças técnicas, marcas reconhecidas e envio rápido para manter sua operação sem parada.
+            Navegue pelo catálogo, compare opções e monte seu pedido com poucos cliques.
+            Este layout é um ponto de partida — adapte textos e categorias ao seu negócio.
           </p>
           <div className="hero-actions">
-            <Link to="/catalogo" className="btn-view-all">Explorar peças</Link>
-            <Link to="/promocoes" className="hero-link-secondary">Ver promoções</Link>
+            <Link to="/catalogo" className="btn-view-all">Ver catálogo</Link>
+            <Link to="/promocoes" className="hero-link-secondary">Ver ofertas</Link>
           </div>
         </div>
 
         <div className="hero-highlight-card">
           {heroProduct ? (
             <>
-              <p className="hero-highlight-tag">Destaque da semana</p>
-              <img src={heroProduct.image} alt={heroProduct.name} className="hero-highlight-image" />
+              <p className="hero-highlight-tag">Destaque</p>
+              <img src={heroProduct.image} alt="" className="hero-highlight-image" />
               <h3>{heroProduct.name}</h3>
-              <p className="hero-highlight-ref">Ref: {heroProduct.ref}</p>
+              <p className="hero-highlight-ref">Ref. {heroProduct.ref}</p>
               <p className="hero-highlight-price">
                 {heroProduct.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
-              <button className="btn-gold" onClick={() => onAddToCart(heroProduct)}>
+              <button type="button" className="btn-gold" onClick={() => onAddToCart(heroProduct)}>
                 Adicionar ao carrinho
               </button>
             </>
@@ -47,43 +48,42 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
       </section>
 
       <div className="container home-container">
-        {productsError && (
-          <p className="section-subtitle" style={{ marginBottom: '1rem', color: '#ffdd57' }}>
+        {productsError ? (
+          <p className="home-banner home-banner--warn">
             {productsError}
           </p>
-        )}
-        {isLoadingProducts && (
-          <p className="section-subtitle" style={{ marginBottom: '1rem' }}>
-            Carregando produtos...
-          </p>
-        )}
-        
+        ) : null}
+        {isLoadingProducts ? (
+          <p className="home-banner">Carregando produtos…</p>
+        ) : null}
+
         <section className="product-section">
           <h2>Mais <span className="highlight-text">vendidos</span></h2>
-          <p className="section-subtitle">Os itens de maior giro para reposição rápida e manutenção eficiente</p>
-          <div className="responsive-grid">
+          <p className="section-subtitle">Itens populares entre os clientes — ideal para vitrine na home.</p>
+          <div className="responsive-grid home-product-grid">
             {maisVendidos.map(product => (
               <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
             ))}
           </div>
         </section>
+
         <section className="product-section">
-          <h2><span className="highlight-text">Novidades</span> em alta</h2>
-          <p className="section-subtitle">Lançamentos recentes com tecnologia e desempenho atualizados</p>
+          <h2><span className="highlight-text">Novidades</span></h2>
+          <p className="section-subtitle">Lançamentos e entradas recentes no estoque.</p>
           <AutoCarousel products={novidades} onAddToCart={onAddToCart} />
         </section>
 
         <section className="product-section product-section-alt">
-          <h2>Outras <span className="highlight-text">Peças</span></h2>
-          <p className="section-subtitle">Itens gerais para o seu maquinário</p>
-          <div className="responsive-grid">
+          <h2>Outras <span className="highlight-text">categorias</span></h2>
+          <p className="section-subtitle">Seleção geral do catálogo.</p>
+          <div className="responsive-grid home-product-grid">
             {gerais.map(product => (
               <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
             ))}
           </div>
-          
+
           <div className="view-all-container">
-            <Link to="/catalogo" className="btn-view-all">Ver todas as peças</Link>
+            <Link to="/catalogo" className="btn-view-all">Ver catálogo completo</Link>
           </div>
         </section>
       </div>

@@ -5,13 +5,13 @@ export default function Institucional() {
   return (
     <main className="container institutional-page">
       <section className="institutional-hero">
-        <p className="institutional-kicker">Quem somos</p>
+        <p className="institutional-kicker">Institucional</p>
         <h1>
-          Tradição em <span className="highlight-text">peças para linha pesada</span>
+          Uma vitrine <span className="highlight-text">moderna</span> para o seu e-commerce
         </h1>
         <p>
-          A Pastractor atua com foco em confiabilidade, agilidade no atendimento e suporte técnico para
-          auxiliar empresas e profissionais na escolha de componentes críticos para manutenção.
+          Esta página é um modelo: substitua os textos pela história da sua marca, diferenciais e informações
+          de contato. O layout prioriza leitura clara e confiança — ideais para lojas que vendem online.
         </p>
       </section>
 
@@ -19,33 +19,33 @@ export default function Institucional() {
         <article className="institutional-card">
           <h3>Missão</h3>
           <p>
-            Entregar peças com alto padrão de qualidade e suporte comercial especializado,
-            garantindo mais produtividade para operações de campo e indústria.
+            Oferecer uma experiência de compra simples, com informações transparentes e suporte acessível
+            em todas as etapas do pedido.
           </p>
         </article>
 
         <article className="institutional-card">
           <h3>Visão</h3>
           <p>
-            Ser referência nacional em distribuição técnica para maquinário pesado,
-            mantendo relacionamento próximo e transparente com cada cliente.
+            Ser reconhecido pela qualidade do serviço, pela curadoria de produtos e pela confiança
+            construída com clientes e parceiros.
           </p>
         </article>
 
         <article className="institutional-card">
           <h3>Valores</h3>
           <p>
-            Compromisso, transparência, agilidade e responsabilidade técnica em todos os processos,
-            desde o orçamento até o pós-venda.
+            Ética, respeito ao consumidor, melhoria contínua e foco na satisfação — pilares que você pode
+            adaptar ao posicionamento da sua empresa.
           </p>
         </article>
       </section>
 
       <section className="institutional-contact">
-        <h2>Atendimento comercial</h2>
+        <h2>Fale conosco</h2>
         <p>
-          Fale com nosso time para suporte em aplicação, disponibilidade e orçamento personalizado.
-          Estamos prontos para orientar a melhor escolha para o seu equipamento.
+          Inclua horários de atendimento, canais preferenciais e, se desejar, um formulário ou mapa.
+          Personalize este bloco para refletir o relacionamento da sua loja com o cliente.
         </p>
       </section>
     </main>

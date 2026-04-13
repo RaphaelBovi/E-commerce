@@ -5,8 +5,8 @@ export default function Lancamentos(props) {
   return (
     <Catalog
       {...props}
-      pageTitle="Lançamentos"
-      pageSubtitle="Novidades em destaque, com foco em tecnologia e desempenho"
+      pageTitle="Novidades"
+      pageSubtitle="Itens recentes no catálogo — personalize filtros e categorias no template"
       pageVariant="launch"
       showFilters={false}
       forcedFilters={{ category: 'novidades' }}

@@ -1,21 +1,38 @@
 .catalog-page {
-  padding-top: 3rem;
-  padding-bottom: 4rem;
-  max-width: 1400px;
+  padding-top: 2rem;
+  padding-bottom: 3.5rem;
+  max-width: 1320px;
   margin: 0 auto;
 }
 
+.catalog-banner {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.catalog-banner--warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
 .catalog-hero {
-  padding: 1.4rem;
-  border-radius: 12px;
-  border: 1px solid #323232;
-  margin-bottom: 1.2rem;
-  background: linear-gradient(180deg, #1b1b1b 0%, #141414 100%);
+  padding: 1.5rem 1.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .catalog-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
 }
@@ -29,30 +46,34 @@
 }
 
 .catalog-title {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin-bottom: 0.35rem;
+  color: var(--text);
 }
 
 .catalog-subtitle {
-  color: #aaa;
-  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .catalog-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
   justify-content: center;
 }
 
 .catalog-filters {
   position: sticky;
-  top: 1rem;
-  background-color: #171717;
-  border: 1px solid #404040;
-  border-radius: 10px;
-  padding: 1rem;
+  top: 5.5rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.15rem;
   z-index: 6;
+  box-shadow: var(--shadow-sm);
 }
 
 .filters-header-mobile {
@@ -61,141 +82,160 @@
 
 .filters-title-desktop {
   margin-bottom: 1rem;
-  color: var(--text-yellow);
+  color: var(--text);
+  font-size: 1rem;
 }
 
 .filter-toggle-mobile {
   display: none;
   margin-bottom: 1rem;
   width: 100%;
-  border: 1px solid #6b5728;
-  color: var(--text-yellow);
-  background: #161616;
-  border-radius: 6px;
-  font-weight: 700;
-  padding: 0.8rem;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  padding: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.filter-toggle-mobile:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 
 .catalog-filters label {
   display: block;
-  margin-bottom: 0.4rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .catalog-filters input,
 .catalog-filters select {
   width: 100%;
-  border: 1px solid #444;
-  background-color: #1a1a1a;
-  color: var(--text-main);
-  border-radius: 6px;
-  padding: 0.6rem 0.7rem;
-  margin-bottom: 0.9rem;
+  border: 1px solid var(--border);
+  background-color: var(--surface-2);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.85rem;
+  font-family: inherit;
+  font-size: 0.9rem;
 }
 
 .catalog-filters input:focus,
 .catalog-filters select:focus {
   outline: none;
-  border-color: #8d6f31;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
 .price-range {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
 .filter-btn {
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
 }
 
 .clear-filter-btn {
-  margin-top: 0.7rem;
+  margin-top: 0.6rem;
   width: 100%;
-  border: 1px solid #666;
-  border-radius: 4px;
-  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem;
   background: transparent;
-  color: #ddd;
+  color: var(--text-secondary);
   cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: border-color 0.2s, color 0.2s;
 }
 
 .clear-filter-btn:hover {
-  border-color: var(--text-yellow);
-  color: var(--text-yellow);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .catalog-empty-state {
-  background-color: var(--bg-gray);
-  border: 1px solid #3d3d3d;
-  border-radius: 8px;
-  padding: 2rem;
+  background-color: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
   text-align: center;
 }
 
 .catalog-empty-state h3 {
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.catalog-empty-state p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
 }
 
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 4rem;
+  gap: 0.35rem;
+  margin-top: 2.5rem;
+  flex-wrap: wrap;
 }
 
 .page-btn {
-  background-color: var(--bg-gray);
-  color: var(--text-main);
-  border: 1px solid #444;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  font-family: inherit;
 }
 
 .page-btn:hover:not(:disabled) {
-  background-color: var(--text-yellow);
-  color: #121212;
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .page-btn.active {
-  background-color: var(--text-yellow);
-  color: #121212;
-  border-color: var(--text-yellow);
+  background-color: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
 .page-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .page-promo .catalog-hero {
-  border-color: #6f5320;
-  background: radial-gradient(circle at top right, #2f220d 0%, #161616 62%);
+  border-color: rgba(37, 99, 235, 0.2);
+  background: linear-gradient(135deg, #fafbff 0%, var(--surface) 100%);
 }
 
 .page-promo .catalog-title {
-  color: var(--text-yellow);
-}
-
-.page-promo .catalog-grid {
-  gap: 1.6rem;
-}
-
-.page-catalog .catalog-hero {
-  background: radial-gradient(circle at top left, #252018 0%, #161616 60%);
+  color: var(--primary);
 }
 
 .page-launch .catalog-hero {
-  border-color: #645124;
-  background: radial-gradient(circle at top left, #32260f 0%, #161616 62%);
+  border-color: var(--border);
+  background: var(--surface);
 }
 
 .catalog-grid-launch {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 
 .mobile-filter-overlay {
@@ -215,16 +255,18 @@
     position: fixed;
     left: 0;
     top: 0;
-    width: min(85vw, 360px);
+    width: min(88vw, 360px);
     height: 100vh;
     overflow-y: auto;
     transform: translateX(-105%);
     transition: transform 0.25s ease;
     border-radius: 0;
-    border-right: 1px solid #4b4b4b;
+    border-right: 1px solid var(--border);
     border-top: none;
     border-bottom: none;
-    z-index: 12;
+    border-left: none;
+    z-index: 120;
+    box-shadow: var(--shadow-lg);
   }
 
   .catalog-filters.is-open {
@@ -239,16 +281,19 @@
   }
 
   .filters-header-mobile h3 {
-    color: var(--text-yellow);
+    color: var(--text);
     margin: 0;
+    font-size: 1rem;
   }
 
   .filters-header-mobile button {
-    border: 1px solid #5a5a5a;
-    color: #f0f0f0;
-    background: transparent;
-    border-radius: 4px;
-    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.65rem;
+    font-family: inherit;
+    cursor: pointer;
   }
 
   .filters-title-desktop {
@@ -259,12 +304,9 @@
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.56);
-    z-index: 10;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 110;
     border: none;
-  }
-
-  .catalog-title {
-    font-size: 2rem;
+    cursor: pointer;
   }
 }

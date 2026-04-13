@@ -1,0 +1,69 @@
+databases:
+  - name: pastractor-db
+    databaseName: pastractor
+    user: postgres
+    plan: free
+
+services:
+  - type: web
+    name: pastractor-backend
+    plan: free
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: pastractor-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: pastractor-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: pastractor-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: pastractor-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: pastractor-db
+          property: password
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: https://pastractor-frontend.onrender.com
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: 3600000
+    healthCheckPath: /actuator/health
+
+  - type: web
+    name: pastractor-frontend
+    plan: free
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://pastractor-backend.onrender.com/api
+      - key: PORT
+        value: 80
+
+  - type: web
+    name: pastractor-dashboard
+    plan: free
+    runtime: docker
+    dockerfilePath: ./dashboard/Dockerfile
+    dockerContext: ./dashboard
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://pastractor-backend.onrender.com/api
+      - key: VITE_MASTER_CODE
+        value: M4ST3R_P4SSTr4ct0r
+      - key: PORT
+        value: 80

@@ -43,6 +43,7 @@
 
 .catalog-content {
   min-width: 0;
+  width: 100%;
 }
 
 .catalog-title {
@@ -110,17 +111,44 @@
   color: var(--primary);
 }
 
+/* Grade: até 5 colunas em telas largas; minmax(0,1fr) evita uma única coluna esticada */
 .catalog-grid {
+  width: 100%;
+  gap: 1rem 1.25rem;
+}
+
+.catalog-grid.catalog-grid--grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1.25rem;
-  justify-content: center;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 520px) {
+  .catalog-grid.catalog-grid--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .catalog-grid.catalog-grid--grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .catalog-grid.catalog-grid--grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .catalog-grid.catalog-grid--grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 .catalog-grid--list {
   display: flex;
   flex-direction: column;
-  grid-template-columns: unset;
   gap: 1rem;
 }
 
@@ -297,9 +325,7 @@
   background: var(--surface);
 }
 
-.catalog-grid-launch {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
+/* Novidades: mesma lógica de colunas da grade principal */
 
 .mobile-filter-overlay {
   display: none;

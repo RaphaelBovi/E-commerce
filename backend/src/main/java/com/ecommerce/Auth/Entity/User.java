@@ -39,6 +39,34 @@ public class User implements UserDetails {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = false)
+    private String fullName;
+
+    @Column(nullable = false)
+    @CPF(message = "CPF inválido")
+    private String cpf;
+
+    @Column(nullable = false)
+    @BirthDate
+    @Pattern(regexp = "\\d{10,11}")
+    private LocalDate birthDate;
+
+    @Column(nullable = false)
+    @Pattern(regexp = "\\d{10,11}")
+    private String phone;
+
+    @Column(nullable = false)
+    private String address;
+
+    @Column(nullable = false)
+    private String city;
+
+    @Column(nullable = false)
+    private String state;
+
+    @Column(nullable = false, length = 8)
+    private String zipCode;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = Instant.now();

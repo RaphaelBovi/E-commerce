@@ -9,7 +9,6 @@ const normalizeProduct = (product) => ({
 export async function fetchProducts() {
   const endpoints = [
     `${API_BASE_URL}/product-category`,
-    `${API_BASE_URL}/product-category/all`,
   ];
 
   let lastStatus = null;

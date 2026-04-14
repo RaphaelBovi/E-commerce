@@ -7,10 +7,10 @@
   transition: box-shadow 0.25s, transform 0.2s, border-color 0.2s;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-width: 0;
   position: relative;
   box-shadow: var(--shadow-sm);
+  /* Previne overflow de conteúdo longo dentro do grid */
+  min-width: 0;
 }
 
 .product-card:hover {
@@ -19,17 +19,23 @@
   border-color: var(--border-strong);
 }
 
+/* Image container: aspect-ratio para melhor proporção responsiva */
 .image-container {
-  padding: 1.25rem;
+  padding: 1rem;
   display: flex;
+  align-items: center;
   justify-content: center;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
 }
 
 .product-image {
   max-width: 100%;
-  height: 180px;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
 }
 
@@ -80,13 +86,13 @@
   color: inherit;
   display: flex;
   flex-direction: column;
-  flex: 1;
 }
 
 .product-link:hover .product-ref {
   color: var(--primary);
 }
 
+/* Badge posicionado absoluto — independe do layout */
 .product-badge {
   position: absolute;
   top: 0.65rem;
@@ -102,8 +108,9 @@
   letter-spacing: 0.03em;
 }
 
-.product-card-launch .product-image {
-  height: 220px;
+/* Variantes */
+.product-card-launch .image-container {
+  aspect-ratio: 3 / 2;
 }
 
 .product-card-launch .product-price {
@@ -115,29 +122,42 @@
   background: linear-gradient(180deg, #fafbff 0%, var(--surface) 100%);
 }
 
+/* ─── Modo Lista ─── */
 .product-card--layout-list {
   flex-direction: row;
   align-items: stretch;
-  max-width: 100%;
+  width: 100%;
 }
 
 .product-card--layout-list:hover {
   transform: none;
 }
 
+/*
+  Link da imagem: flex: none para não crescer além do necessário.
+  O seletor ">" garante que só o link direto (imagem) é afetado,
+  não o link de produto dentro de .product-info.
+*/
+.product-card--layout-list > .product-link {
+  flex: none;
+  width: 148px;
+  min-width: 148px;
+  align-self: stretch;
+  display: flex;
+}
+
 .product-card--layout-list .image-container {
-  width: 132px;
-  min-width: 132px;
-  max-width: 132px;
+  width: 100%;
+  aspect-ratio: unset;
+  height: 100%;
+  min-height: 120px;
   border-bottom: none;
   border-right: 1px solid var(--border);
   padding: 0.85rem;
-  align-self: stretch;
 }
 
 .product-card--layout-list .product-image {
-  height: 100px;
-  max-height: 110px;
+  max-height: 140px;
 }
 
 .product-card--layout-list .product-info {
@@ -155,29 +175,45 @@
 }
 
 .product-card--layout-list .btn-gold {
-  max-width: 200px;
+  max-width: 220px;
   align-self: flex-start;
+  /* Botão de tamanho adequado para toque */
+  min-height: 44px;
+  padding: 0.65rem 1rem;
 }
 
+/* Mobile: lista vira coluna abaixo de 540px */
 @media (max-width: 540px) {
   .product-card--layout-list {
     flex-direction: column;
   }
 
+  .product-card--layout-list > .product-link {
+    flex: unset;
+    width: 100%;
+    min-width: unset;
+  }
+
   .product-card--layout-list .image-container {
     width: 100%;
-    max-width: none;
+    aspect-ratio: 4 / 3;
+    height: auto;
+    min-height: unset;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
 
   .product-card--layout-list .product-image {
-    height: 160px;
-    max-height: 180px;
+    max-height: unset;
   }
 
   .product-card--layout-list .btn-gold {
     max-width: none;
     width: 100%;
   }
+}
+
+/* Botão: tamanho mínimo para toque confortável em mobile */
+.btn-gold {
+  min-height: 44px;
 }

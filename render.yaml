@@ -63,7 +63,5 @@ services:
     envVars:
       - key: VITE_API_BASE_URL
         value: https://ecommerce-backend.onrender.com/api
-      - key: VITE_MASTER_CODE
-        value: M4ST3R_P4SSTr4ct0r
       - key: PORT
         value: 80

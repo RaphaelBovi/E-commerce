@@ -8,14 +8,19 @@ import com.ecommerce.Auth.Entity.User;
 import com.ecommerce.Auth.Repository.UserRepository;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Security.JwtUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -72,6 +77,7 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        log.info("Novo usuário registrado: {}", request.email());
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getEmail(), user.getRole().name());
@@ -85,11 +91,18 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password())
+            );
+        } catch (BadCredentialsException e) {
+            log.warn("Tentativa de login com credenciais inválidas para: {}", request.email());
+            throw e;
+        }
 
         var user = userRepository.findByEmail(request.email()).orElseThrow();
+        log.info("Login bem-sucedido: {}", request.email());
+
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getEmail(), user.getRole().name());
     }

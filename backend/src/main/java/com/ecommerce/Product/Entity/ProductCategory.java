@@ -1,6 +1,7 @@
 package com.ecommerce.Product.Entity;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -8,6 +9,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
@@ -17,7 +20,6 @@ import lombok.Getter;
 public class ProductCategory {
 
     protected ProductCategory() {
-        this.id = UUID.randomUUID();
         this.name = "";
         this.ref = "";
         this.price = BigDecimal.ZERO;
@@ -49,29 +51,40 @@ public class ProductCategory {
         this.image = image;
     }
 
-    @Column(name = "id")
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "name")
     private String name;
 
-    @Column(name = "ref")
     private String ref;
 
-    @Column(name = "price")
     private BigDecimal price;
 
-    @Column(name = "qnt")
     private Integer qnt;
 
-    @Column(name = "marca")
     private String marca;
 
-    @Column(name = "category")
     private String category;
 
-    @Column(name = "image", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String image;
+
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = Instant.now();
+    }
 }

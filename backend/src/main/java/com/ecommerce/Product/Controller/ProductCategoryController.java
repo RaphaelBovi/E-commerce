@@ -3,6 +3,7 @@ package com.ecommerce.Product.Controller;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,23 +29,12 @@ public class ProductCategoryController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ProductCategoryResponse save(@RequestBody ProductCategoryRequest request) {
-        return service.save(request);
-    }
-
-    @PostMapping("/save")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ProductCategoryResponse saveLegacy(@RequestBody ProductCategoryRequest request) {
+    public ProductCategoryResponse save(@Valid @RequestBody ProductCategoryRequest request) {
         return service.save(request);
     }
 
     @GetMapping
-    public List<ProductCategoryResponse> findProductDefault() {
-        return this.service.findProduct();
-    }
-
-    @GetMapping("/all")
-    public List<ProductCategoryResponse> findProduct() {
+    public List<ProductCategoryResponse> findAll() {
         return this.service.findProduct();
     }
 
@@ -53,30 +43,14 @@ public class ProductCategoryController {
         return this.service.findByRef(ref);
     }
 
-    @GetMapping("/findByRef/{ref}")
-    public ProductCategoryResponse findByRefLegacy(@PathVariable String ref) {
-        return this.service.findByRef(ref);
-    }
-
     @PutMapping("/{ref}")
-    public ProductCategoryResponse update(@PathVariable String ref, @RequestBody ProductCategoryRequest request) {
-        return this.service.update(ref, request);
-    }
-
-    @PutMapping("/update/{ref}")
-    public ProductCategoryResponse updateLegacy(@PathVariable String ref, @RequestBody ProductCategoryRequest request) {
+    public ProductCategoryResponse update(@PathVariable String ref, @Valid @RequestBody ProductCategoryRequest request) {
         return this.service.update(ref, request);
     }
 
     @DeleteMapping("/ref/{ref}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String ref) {
-        this.service.delete(ref);
-    }
-
-    @DeleteMapping("/delete/{ref}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteLegacy(@PathVariable String ref) {
+    public void deleteByRef(@PathVariable String ref) {
         this.service.delete(ref);
     }
 

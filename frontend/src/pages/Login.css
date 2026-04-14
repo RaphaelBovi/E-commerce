@@ -161,6 +161,117 @@
   cursor: not-allowed;
 }
 
+/* ─── Checkboxes de consentimento ─── */
+.register-consents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.consent-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+/* Checkbox custom: tamanho adequado para toque, foco visível */
+.consent-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-2);
+  cursor: pointer;
+  position: relative;
+  margin-top: 2px;
+  transition: border-color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.consent-checkbox:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Marca de check via pseudo-elemento */
+.consent-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 6px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+/* Foco visível para acessibilidade por teclado */
+.consent-checkbox:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.consent-checkbox:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Erro: borda vermelha quando terms não aceitos */
+.consent-group--error .consent-checkbox {
+  border-color: #dc2626;
+}
+
+.consent-label {
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.45;
+  user-select: none;
+}
+
+.consent-label:has(+ .consent-checkbox:disabled),
+.consent-checkbox:disabled + .consent-label {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.consent-link {
+  color: var(--primary);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.consent-link:hover {
+  color: var(--primary-hover);
+}
+
+.consent-required {
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 1px;
+}
+
+.consent-optional {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.consent-error {
+  font-size: 0.82rem;
+  color: #dc2626;
+  margin-top: -0.35rem;
+  margin-left: calc(18px + 0.6rem);
+  line-height: 1.4;
+}
+
+/* ─── Voltar à loja ─── */
 .login-page-back {
   display: block;
   text-align: center;

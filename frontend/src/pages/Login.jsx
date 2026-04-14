@@ -21,6 +21,9 @@ export default function Login() {
   const [city, setCity] = useState("");
   const [stateUf, setStateUf] = useState("");
   const [zipCode, setZipCode] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [receivePromo, setReceivePromo] = useState(false);
+  const [termsError, setTermsError] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, register, isAuthenticated } = useAuth();
@@ -50,6 +53,12 @@ export default function Login() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
+    setTermsError(false);
+
+    if (!acceptTerms) {
+      setTermsError(true);
+      return;
+    }
     if (password.length < 6) {
       setError("A senha deve ter pelo menos 6 caracteres.");
       return;
@@ -97,6 +106,7 @@ export default function Login() {
         city: city.trim(),
         state: uf,
         zipCode: zipDigits,
+        receivePromo,
       });
     } catch (err) {
       setError(err?.message || "Não foi possível criar a conta. Tente novamente.");
@@ -115,6 +125,9 @@ export default function Login() {
     setCity("");
     setStateUf("");
     setZipCode("");
+    setAcceptTerms(false);
+    setReceivePromo(false);
+    setTermsError(false);
   };
 
   return (
@@ -175,7 +188,7 @@ export default function Login() {
           </>
         )}
 
-        {error ? <div className="login-page-error">{error}</div> : null}
+        {error ? <div className="login-page-error" role="alert">{error}</div> : null}
 
         {mode === "login" ? (
           <form className="login-page-form" onSubmit={handleLogin}>
@@ -349,6 +362,53 @@ export default function Login() {
                 />
               </div>
             </div>
+
+            {/* Checkboxes de consentimento */}
+            <div className="register-consents">
+              <div className={`consent-group ${termsError ? "consent-group--error" : ""}`}>
+                <input
+                  id="accept-terms"
+                  type="checkbox"
+                  className="consent-checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => {
+                    setAcceptTerms(e.target.checked);
+                    if (e.target.checked) setTermsError(false);
+                  }}
+                  disabled={isSubmitting}
+                  aria-required="true"
+                  aria-describedby={termsError ? "terms-error-msg" : undefined}
+                />
+                <label htmlFor="accept-terms" className="consent-label">
+                  Li e aceito os{" "}
+                  <Link to="/institucional" className="consent-link" tabIndex={0}>
+                    termos e condições
+                  </Link>{" "}
+                  da loja <span className="consent-required" aria-label="obrigatório">*</span>
+                </label>
+              </div>
+              {termsError && (
+                <p className="consent-error" id="terms-error-msg" role="alert">
+                  Você precisa aceitar os termos para criar uma conta.
+                </p>
+              )}
+
+              <div className="consent-group">
+                <input
+                  id="receive-promo"
+                  type="checkbox"
+                  className="consent-checkbox"
+                  checked={receivePromo}
+                  onChange={(e) => setReceivePromo(e.target.checked)}
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="receive-promo" className="consent-label">
+                  Desejo receber promoções e novidades por e-mail{" "}
+                  <span className="consent-optional">(opcional)</span>
+                </label>
+              </div>
+            </div>
+
             <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
               {isSubmitting ? "Criando…" : "Criar conta"}
             </button>

@@ -4,11 +4,34 @@ import ProductCard from '../components/ProductCard';
 import AutoCarousel from '../components/AutoCarousel';
 import './Home.css';
 
+/**
+ * Ordena produtos pela data de criação mais recente.
+ * Usa createdAt se disponível, senão usa id decrescente como proxy.
+ */
+function sortByNewest(list) {
+  return [...list].sort((a, b) => {
+    if (a.createdAt && b.createdAt) {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    }
+    return (b.id ?? 0) - (a.id ?? 0);
+  });
+}
+
 export default function Home({ onAddToCart, products, isLoadingProducts, productsError }) {
   const heroProduct = products[0];
-  const maisVendidos = products.filter(p => p.category === 'mais-vendidos').slice(0, 8);
-  const novidades = products.filter(p => p.category === 'novidades');
-  const gerais = products.filter(p => p.category === 'geral').slice(0, 6);
+
+  // "Mais vendidos" — categoria filtrada, máximo 10
+  const maisVendidos = products
+    .filter(p => p.category === 'mais-vendidos')
+    .slice(0, 10);
+
+  // "Novidades" — 15 produtos mais recentes (qualquer categoria)
+  const novidades = sortByNewest(products).slice(0, 15);
+
+  // "Outras categorias" — categoria geral, máximo 10
+  const gerais = products
+    .filter(p => p.category === 'geral')
+    .slice(0, 10);
 
   return (
     <main className="home-main">
@@ -57,7 +80,7 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
         <section className="product-section">
           <h2>Mais <span className="highlight-text">vendidos</span></h2>
           <p className="section-subtitle">Itens populares entre os clientes — ideal para vitrine na home.</p>
-          <div className="responsive-grid home-product-grid">
+          <div className="home-product-grid">
             {maisVendidos.map(product => (
               <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
             ))}
@@ -66,14 +89,14 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
 
         <section className="product-section">
           <h2><span className="highlight-text">Novidades</span></h2>
-          <p className="section-subtitle">Lançamentos e entradas recentes no estoque.</p>
+          <p className="section-subtitle">Os 15 produtos mais recentes do catálogo, atualizados automaticamente.</p>
           <AutoCarousel products={novidades} onAddToCart={onAddToCart} />
         </section>
 
         <section className="product-section product-section-alt">
           <h2>Outras <span className="highlight-text">categorias</span></h2>
           <p className="section-subtitle">Seleção geral do catálogo.</p>
-          <div className="responsive-grid home-product-grid">
+          <div className="home-product-grid">
             {gerais.map(product => (
               <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
             ))}

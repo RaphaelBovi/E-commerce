@@ -45,26 +45,23 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String fullName;
 
-    @Column(nullable = false, unique = true, length = 11)
+    @Column(unique = true, length = 11)
     @CPF
     private String cpf;
 
-    @Column(nullable = false)
     private LocalDate birthDate;
 
-    @Column(nullable = false, length = 11)
+    @Column(length = 11)
     private String phone;
 
-    @Column(nullable = false)
     private String address;
 
-    @Column(nullable = false)
     private String city;
 
-    @Column(nullable = false, length = 2)
+    @Column(length = 2)
     private String state;
 
-    @Column(nullable = false, length = 8)
+    @Column(length = 8)
     private String zipCode;
 
     @PrePersist

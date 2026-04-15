@@ -32,3 +32,14 @@
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+.usuarios-grid {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .usuarios-grid { grid-template-columns: 1fr; }
+}

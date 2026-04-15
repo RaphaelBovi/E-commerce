@@ -60,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/orders/my").authenticated()
                         // Pedidos: endpoints admin (ADMIN/MASTER)
                         .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "MASTER")
+                        // Admin: gerenciamento de usuários (MASTER only)
+                        .requestMatchers("/api/admin/**").hasRole("MASTER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

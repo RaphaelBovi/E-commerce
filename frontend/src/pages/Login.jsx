@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaStore } from "react-icons/fa";
 import { useAuth } from "../context/useAuth";
@@ -10,9 +10,16 @@ function digitsOnly(value) {
 
 export default function Login() {
   const [mode, setMode] = useState("login");
+  const [step, setStep] = useState(1);
+
+  // Etapa 1
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+
+  // Etapa 2
   const [fullName, setFullName] = useState("");
   const [cpf, setCpf] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -21,9 +28,8 @@ export default function Login() {
   const [city, setCity] = useState("");
   const [stateUf, setStateUf] = useState("");
   const [zipCode, setZipCode] = useState("");
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [receivePromo, setReceivePromo] = useState(false);
-  const [termsError, setTermsError] = useState(false);
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, register, isAuthenticated } = useAuth();
@@ -50,7 +56,7 @@ export default function Login() {
     }
   };
 
-  const handleRegister = async (e) => {
+  const handleStep1 = (e) => {
     e.preventDefault();
     setError("");
     setTermsError(false);
@@ -59,18 +65,26 @@ export default function Login() {
       setTermsError(true);
       return;
     }
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
+    if (password.length < 12) {
+      setError("A senha deve ter pelo menos 12 caracteres.");
+      return;
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d])/.test(password)) {
+      setError("A senha deve conter letras maiúsculas, minúsculas, números e um caractere especial.");
       return;
     }
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
       return;
     }
-    if (!birthDate) {
-      setError("Informe a data de nascimento.");
-      return;
-    }
+
+    setStep(2);
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError("");
+
     const cpfDigits = digitsOnly(cpf);
     const phoneDigits = digitsOnly(phone);
     const zipDigits = digitsOnly(zipCode);
@@ -92,6 +106,10 @@ export default function Login() {
       setError("UF deve ter 2 letras (ex.: SP).");
       return;
     }
+    if (!birthDate) {
+      setError("Informe a data de nascimento.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -106,7 +124,6 @@ export default function Login() {
         city: city.trim(),
         state: uf,
         zipCode: zipDigits,
-        receivePromo,
       });
     } catch (err) {
       setError(err?.message || "Não foi possível criar a conta. Tente novamente.");
@@ -116,6 +133,7 @@ export default function Login() {
   };
 
   const resetRegisterFields = () => {
+    setStep(1);
     setConfirmPassword("");
     setFullName("");
     setCpf("");
@@ -163,7 +181,7 @@ export default function Login() {
             onClick={() => {
               setMode("register");
               setError("");
-              setConfirmPassword("");
+              setStep(1);
             }}
           >
             Criar conta
@@ -183,8 +201,15 @@ export default function Login() {
               Nova <span className="highlight-text">conta</span>
             </h1>
             <p className="login-page-sub">
-              Preencha todos os dados para cadastro. Senha com no mínimo 6 caracteres.
+              {step === 1
+                ? "Informe seu e-mail e crie uma senha com no mínimo 12 caracteres, incluindo maiúsculas, minúsculas, números e um caractere especial."
+                : "Preencha seus dados pessoais para concluir o cadastro."}
             </p>
+            <div className="register-steps">
+              <span className={`register-step ${step === 1 ? "is-active" : "is-done"}`}>1</span>
+              <span className="register-step-line" />
+              <span className={`register-step ${step === 2 ? "is-active" : ""}`}>2</span>
+            </div>
           </>
         )}
 
@@ -218,6 +243,81 @@ export default function Login() {
             </div>
             <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
               {isSubmitting ? "Entrando…" : "Entrar"}
+            </button>
+          </form>
+        ) : step === 1 ? (
+          <form className="login-page-form" onSubmit={handleStep1}>
+            <div className="input-group">
+              <label htmlFor="register-email">E-mail</label>
+              <input
+                id="register-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+            <div className="input-group">
+              <label htmlFor="register-password">Senha</label>
+              <input
+                id="register-password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+            <div className="input-group">
+              <label htmlFor="register-confirm">Confirmar senha</label>
+              <input
+                id="register-confirm"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="register-consents">
+              <div className={`consent-group ${termsError ? "consent-group--error" : ""}`}>
+                <input
+                  id="accept-terms"
+                  type="checkbox"
+                  className="consent-checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => {
+                    setAcceptTerms(e.target.checked);
+                    if (e.target.checked) setTermsError(false);
+                  }}
+                  disabled={isSubmitting}
+                  aria-required="true"
+                  aria-describedby={termsError ? "terms-error-msg" : undefined}
+                />
+                <label htmlFor="accept-terms" className="consent-label">
+                  Li e aceito os{" "}
+                  <Link to="/institucional" className="consent-link" tabIndex={0}>
+                    termos e condições
+                  </Link>{" "}
+                  da loja <span className="consent-required" aria-label="obrigatório">*</span>
+                </label>
+              </div>
+              {termsError && (
+                <p className="consent-error" id="terms-error-msg" role="alert">
+                  Você precisa aceitar os termos para criar uma conta.
+                </p>
+              )}
+            </div>
+
+            <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
+              Continuar
             </button>
           </form>
         ) : (
@@ -323,76 +423,9 @@ export default function Login() {
                   disabled={isSubmitting}
                 />
               </div>
-              <div className="input-group register-span-2">
-                <label htmlFor="register-email">E-mail</label>
-                <input
-                  id="register-email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-password">Senha</label>
-                <input
-                  id="register-password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-confirm">Confirmar senha</label>
-                <input
-                  id="register-confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
             </div>
 
-            {/* Checkboxes de consentimento */}
             <div className="register-consents">
-              <div className={`consent-group ${termsError ? "consent-group--error" : ""}`}>
-                <input
-                  id="accept-terms"
-                  type="checkbox"
-                  className="consent-checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => {
-                    setAcceptTerms(e.target.checked);
-                    if (e.target.checked) setTermsError(false);
-                  }}
-                  disabled={isSubmitting}
-                  aria-required="true"
-                  aria-describedby={termsError ? "terms-error-msg" : undefined}
-                />
-                <label htmlFor="accept-terms" className="consent-label">
-                  Li e aceito os{" "}
-                  <Link to="/institucional" className="consent-link" tabIndex={0}>
-                    termos e condições
-                  </Link>{" "}
-                  da loja <span className="consent-required" aria-label="obrigatório">*</span>
-                </label>
-              </div>
-              {termsError && (
-                <p className="consent-error" id="terms-error-msg" role="alert">
-                  Você precisa aceitar os termos para criar uma conta.
-                </p>
-              )}
-
               <div className="consent-group">
                 <input
                   id="receive-promo"
@@ -409,9 +442,19 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
-              {isSubmitting ? "Criando…" : "Criar conta"}
-            </button>
+            <div className="register-step2-actions">
+              <button
+                type="button"
+                className="btn-outline btn-back"
+                onClick={() => { setError(""); setStep(1); }}
+                disabled={isSubmitting}
+              >
+                Voltar
+              </button>
+              <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
+                {isSubmitting ? "Criando…" : "Criar conta"}
+              </button>
+            </div>
           </form>
         )}
 

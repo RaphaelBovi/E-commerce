@@ -271,6 +271,84 @@
   line-height: 1.4;
 }
 
+/* ─── Indicador de etapas ─── */
+.register-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 1.25rem;
+}
+
+.register-step {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.register-step.is-active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.register-step.is-done {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.register-step-line {
+  flex: 0 0 40px;
+  height: 2px;
+  background: var(--border);
+}
+
+/* ─── Ações da etapa 2 (Voltar + Criar conta) ─── */
+.register-step2-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.register-step2-actions .btn-login-submit {
+  flex: 1;
+  margin-top: 0;
+}
+
+.btn-outline.btn-back {
+  flex: 0 0 auto;
+  padding: 0.65rem 1.1rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-outline.btn-back:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-outline.btn-back:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* ─── Voltar à loja ─── */
 .login-page-back {
   display: block;

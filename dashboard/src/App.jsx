@@ -1,11 +1,12 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardHome from './pages/DashboardHome';
-import LoginAdmin from './pages/LoginAdmin';
-import { ADMIN_SESSION_KEY } from './pages/LoginAdmin';
-import UsuariosAdmin from './pages/UsuariosAdmin';
-import GestaoPedidos from './pages/GestaoPedidos';
-import GestaoProdutos from './pages/GestaoProdutos';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import AdminNavbar from "./components/AdminNavbar";
+import DashboardHome from "./pages/DashboardHome";
+import LoginAdmin from "./pages/LoginAdmin";
+import { ADMIN_SESSION_KEY } from "./pages/LoginAdmin";
+import UsuariosAdmin from "./pages/UsuariosAdmin";
+import GestaoPedidos from "./pages/GestaoPedidos";
+import GestaoProdutos from "./pages/GestaoProdutos";
+import NotasFiscais from "./pages/NotasFiscais";
 
 function getAdminSession() {
   try {
@@ -19,47 +20,62 @@ function getAdminSession() {
   }
 }
 
-const ProtectedRoute = ({ children, requiresMaster, requiresPermission }) => {
+function AdminLayout({ children }) {
+  return (
+    <div className="admin-layout">
+      <AdminNavbar />
+      <main className="admin-main">{children}</main>
+    </div>
+  );
+}
+
+function ProtectedRoute({ children, masterOnly = false }) {
   const session = getAdminSession();
   if (!session) return <Navigate to="/login" replace />;
 
-  if (requiresMaster && session.role !== 'MASTER') {
-    return <div style={{ padding: '3rem', textAlign: 'center' }}><h2>Acesso Negado. Apenas o MASTER pode acessar esta área.</h2></div>;
+  if (masterOnly && session.role !== "MASTER") {
+    return (
+      <AdminLayout>
+        <div style={{ padding: "3rem", textAlign: "center" }}>
+          <h2 style={{ color: "var(--text)" }}>Acesso Negado</h2>
+          <p style={{ color: "var(--text-secondary)", marginTop: "0.5rem" }}>
+            Apenas o MASTER pode acessar esta área.
+          </p>
+        </div>
+      </AdminLayout>
+    );
   }
 
-  const isMaster = session.role === 'MASTER';
-  const hasPermission =
-    isMaster ||
-    !requiresPermission ||
-    (session.role === 'ADMIN' && requiresPermission === 'MANIPULAR_PRODUTOS');
+  return <AdminLayout>{children}</AdminLayout>;
+}
 
-  if (!hasPermission) {
-    return <div style={{ padding: '3rem', textAlign: 'center' }}><h2>Acesso Negado. Você não possui permissão para acessar esta área.</h2></div>;
-  }
-
-  return children;
-};
-
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginAdmin />} />
-        <Route path="/" element={<ProtectedRoute><DashboardHome /></ProtectedRoute>} />
-        <Route path="/pedidos" element={<ProtectedRoute><GestaoPedidos /></ProtectedRoute>} />
-        <Route path="/produtos" element={
-          <ProtectedRoute requiresPermission="MANIPULAR_PRODUTOS">
-            <GestaoProdutos />
-          </ProtectedRoute>
-        } />
-        <Route path="/usuarios" element={
-          <ProtectedRoute requiresMaster={true}>
-            <UsuariosAdmin />
-          </ProtectedRoute>
-        } />
+        <Route
+          path="/"
+          element={<ProtectedRoute><DashboardHome /></ProtectedRoute>}
+        />
+        <Route
+          path="/pedidos"
+          element={<ProtectedRoute><GestaoPedidos /></ProtectedRoute>}
+        />
+        <Route
+          path="/produtos"
+          element={<ProtectedRoute><GestaoProdutos /></ProtectedRoute>}
+        />
+        <Route
+          path="/notas"
+          element={<ProtectedRoute><NotasFiscais /></ProtectedRoute>}
+        />
+        <Route
+          path="/usuarios"
+          element={<ProtectedRoute masterOnly><UsuariosAdmin /></ProtectedRoute>}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;

@@ -3,6 +3,7 @@ package com.ecommerce.Auth.Service;
 import com.ecommerce.Auth.Entity.Dto.AuthResponse;
 import com.ecommerce.Auth.Entity.Dto.LoginRequest;
 import com.ecommerce.Auth.Entity.Dto.RegisterRequest;
+import com.ecommerce.Auth.Entity.Dto.UserProfileResponse;
 import com.ecommerce.Auth.Entity.Role;
 import com.ecommerce.Auth.Entity.User;
 import com.ecommerce.Auth.Repository.UserRepository;
@@ -11,6 +12,7 @@ import com.ecommerce.Security.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -81,6 +83,26 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getEmail(), user.getRole().name());
+    }
+
+    public UserProfileResponse getProfile() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new com.ecommerce.Product.Exception.ResourceNotFoundException("Usuário não encontrado"));
+        return new UserProfileResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getCpf(),
+                user.getBirthDate(),
+                user.getPhone(),
+                user.getAddress(),
+                user.getCity(),
+                user.getState(),
+                user.getZipCode(),
+                user.getRole().name(),
+                user.getCreatedAt()
+        );
     }
 
     private static String digitsOnly(String value) {

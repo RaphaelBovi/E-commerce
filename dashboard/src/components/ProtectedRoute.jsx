@@ -1,34 +1,29 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from "react-router-dom";
 
-const mockUser = {
-  nome: "Admin Supremo",
-  email: "admin@pastractor.com",
-  isMaster: true,
-  permissoes: [
-    "VER_FINANCEIRO",
-    "MANIPULAR_PEDIDOS",
-    "MANIPULAR_PRODUTOS",
-    "VER_RELATORIOS"
-  ]
-};
+function getSession() {
+  try {
+    const raw = sessionStorage.getItem("dashboard_admin_session");
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    return s?.token && s?.email ? s : null;
+  } catch {
+    return null;
+  }
+}
 
-export default function ProtectedRoute({ children, requiredPermission }) {
-  const user = mockUser;
+export default function ProtectedRoute({ children, masterOnly = false }) {
+  const session = getSession();
+  const location = useLocation();
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!session) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user.isMaster) {
-    return children;
-  }
-
-  if (requiredPermission && !user.permissoes.includes(requiredPermission)) {
+  if (masterOnly && session.role !== "MASTER") {
     return (
-      <div style={{ textAlign: 'center', padding: '5rem' }}>
-        <h1>Acesso Negado</h1>
-        <p>Você não tem privilégios para acessar esta área.</p>
+      <div style={{ textAlign: "center", padding: "5rem", color: "var(--text-secondary)" }}>
+        <h2 style={{ marginBottom: "0.5rem", color: "var(--text)" }}>Acesso Restrito</h2>
+        <p>Esta área é exclusiva para administradores MASTER.</p>
       </div>
     );
   }

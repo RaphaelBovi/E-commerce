@@ -1,109 +1,140 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import AdminNavbar from '../components/AdminNavbar';
-import './UsuariosAdmin.css';
+import { useState } from "react";
+import { FaUserPlus, FaInfoCircle } from "react-icons/fa";
+import { apiFetch } from "../services/apiClient.js";
+import "./UsuariosAdmin.css";
+
+const EMPTY_FORM = { fullName: "", email: "", password: "", confirmPassword: "" };
 
 export default function UsuariosAdmin() {
-    const [nome, setNome] = useState('');
-    const [email, setEmail] = useState('');
-    const [senha, setSenha] = useState('');
-    const [permissoes, setPermissoes] = useState({
-        verFinanceiro: false,
-        manipularPedidos: false,
-        manipularProdutos: false
-    });
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
+  const [success, setSuccess]   = useState("");
 
-    const handleTogglePermissao = (e) => {
-        setPermissoes({ ...permissoes, [e.target.name]: e.target.checked });
-    };
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
 
-    const handleCriarUsuario = async (e) => {
-        e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
 
-        const permissoesArray = Object.keys(permissoes).filter(key => permissoes[key]).map(key => {
-            if (key === 'verFinanceiro') return 'VER_FINANCEIRO';
-            if (key === 'manipularPedidos') return 'MANIPULAR_PEDIDOS';
-            if (key === 'manipularProdutos') return 'MANIPULAR_PRODUTOS';
-            return '';
-        });
+    if (form.password !== form.confirmPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+    if (form.password.length < 12) {
+      setError("A senha deve ter no mínimo 12 caracteres.");
+      return;
+    }
 
-        const novoFuncionario = { nome, email, senha, permissoes: permissoesArray, role: 'FUNCIONARIO' };
+    setSaving(true);
+    try {
+      await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          role: "ADMIN",
+        }),
+      });
+      setSuccess(`Usuário "${form.fullName}" criado com sucesso como ADMIN.`);
+      setForm(EMPTY_FORM);
+      setTimeout(() => setSuccess(""), 4000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-        try {
-            await axios.post('http://localhost:3000/usuarios', novoFuncionario);
-
-            alert(`Usuário ${nome} criado com sucesso!\nPrivilégios: ${permissoesArray.join(', ')}`);
-            setNome(''); setEmail(''); setSenha('');
-            setPermissoes({ verFinanceiro: false, manipularPedidos: false, manipularProdutos: false });
-        } catch (err) {
-            console.error("Erro ao salvar funcionário no backend:", err);
-            alert("Erro ao criar usuário. Verifique se o json-server está rodando.");
-        }
-    };
-
-    return (
-        <div className="admin-layout">
-            <AdminNavbar />
-            <main className="dashboard-content">
-                <div className="admin-header">
-                    <h1>Gerenciar <span className="highlight-text">Funcionários</span></h1>
-                    <p>Crie novas contas de acesso e defina os privilégios de cada setor.</p>
-                </div>
-
-                <div className="widget-box form-usuario-box">
-                    <h3>Cadastrar Novo Acesso</h3>
-                    <form onSubmit={handleCriarUsuario} className="user-creation-form">
-                        <div className="form-grid">
-                            <div className="input-group">
-                                <label>Nome Completo do Funcionário</label>
-                                <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} />
-                            </div>
-                            <div className="input-group">
-                                <label>E-mail Corporativo</label>
-                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                            </div>
-                            <div className="input-group">
-                                <label>Senha Provisória</label>
-                                <input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)} />
-                            </div>
-                        </div>
-
-                        <div className="permissoes-section">
-                            <h4>Privilégios de Acesso</h4>
-                            <div className="checkbox-grid">
-                                <label className="checkbox-container">
-                                    <input type="checkbox" name="manipularPedidos" checked={permissoes.manipularPedidos} onChange={handleTogglePermissao} />
-                                    <span className="checkmark"></span>
-                                    <div>
-                                        <strong>Estoque / Pedidos</strong>
-                                        <p>Pode ver a fila de pedidos, aprovar, preparar e cancelar vendas.</p>
-                                    </div>
-                                </label>
-
-                                <label className="checkbox-container">
-                                    <input type="checkbox" name="manipularProdutos" checked={permissoes.manipularProdutos} onChange={handleTogglePermissao} />
-                                    <span className="checkmark"></span>
-                                    <div>
-                                        <strong>Catálogo / Peças</strong>
-                                        <p>Pode cadastrar novas peças, alterar preços e atualizar estoque.</p>
-                                    </div>
-                                </label>
-
-                                <label className="checkbox-container">
-                                    <input type="checkbox" name="verFinanceiro" checked={permissoes.verFinanceiro} onChange={handleTogglePermissao} />
-                                    <span className="checkmark"></span>
-                                    <div>
-                                        <strong>Financeiro / Relatórios</strong>
-                                        <p>Pode ver os gráficos de faturamento, tickets e volume de vendas.</p>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <button type="submit" className="btn-save-user">Salvar Novo Usuário</button>
-                    </form>
-                </div>
-            </main>
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Usuários</h1>
+          <p className="page-subtitle">Crie novas contas de acesso administrativo</p>
         </div>
-    );
+      </div>
+
+      {error   && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <div className="usuarios-info-banner">
+        <FaInfoCircle />
+        <span>
+          Esta área é exclusiva do <strong>MASTER</strong>. Contas criadas aqui receberão
+          o papel <strong>ADMIN</strong> e terão acesso ao painel administrativo, mas não
+          poderão criar outros usuários nem alterar configurações sensíveis.
+        </span>
+      </div>
+
+      <div className="card" style={{ maxWidth: 560 }}>
+        <h2 className="usuarios-form-title">
+          <FaUserPlus /> Novo Administrador
+        </h2>
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label>Nome completo *</label>
+            <input
+              name="fullName"
+              value={form.fullName}
+              onChange={handleChange}
+              required
+              placeholder="Ex: João Silva"
+            />
+          </div>
+          <div className="input-group">
+            <label>E-mail *</label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              required
+              placeholder="admin@empresa.com"
+            />
+          </div>
+          <div className="input-group">
+            <label>Senha *</label>
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              required
+              minLength={12}
+              placeholder="Mínimo 12 caracteres"
+            />
+          </div>
+          <div className="input-group">
+            <label>Confirmar senha *</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              required
+              minLength={12}
+              placeholder="Repita a senha"
+            />
+          </div>
+          <div style={{ marginTop: "0.5rem" }}>
+            <p className="usuarios-password-hint">
+              A senha deve conter no mínimo 12 caracteres, incluindo letra maiúscula,
+              minúscula, número e símbolo especial.
+            </p>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Criando…" : "Criar Administrador"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }

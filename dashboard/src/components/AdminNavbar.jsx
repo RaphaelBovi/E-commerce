@@ -1,97 +1,125 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FaBars, FaUserCircle, FaTimes, FaBox, FaChartLine, FaUsers, FaSignOutAlt, FaBoxes } from 'react-icons/fa';
-import './AdminNavbar.css';
-import logoImg from '../assets/pastractor-logo.png';
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  FaBars, FaTimes, FaStore, FaChartBar, FaBoxOpen,
+  FaClipboardList, FaFileInvoice, FaUsers, FaSignOutAlt,
+} from "react-icons/fa";
+import "./AdminNavbar.css";
 
+function getSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem("dashboard_admin_session") || "null");
+  } catch {
+    return null;
+  }
+}
 
+const NAV_ITEMS = [
+  { to: "/",         icon: <FaChartBar />,      label: "Dashboard" },
+  { to: "/pedidos",  icon: <FaClipboardList />,  label: "Pedidos" },
+  { to: "/produtos", icon: <FaBoxOpen />,         label: "Produtos" },
+  { to: "/notas",    icon: <FaFileInvoice />,     label: "Notas Fiscais" },
+];
+
+const ADMIN_ITEMS = [
+  { to: "/usuarios", icon: <FaUsers />, label: "Usuários" },
+];
 
 export default function AdminNavbar() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const [currentUser] = useState(() => {
-    const userString = localStorage.getItem('adminUser');
-    return userString ? JSON.parse(userString) : null;
-  });
+  const location = useLocation();
+  const session = getSession();
+
+  const initials = session?.email
+    ? session.email.slice(0, 2).toUpperCase()
+    : "A";
 
   const handleLogout = () => {
-    localStorage.removeItem('adminUser');
-    navigate('/login');
+    sessionStorage.removeItem("dashboard_admin_session");
+    navigate("/login");
   };
 
-  const canManageProducts =
-    currentUser?.role === 'MASTER' || currentUser?.permissoes?.includes('MANIPULAR_PRODUTOS');
+  const isActive = (to) =>
+    to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
 
   return (
     <>
-      <header className="navbar">
-        <div className="navbar-top container">
-          <div className="navbar-main-row">
+      {/* Toggle mobile */}
+      <button className="sidebar-toggle" onClick={() => setOpen(true)} aria-label="Abrir menu">
+        <FaBars />
+      </button>
 
-            <div className="logo-menu-wrapper">
-              <Link to="/" className="logo-container" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <img src={logoImg} alt="Logo Pastractor" className="logo-img" />
-                <div className="logo-text-wrapper">
-                  <div className="logo-title"><span className="highlight-text">PASTRACTOR</span></div>
-                  <span className="logo-subtitle">DISTRIBUIDORA DE PEÇAS</span>
-                </div>
-              </Link>
-            </div>
+      {/* Overlay mobile */}
+      <div
+        className={`sidebar-overlay ${open ? "is-open" : ""}`}
+        onClick={() => setOpen(false)}
+      />
 
-            <div className="admin-nav-right">
-
-              <div className="admin-user-info" onClick={() => setIsSidebarOpen(true)}>
-                <FaUserCircle className="admin-avatar-icon" />
-                <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>
-                  <FaBars />
-                </button>
-              </div>
-            </div>
-
+      {/* Sidebar */}
+      <aside className={`admin-sidebar ${open ? "is-open" : ""}`}>
+        {/* Logo */}
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon"><FaStore /></div>
+          <div>
+            <div className="sidebar-logo-title">Admin Panel</div>
+            <div className="sidebar-logo-sub">E-commerce</div>
           </div>
-        </div>
-      </header>
-
-      <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={() => setIsSidebarOpen(false)}></div>
-      <div className={`admin-sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <FaUserCircle className="sidebar-avatar" />
-          <div className="sidebar-user-details">
-            <h4>{currentUser?.nome}</h4>
-            <span className={`role-badge ${currentUser?.role === 'MASTER' ? 'role-master' : ''}`}>
-              {currentUser?.role || 'USUÁRIO'}
-            </span>
-          </div>
-          <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}><FaTimes /></button>
+          <button
+            onClick={() => setOpen(false)}
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", display: "none" }}
+            className="sidebar-close-btn"
+            aria-label="Fechar menu"
+          >
+            <FaTimes />
+          </button>
         </div>
 
+        {/* Nav */}
         <nav className="sidebar-nav">
-          <Link to="/" className="sidebar-link" onClick={() => setIsSidebarOpen(false)}>
-            <FaChartLine /> Dashboard Geral
-          </Link>
-          <Link to="/pedidos" className="sidebar-link" onClick={() => setIsSidebarOpen(false)}>
-            <FaBox /> Gestão de Pedidos
-          </Link>
-          {canManageProducts && (
-            <Link to="/produtos" className="sidebar-link" onClick={() => setIsSidebarOpen(false)}>
-              <FaBoxes /> Gestão de Produtos
-            </Link>
-          )}
+          <span className="sidebar-nav-label">Menu</span>
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.to}
+              className={`sidebar-nav-item ${isActive(item.to) ? "active" : ""}`}
+              onClick={() => { navigate(item.to); setOpen(false); }}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
 
-          {currentUser?.role === 'MASTER' && (
-            <div className="sidebar-master-section">
-              <div className="sidebar-divider">Área do Administrador</div>
-              <Link to="/usuarios" className="sidebar-link master-link" onClick={() => setIsSidebarOpen(false)}>
-                <FaUsers /> Gerenciar Funcionários
-              </Link>
-            </div>
+          {session?.role === "MASTER" && (
+            <>
+              <span className="sidebar-nav-label">Administração</span>
+              {ADMIN_ITEMS.map((item) => (
+                <button
+                  key={item.to}
+                  className={`sidebar-nav-item ${isActive(item.to) ? "active" : ""}`}
+                  onClick={() => { navigate(item.to); setOpen(false); }}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              ))}
+            </>
           )}
         </nav>
 
+        {/* Footer */}
         <div className="sidebar-footer">
-          <button className="btn-logout" onClick={handleLogout}><FaSignOutAlt /> Sair do Sistema</button>
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">{initials}</div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-email">{session?.email || "—"}</div>
+              <div className="sidebar-user-role">{session?.role || "ADMIN"}</div>
+            </div>
+          </div>
+          <button className="btn-logout" onClick={handleLogout}>
+            <FaSignOutAlt /> Sair
+          </button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

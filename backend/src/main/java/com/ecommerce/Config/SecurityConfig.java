@@ -50,6 +50,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-category/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        // Produto: escrita restrita a ADMIN/MASTER
+                        .requestMatchers(HttpMethod.POST, "/api/product-category/**").hasAnyRole("ADMIN", "MASTER")
+                        .requestMatchers(HttpMethod.PUT, "/api/product-category/**").hasAnyRole("ADMIN", "MASTER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/product-category/**").hasAnyRole("ADMIN", "MASTER")
+                        // Pedidos: endpoints do usuário (qualquer autenticado)
+                        .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
+                        .requestMatchers("/api/orders/my/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/orders/my").authenticated()
+                        // Pedidos: endpoints admin (ADMIN/MASTER)
+                        .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "MASTER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

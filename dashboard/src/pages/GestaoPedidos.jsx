@@ -1,310 +1,298 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FaCheck, FaTimes, FaEye, FaSearch, FaTimesCircle, FaPrint, FaFileDownload, FaFilter } from 'react-icons/fa';
-import AdminNavbar from '../components/AdminNavbar';
-import './GestaoPedidos.css';
+import { useEffect, useState, useMemo } from "react";
+import { FaEye, FaSearch, FaTimes } from "react-icons/fa";
+import { getAllOrders, updateOrderStatus } from "../services/ordersApi.js";
+import "./GestaoPedidos.css";
+
+const STATUS_LABELS = {
+  PENDING_PAYMENT: "Aguardando Pagamento",
+  PAID: "Pago",
+  PREPARING: "Em Separação",
+  SHIPPED: "Enviado",
+  DELIVERED: "Entregue",
+  CANCELLED: "Cancelado",
+};
+
+const STATUS_BADGE = {
+  PENDING_PAYMENT: "badge-pending",
+  PAID: "badge-paid",
+  PREPARING: "badge-preparing",
+  SHIPPED: "badge-shipped",
+  DELIVERED: "badge-delivered",
+  CANCELLED: "badge-cancelled",
+};
+
+const PAYMENT_LABELS = {
+  PIX: "Pix",
+  CREDIT_CARD: "Cartão de Crédito",
+  DEBIT_CARD: "Cartão de Débito",
+  BOLETO: "Boleto",
+};
+
+const ALL_STATUSES = ["PENDING_PAYMENT","PAID","PREPARING","SHIPPED","DELIVERED","CANCELLED"];
+
+function formatBRL(v) {
+  return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+const PAGE_SIZE = 10;
 
 export default function GestaoPedidos() {
-  const [pedidos, setPedidos] = useState([]);
-  const [termoBusca, setTermoBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState('TODOS');
-  const [loading, setLoading] = useState(true);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pedidoDetalhe, setPedidoDetalhe] = useState(null);
-  const [loadingModal, setLoadingModal] = useState(false);
+  const [orders, setOrders]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
+  const [search, setSearch]         = useState("");
+  const [filterStatus, setFilter]   = useState("ALL");
+  const [selected, setSelected]     = useState(null);
+  const [updating, setUpdating]     = useState(false);
+  const [newStatus, setNewStatus]   = useState("");
+  const [page, setPage]             = useState(1);
 
-  useEffect(() => {
-    fetchPedidos();
-  }, []);
+  const load = () => {
+    setLoading(true);
+    getAllOrders()
+      .then(setOrders)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
 
-  const fetchPedidos = async () => {
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => {
+    return orders.filter((o) => {
+      const matchStatus = filterStatus === "ALL" || o.status === filterStatus;
+      const q = search.toLowerCase();
+      const matchSearch = !q ||
+        o.id?.toLowerCase().includes(q) ||
+        o.userEmail?.toLowerCase().includes(q) ||
+        o.deliveryAddress?.toLowerCase().includes(q);
+      return matchStatus && matchSearch;
+    });
+  }, [orders, filterStatus, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageData   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleFilterChange = (s) => { setFilter(s); setPage(1); };
+  const handleSearch = (e) => { setSearch(e.target.value); setPage(1); };
+
+  const openDetail = (o) => { setSelected(o); setNewStatus(o.status); };
+  const closeDetail = () => { setSelected(null); setNewStatus(""); };
+
+  const handleUpdateStatus = async () => {
+    if (!selected || newStatus === selected.status) return;
+    setUpdating(true);
     try {
-      setLoading(true);
-      const response = await axios.get('http://localhost:3000/pedidos');
-      setPedidos(response.data);
-    } catch (error) {
-      console.error("Erro ao buscar pedidos:", error);
+      const updated = await updateOrderStatus(selected.id, newStatus);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setSelected(updated);
+    } catch (e) {
+      alert(e.message);
     } finally {
-      setLoading(false);
+      setUpdating(false);
     }
   };
 
-  const handleVerDetalhes = async (id, e) => {
-    if (e) e.stopPropagation(); 
-    setIsModalOpen(true);
-    setLoadingModal(true);
-    setPedidoDetalhe(null); 
-    
-    try {
-      const response = await axios.get(`http://localhost:3000/pedidos/${id}`);
-      if (response.data) setPedidoDetalhe(response.data);
-    } catch (error) {
-      console.error("Erro fatal ao abrir modal:", error);
-      alert(`Erro ao abrir o pedido #${id}.`);
-      setIsModalOpen(false);
-    } finally {
-      setLoadingModal(false);
-    }
-  };
-
-  const handleFecharModal = () => {
-    setIsModalOpen(false);
-    setPedidoDetalhe(null);
-  };
-
-  const handleAprovar = async (id, e) => {
-    if (e) e.stopPropagation(); 
-    if(window.confirm(`Iniciar preparação do pedido #${id}?`)) {
-      try {
-        await axios.patch(`http://localhost:3000/pedidos/${id}`, { status: 'EM_PREPARACAO' });
-        fetchPedidos(); 
-        handleFecharModal();
-      } catch (error) {
-        console.error("Erro ao aprovar pedido:", error);
-        alert("Erro ao aprovar pedido.");
-      }
-    }
-  };
-
-  const handleCancelar = async (id, e) => {
-    if (e) e.stopPropagation();
-    if(window.confirm(`Tem certeza que deseja cancelar o pedido #${id}?`)) {
-      try {
-        await axios.patch(`http://localhost:3000/pedidos/${id}`, { status: 'CANCELADO' });
-        fetchPedidos();
-        handleFecharModal(); 
-      } catch (error) {
-        console.error("Erro ao cancelar pedido:", error);
-        alert("Erro ao cancelar pedido.");
-      }
-    }
-  };
-
-
-  const handleImprimirEtiquetaUnica = (id) => {
-    alert(`Gerando etiqueta de envio para o pedido #${id}...`);
-  };
-
-  const handleExportarRelatorio = () => {
-    alert("Exportando lista de pedidos para Excel (.xlsx)...");
-  };
-
-  const getStatusTratado = (status) => {
-    if (!status) return 'DESCONHECIDO';
-    return status.toString().trim().toUpperCase();
-  };
-
-  const pedidosFiltrados = pedidos.filter(p => {
-    const statusValido = getStatusTratado(p.status);
-    const bateBusca = (p.clienteNome && p.clienteNome.toLowerCase().includes(termoBusca.toLowerCase())) || 
-                      (p.id && p.id.toString().includes(termoBusca));
-    const bateFiltroStatus = filtroStatus === 'TODOS' || statusValido === filtroStatus;
-    
-    return bateBusca && bateFiltroStatus;
-  });
-
-  const countPendentes = pedidos.filter(p => getStatusTratado(p.status) === 'PENDENTE').length;
-  const countPreparacao = pedidos.filter(p => getStatusTratado(p.status) === 'EM_PREPARACAO').length;
-
-  const getStatusBadge = (statusOriginal) => {
-    const status = getStatusTratado(statusOriginal);
-    switch(status) {
-      case 'PENDENTE': return <span className="badge badge-warning">Pendente</span>;
-      case 'EM_PREPARACAO': return <span className="badge badge-info">Em Preparação</span>;
-      case 'ENVIADO': return <span className="badge badge-success">Enviado</span>;
-      case 'CANCELADO': return <span className="badge badge-danger">Cancelado</span>;
-      default: return <span className="badge">{status}</span>;
-    }
-  };
+  const counts = useMemo(() => {
+    const c = {};
+    ALL_STATUSES.forEach((s) => { c[s] = orders.filter((o) => o.status === s).length; });
+    return c;
+  }, [orders]);
 
   return (
-    <div className="admin-layout">
-      <AdminNavbar />
-
-      <main className="dashboard-content">
-        <div className="admin-header">
-          <h1>Central de <span className="highlight-text">Expedição</span></h1>
-          <p>Gerencie, filtre e prepare os pedidos para envio de forma ágil.</p>
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Gestão de Pedidos</h1>
+          <p className="page-subtitle">{orders.length} pedidos no total</p>
         </div>
+        <button className="btn btn-outline btn-sm" onClick={load} disabled={loading}>
+          Atualizar
+        </button>
+      </div>
 
-        <div className="tools-section widget-box">
-          
-          <div className="filters-shortcut">
-            <span className="tools-title"><FaFilter /> Filtros Rápidos:</span>
-            <button className={`filter-pill ${filtroStatus === 'TODOS' ? 'active' : ''}`} onClick={() => setFiltroStatus('TODOS')}>
-              Todos
-            </button>
-            <button className={`filter-pill pill-warning ${filtroStatus === 'PENDENTE' ? 'active' : ''}`} onClick={() => setFiltroStatus('PENDENTE')}>
-              Pendentes <span className="count-badge">{countPendentes}</span>
-            </button>
-            <button className={`filter-pill pill-info ${filtroStatus === 'EM_PREPARACAO' ? 'active' : ''}`} onClick={() => setFiltroStatus('EM_PREPARACAO')}>
-              Em Preparação <span className="count-badge">{countPreparacao}</span>
-            </button>
-            <button className={`filter-pill pill-success ${filtroStatus === 'ENVIADO' ? 'active' : ''}`} onClick={() => setFiltroStatus('ENVIADO')}>
-              Enviados
-            </button>
-          </div>
+      {error && <div className="alert alert-error">{error}</div>}
 
-          <div className="action-tools">
-            <button className="btn-tool btn-export" onClick={handleExportarRelatorio}>
-              <FaFileDownload /> Exportar Excel
-            </button>
-          </div>
-
-        </div>
-
-        <div className="toolbar">
-          <div className="search-box">
-            <input 
-              type="text" 
-              placeholder="Buscar por ID ou Nome..." 
-              value={termoBusca}
-              onChange={(e) => setTermoBusca(e.target.value)}
+      <div className="card">
+        {/* Toolbar */}
+        <div className="pedidos-toolbar">
+          <div className="pedidos-search">
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Buscar por ID, e-mail ou endereço…"
+              value={search}
+              onChange={handleSearch}
             />
+            {search && (
+              <button className="search-clear" onClick={() => setSearch("")}><FaTimes /></button>
+            )}
+          </div>
+          <div className="pedidos-filters">
+            <button
+              className={`filter-pill ${filterStatus === "ALL" ? "active" : ""}`}
+              onClick={() => handleFilterChange("ALL")}
+            >
+              Todos <span className="pill-count">{orders.length}</span>
+            </button>
+            {ALL_STATUSES.map((s) => (
+              <button
+                key={s}
+                className={`filter-pill filter-pill--${s.toLowerCase().replace("_", "-")} ${filterStatus === s ? "active" : ""}`}
+                onClick={() => handleFilterChange(s)}
+              >
+                {STATUS_LABELS[s]} <span className="pill-count">{counts[s]}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="table-container widget-box">
-          {loading ? (
-             <p className="text-center" style={{padding: '2rem'}}>Carregando fila de pedidos...</p>
-          ) : (
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Data</th>
-                  <th>Cliente</th>
-                  <th>Valor Total</th>
-                  <th>Status</th>
-                  <th className="text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pedidosFiltrados.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center empty-state">Nenhum pedido encontrado com este filtro.</td></tr>
-                ) : (
-                  pedidosFiltrados.map((pedido) => {
-                    const statusValido = getStatusTratado(pedido.status);
-                    return (
-                      <tr 
-                        key={pedido.id} 
-                        className={`clickable-row ${statusValido === 'PENDENTE' ? 'row-highlight' : ''}`}
-                        style={{ cursor: 'pointer' }}
-                        onClick={(e) => handleVerDetalhes(pedido.id, e)}
-                      >
-                        <td><strong>#{pedido.id}</strong></td>
-                        <td>{new Date(pedido.dataCriacao).toLocaleDateString('pt-BR')}</td>
-                        <td>{pedido.clienteNome}</td>
-                        <td>
-                          <strong>{pedido.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
-                        </td>
-                        <td>{getStatusBadge(pedido.status)}</td>
-                        <td className="actions-cell">
-                          {statusValido === 'PENDENTE' ? (
-                            <>
-                              
-                              <button className="btn-action btn-approve" title="Aprovar" onClick={(e) => handleAprovar(pedido.id, e)}><FaCheck /></button>
-                              <button className="btn-action btn-cancel" title="Cancelar" onClick={(e) => handleCancelar(pedido.id, e)}><FaTimes /></button>
-                            </>
-                          ) : (
-                            <button className="btn-action btn-view" title="Ver Detalhes" onClick={(e) => handleVerDetalhes(pedido.id, e)}><FaEye /></button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
-
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={handleFecharModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={handleFecharModal}><FaTimesCircle /></button>
-            
-            {loadingModal || !pedidoDetalhe ? (
-              <div className="modal-loading">Buscando detalhes do pedido...</div>
-            ) : (
-              <>
-                <h2 className="modal-title">Pedido #{pedidoDetalhe.id} {getStatusBadge(pedidoDetalhe.status)}</h2>
-                
-                <div className="modal-grid">
-                  <div className="modal-section">
-                    <h3>Dados do Comprador</h3>
-                    <p><strong>Nome:</strong> {pedidoDetalhe.cliente?.nome}</p>
-                    <p><strong>Empresa / CNPJ:</strong> {pedidoDetalhe.cliente?.empresa || 'Pessoa Física'}</p>
-                    <p><strong>Contato:</strong> {pedidoDetalhe.cliente?.telefone} | {pedidoDetalhe.cliente?.email}</p>
-                    <p className="highlight-text" style={{marginTop: '10px', fontWeight: 'bold'}}>
-                      Fidelidade: Já comprou {pedidoDetalhe.cliente?.comprasAnteriores} vezes conosco.
-                    </p>
-                  </div>
-
-                  <div className="modal-section">
-                    <h3>Logística</h3>
-                    <p><strong>Prazo de Entrega:</strong> {pedidoDetalhe.prazoEntrega || 'A definir'}</p>
-                    <p><strong>Endereço de Destino:</strong></p>
-                    <p style={{color: '#666', marginTop: '5px'}}>
-                      {pedidoDetalhe.endereco?.rua}, {pedidoDetalhe.endereco?.numero} <br/>
-                      {pedidoDetalhe.endereco?.bairro} - {pedidoDetalhe.endereco?.cidade}/{pedidoDetalhe.endereco?.estado} <br/>
-                      CEP: {pedidoDetalhe.endereco?.cep}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="modal-section itens-section">
-                  <h3>Peças Solicitadas</h3>
-                  <div className="itens-list">
-                    {pedidoDetalhe.itens?.map((item, index) => (
-                      <div key={index} className="item-row">
-                        <img src={item.produto?.image || 'https://via.placeholder.com/60'} alt="Peça" className="item-img" />
-                        <div className="item-info">
-                          <h4>{item.produto?.name} <span className="item-brand">({item.produto?.brand})</span></h4>
-                          <p>Ref: {item.produto?.ref} | Categoria: {item.produto?.category}</p>
-                        </div>
-                        <div className="item-pricing">
-                          <p>{item.quantidade}x</p>
-                          <p><strong>{item.precoUnitario?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="modal-footer">
-                  <div className="modal-actions-container">
-                    <div className="modal-action-buttons" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      {getStatusTratado(pedidoDetalhe.status) === 'PENDENTE' ? (
-                        <>
-                          <button className="btn-modal-cancel" onClick={(e) => handleCancelar(pedidoDetalhe.id, e)}>
-                            <FaTimes /> Cancelar Pedido
-                          </button>
-                          <button className="btn-modal-approve" onClick={(e) => handleAprovar(pedidoDetalhe.id, e)}>
-                            <FaCheck /> Aprovar e Preparar
-                          </button>
-                        </>
-                      ) : (
-                        <span className="status-note" style={{ marginRight: '1rem' }}>
-                          Este pedido está {getStatusTratado(pedidoDetalhe.status)}.
+        {/* Tabela */}
+        {loading ? (
+          <div className="spinner">Carregando pedidos…</div>
+        ) : pageData.length === 0 ? (
+          <p style={{ color: "var(--text-secondary)", padding: "2rem 0", textAlign: "center" }}>
+            Nenhum pedido encontrado.
+          </p>
+        ) : (
+          <>
+            <div className="table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>ID do Pedido</th>
+                    <th>Cliente</th>
+                    <th>Pagamento</th>
+                    <th>Total</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageData.map((o) => (
+                    <tr key={o.id}>
+                      <td style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                        #{o.id?.slice(0, 8)}
+                      </td>
+                      <td style={{ fontSize: "0.875rem" }}>{o.userEmail}</td>
+                      <td style={{ fontSize: "0.85rem" }}>{PAYMENT_LABELS[o.paymentMethod] || o.paymentMethod}</td>
+                      <td style={{ fontWeight: 600 }}>{formatBRL(o.totalAmount)}</td>
+                      <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{formatDate(o.createdAt)}</td>
+                      <td>
+                        <span className={`badge ${STATUS_BADGE[o.status] || ""}`}>
+                          {STATUS_LABELS[o.status] || o.status}
                         </span>
-                      )}
-                      {getStatusTratado(pedidoDetalhe.status) !== 'CANCELADO' && (
-                        <button className="btn-tool btn-print" onClick={() => handleImprimirEtiquetaUnica(pedidoDetalhe.id)}>
-                          <FaPrint /> Imprimir Etiqueta
+                      </td>
+                      <td>
+                        <button className="btn btn-outline btn-sm" onClick={() => openDetail(o)}>
+                          <FaEye /> Detalhes
                         </button>
-                      )}
-                    </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                  </div>
-                  <h3>Valor Total: <span className="highlight-text">
-                    {pedidoDetalhe.valorTotal?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </span></h3>
-                </div>
-              </>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>‹</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button key={p} className={page === p ? "active" : ""} onClick={() => setPage(p)}>{p}</button>
+                ))}
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>›</button>
+              </div>
             )}
+          </>
+        )}
+      </div>
+
+      {/* Modal detalhe */}
+      {selected && (
+        <div className="modal-overlay" onClick={closeDetail}>
+          <div className="modal-box modal-box--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                Pedido <span style={{ fontFamily: "monospace", color: "var(--text-secondary)" }}>#{selected.id?.slice(0, 8)}</span>
+              </h2>
+              <button className="modal-close" onClick={closeDetail}><FaTimes /></button>
+            </div>
+
+            <div className="order-detail-grid">
+              {/* Info */}
+              <div className="order-detail-section">
+                <h3 className="detail-label">Informações</h3>
+                <div className="detail-row"><span>Cliente</span><strong>{selected.userEmail}</strong></div>
+                <div className="detail-row"><span>Pagamento</span><strong>{PAYMENT_LABELS[selected.paymentMethod] || selected.paymentMethod}</strong></div>
+                <div className="detail-row"><span>Total</span><strong>{formatBRL(selected.totalAmount)}</strong></div>
+                <div className="detail-row"><span>Data</span><strong>{formatDate(selected.createdAt)}</strong></div>
+                {selected.trackingCode && (
+                  <div className="detail-row"><span>Rastreio</span><strong>{selected.trackingCode}</strong></div>
+                )}
+              </div>
+
+              {/* Endereço */}
+              <div className="order-detail-section">
+                <h3 className="detail-label">Endereço de Entrega</h3>
+                <p style={{ fontSize: "0.875rem", color: "var(--text)" }}>{selected.deliveryAddress || "—"}</p>
+              </div>
+            </div>
+
+            {/* Itens */}
+            <div style={{ marginBottom: "1.25rem" }}>
+              <h3 className="detail-label" style={{ marginBottom: "0.75rem" }}>Itens do Pedido</h3>
+              <table className="admin-table">
+                <thead>
+                  <tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr>
+                </thead>
+                <tbody>
+                  {(selected.items || []).map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          {item.productImage && (
+                            <img
+                              src={item.productImage}
+                              alt={item.productName}
+                              style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4 }}
+                              onError={(e) => { e.target.style.display = "none"; }}
+                            />
+                          )}
+                          <span style={{ fontSize: "0.875rem" }}>{item.productName}</span>
+                        </div>
+                      </td>
+                      <td>{item.quantity}</td>
+                      <td>{formatBRL(item.unitPrice)}</td>
+                      <td style={{ fontWeight: 600 }}>{formatBRL(Number(item.unitPrice) * item.quantity)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Atualizar status */}
+            <div className="update-status-row">
+              <div className="input-group" style={{ flex: 1 }}>
+                <label>Atualizar Status</label>
+                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                  {ALL_STATUSES.map((s) => (
+                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={handleUpdateStatus}
+                disabled={updating || newStatus === selected.status}
+              >
+                {updating ? "Salvando…" : "Salvar Status"}
+              </button>
+            </div>
           </div>
         </div>
       )}

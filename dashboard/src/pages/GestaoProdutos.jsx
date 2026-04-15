@@ -1,499 +1,345 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaBoxes, FaSearch, FaSyncAlt } from 'react-icons/fa';
-import AdminNavbar from '../components/AdminNavbar';
+import { useEffect, useMemo, useState, useRef } from "react";
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes } from "react-icons/fa";
 import {
-  createProduct,
-  deleteProductById,
   fetchProducts,
+  createProduct,
   updateProductByRef,
-} from '../services/productsApi';
-import './DashboardHome.css';
-import './GestaoPedidos.css';
-import './GestaoProdutos.css';
+  deleteProductByRef,
+} from "../services/productsApi.js";
+import "./GestaoProdutos.css";
 
-const EMPTY_FORM = {
-  name: '',
-  ref: '',
-  price: '',
-  qnt: '',
-  marca: '',
-  category: 'geral',
-  image: '',
-};
+const CATEGORIES = ["mais-vendidos", "novidades", "geral"];
+const EMPTY_FORM = { name: "", ref: "", price: "", qnt: "", marca: "", category: "geral", image: "" };
 
-const ACCEPTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png'];
-const IMAGE_MIN_WIDTH = 600;
-const IMAGE_MIN_HEIGHT = 600;
-const IMAGE_RATIO_TOLERANCE = 0.03;
+function StatusBadge({ product }) {
+  if (product.qnt === 0) return <span className="badge badge-cancelled">Sem Estoque</span>;
+  if (product.category === "novidades") return <span className="badge badge-shipped">Lançamento</span>;
+  if (Number(product.price) <= 2000) return <span className="badge badge-pending">Promoção</span>;
+  return <span className="badge badge-paid">Ativo</span>;
+}
 
-const categoryLabel = {
-  'mais-vendidos': 'Mais vendidos',
-  novidades: 'Lançamento',
-  geral: 'Geral',
-};
-
-const getBadgeType = (product) => {
-  if (product.qnt <= 0) return { label: 'Sem estoque', className: 'badge-danger' };
-  if (product.category === 'novidades') return { label: 'Lançamento', className: 'badge-info' };
-  if (product.price <= 2000) return { label: 'Promoção', className: 'badge-warning' };
-  return { label: 'Ativo', className: 'badge-success' };
-};
-
-const getImageMimeFromDataUrl = (value) => {
-  const match = String(value || '').match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
-  return match?.[1]?.toLowerCase() || '';
-};
-
-const loadImageDimensions = (imageUrl) =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => reject(new Error('Não foi possível carregar a imagem.'));
-    img.src = imageUrl;
-  });
-
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Falha ao ler o arquivo de imagem.'));
-    reader.readAsDataURL(file);
-  });
+function formatBRL(v) {
+  return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 export default function GestaoProdutos() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [feedback, setFeedback] = useState('');
-  const [query, setQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('TODOS');
-  const [stockFilter, setStockFilter] = useState('TODOS');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRef, setEditingRef] = useState(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [selectedImageName, setSelectedImageName] = useState('');
+  const [products, setProducts]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState("");
+  const [success, setSuccess]     = useState("");
+  const [search, setSearch]       = useState("");
+  const [catFilter, setCat]       = useState("all");
+  const [stockFilter, setStock]   = useState("all");
+  const [showModal, setShowModal] = useState(false);
+  const [editRef, setEditRef]     = useState(null); // null = create, string = edit
+  const [form, setForm]           = useState(EMPTY_FORM);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [deleting, setDeleting]   = useState(null);
+  const fileRef                   = useRef(null);
 
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const data = await fetchProducts();
-      setProducts(data);
-    } catch (err) {
-      setError(err.message || 'Erro ao carregar produtos.');
-    } finally {
-      setLoading(false);
-    }
+  const load = () => {
+    setLoading(true);
+    fetchProducts()
+      .then(setProducts)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return products.filter((product) => {
-      const searchTarget = `${product.name} ${product.ref} ${product.marca}`.toLowerCase();
-      const matchesQuery = normalizedQuery ? searchTarget.includes(normalizedQuery) : true;
-      const matchesCategory = categoryFilter === 'TODOS' ? true : product.category === categoryFilter;
-      const matchesStock =
-        stockFilter === 'TODOS'
-          ? true
-          : stockFilter === 'SEM_ESTOQUE'
-            ? Number(product.qnt) <= 0
-            : Number(product.qnt) > 0;
-
-      return matchesQuery && matchesCategory && matchesStock;
+  const filtered = useMemo(() => {
+    return products.filter((p) => {
+      const q = search.toLowerCase();
+      const matchSearch = !q ||
+        p.name?.toLowerCase().includes(q) ||
+        p.ref?.toLowerCase().includes(q) ||
+        p.marca?.toLowerCase().includes(q);
+      const matchCat   = catFilter === "all" || p.category === catFilter;
+      const matchStock = stockFilter === "all" || (stockFilter === "in" ? p.qnt > 0 : p.qnt === 0);
+      return matchSearch && matchCat && matchStock;
     });
-  }, [products, query, categoryFilter, stockFilter]);
+  }, [products, search, catFilter, stockFilter]);
 
-  const resetForm = () => {
-    setFormData(EMPTY_FORM);
-    setEditingRef(null);
-    setSelectedImageName('');
+  const openCreate = () => {
+    setForm(EMPTY_FORM);
+    setEditRef(null);
+    setFormError("");
+    setShowModal(true);
   };
 
-  const openCreateModal = () => {
-    resetForm();
-    setIsModalOpen(true);
-    setFeedback('');
-    setError('');
+  const openEdit = (p) => {
+    setForm({ name: p.name, ref: p.ref, price: String(p.price), qnt: String(p.qnt), marca: p.marca, category: p.category, image: p.image || "" });
+    setEditRef(p.ref);
+    setFormError("");
+    setShowModal(true);
   };
 
-  const openEditModal = (product) => {
-    setEditingRef(product.ref);
-    setFormData({
-      name: product.name || '',
-      ref: product.ref || '',
-      price: String(product.price ?? ''),
-      qnt: String(product.qnt ?? ''),
-      marca: product.marca || '',
-      category: product.category || 'geral',
-      image: product.image || '',
-    });
-    setSelectedImageName('');
-    setIsModalOpen(true);
-    setFeedback('');
-    setError('');
-  };
+  const closeModal = () => { setShowModal(false); setFormError(""); };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    resetForm();
-  };
-
-  const handleFormChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleImageFileChange = async (event) => {
-    const file = event.target.files?.[0];
+  const handleImageFile = (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-
-    const extension = file.name.split('.').pop()?.toLowerCase() || '';
-    const allowedMimeTypes = ['image/jpeg', 'image/png'];
-    const hasValidType = allowedMimeTypes.includes(file.type) || ACCEPTED_IMAGE_EXTENSIONS.includes(extension);
-    if (!hasValidType) {
-      setError('Arquivo inválido. Envie apenas imagem JPG ou PNG.');
-      event.target.value = '';
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setFormError("Apenas JPG, PNG ou WebP são aceitos.");
       return;
     }
-
-    try {
-      setError('');
-      const dataUrl = await readFileAsDataUrl(file);
-      const { width, height } = await loadImageDimensions(dataUrl);
-      if (width < IMAGE_MIN_WIDTH || height < IMAGE_MIN_HEIGHT) {
-        setError(`A imagem precisa ter no mínimo ${IMAGE_MIN_WIDTH}x${IMAGE_MIN_HEIGHT}px.`);
-        event.target.value = '';
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target.result;
+      if (base64.length > 2048 * 1024) {
+        setFormError("Imagem muito grande. Use uma URL externa ou uma imagem menor.");
         return;
       }
-
-      const ratio = width / height;
-      if (Math.abs(ratio - 1) > IMAGE_RATIO_TOLERANCE) {
-        setError('Use imagem em formato quadrado (proporção 1:1) para manter o padrão visual.');
-        event.target.value = '';
-        return;
-      }
-
-      setFormData((prev) => ({ ...prev, image: dataUrl }));
-      setSelectedImageName(file.name);
-    } catch (err) {
-      setError(err.message || 'Não foi possível processar o arquivo de imagem.');
-      event.target.value = '';
-    }
+      setForm((f) => ({ ...f, image: base64 }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  const validateForm = async () => {
-    const requiredFields = ['name', 'ref', 'price', 'qnt', 'category'];
-    const hasMissingRequired = requiredFields.some((field) => String(formData[field]).trim() === '');
-    if (hasMissingRequired) {
-      return 'Preencha todos os campos obrigatórios do produto.';
-    }
-    if (Number(formData.price) < 0) return 'Preço não pode ser negativo.';
-    if (Number(formData.qnt) < 0) return 'Quantidade em estoque não pode ser negativa.';
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError("");
 
-    const imageValue = String(formData.image || '');
-    if (!imageValue) {
-      return 'Envie uma imagem em JPG ou PNG para o produto.';
-    }
+    const price = Number(form.price);
+    const qnt   = Number(form.qnt);
 
-    const isDataUrl = imageValue.startsWith('data:image/');
-    if (!isDataUrl) {
-      return 'A imagem deve ser enviada por upload (JPG ou PNG).';
-    }
-
-    const mimeType = getImageMimeFromDataUrl(imageValue);
-    if (!['image/jpeg', 'image/png'].includes(mimeType)) {
-      return 'A imagem deve ser no formato JPG ou PNG.';
-    }
-
-    try {
-      const { width, height } = await loadImageDimensions(formData.image);
-      if (width < IMAGE_MIN_WIDTH || height < IMAGE_MIN_HEIGHT) {
-        return `A imagem precisa ter no mínimo ${IMAGE_MIN_WIDTH}x${IMAGE_MIN_HEIGHT}px.`;
-      }
-
-      const ratio = width / height;
-      if (Math.abs(ratio - 1) > IMAGE_RATIO_TOLERANCE) {
-        return 'Use imagem em formato quadrado (proporção 1:1) para manter o padrão visual.';
-      }
-    } catch (err) {
-      return err.message || 'Não foi possível validar a imagem informada.';
-    }
-
-    return '';
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const validationMessage = await validateForm();
-    if (validationMessage) {
-      setError(validationMessage);
-      return;
-    }
+    if (!form.name.trim())   { setFormError("Nome é obrigatório."); return; }
+    if (!form.ref.trim())    { setFormError("Referência é obrigatória."); return; }
+    if (!form.marca.trim())  { setFormError("Marca é obrigatória."); return; }
+    if (isNaN(price) || price <= 0) { setFormError("Preço deve ser maior que zero."); return; }
+    if (isNaN(qnt) || qnt < 0)      { setFormError("Quantidade não pode ser negativa."); return; }
 
     const payload = {
-      ...formData,
-      price: Number(formData.price),
-      qnt: Number(formData.qnt),
+      name: form.name.trim(),
+      ref: form.ref.trim().toUpperCase(),
+      price,
+      qnt,
+      marca: form.marca.trim(),
+      category: form.category,
+      image: form.image || null,
     };
 
+    setSaving(true);
     try {
-      setSaving(true);
-      setError('');
-      setFeedback('');
-
-      if (editingRef) {
-        await updateProductByRef(editingRef, payload);
-        setFeedback('Produto atualizado com sucesso.');
+      if (editRef) {
+        const updated = await updateProductByRef(editRef, payload);
+        setProducts((prev) => prev.map((p) => (p.ref === editRef ? updated : p)));
+        setSuccess("Produto atualizado com sucesso.");
       } else {
-        await createProduct(payload);
-        setFeedback('Produto cadastrado com sucesso.');
+        const created = await createProduct(payload);
+        setProducts((prev) => [created, ...prev]);
+        setSuccess("Produto criado com sucesso.");
       }
-
       closeModal();
-      await loadProducts();
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.message || 'Erro ao salvar produto.');
+      setFormError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (product) => {
-    const confirmDelete = window.confirm(
-      `Deseja remover o produto ${product.name} (${product.ref})? Esta ação não pode ser desfeita.`
-    );
-    if (!confirmDelete) return;
-
+  const handleDelete = async (ref) => {
+    if (!window.confirm(`Excluir produto "${ref}"? Esta ação não pode ser desfeita.`)) return;
+    setDeleting(ref);
     try {
-      setError('');
-      setFeedback('');
-      await deleteProductById(product.id);
-      setFeedback('Produto removido com sucesso.');
-      await loadProducts();
+      await deleteProductByRef(ref);
+      setProducts((prev) => prev.filter((p) => p.ref !== ref));
+      setSuccess("Produto excluído.");
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.message || 'Erro ao remover produto.');
+      setError(err.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
   return (
-    <div className="admin-layout">
-      <AdminNavbar />
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Gestão de Produtos</h1>
+          <p className="page-subtitle">{products.length} produtos cadastrados</p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn btn-outline btn-sm" onClick={load} disabled={loading}>
+            <FaSyncAlt /> Atualizar
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}>
+            <FaPlus /> Novo Produto
+          </button>
+        </div>
+      </div>
 
-      <main className="dashboard-content">
-        <div className="admin-header">
-          <h1>Gestão de <span className="highlight-text">Produtos</span></h1>
-          <p>Cadastre, edite e remova itens do catálogo integrando diretamente com o back-end.</p>
+      {error   && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+
+      <div className="card">
+        {/* Toolbar */}
+        <div className="produtos-toolbar">
+          <div className="pedidos-search" style={{ maxWidth: 320 }}>
+            <FaSearch className="search-icon" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, ref ou marca…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && <button className="search-clear" onClick={() => setSearch("")}><FaTimes /></button>}
+          </div>
+
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <select className="filter-select" value={catFilter} onChange={(e) => setCat(e.target.value)}>
+              <option value="all">Todas categorias</option>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select className="filter-select" value={stockFilter} onChange={(e) => setStock(e.target.value)}>
+              <option value="all">Todo estoque</option>
+              <option value="in">Em estoque</option>
+              <option value="out">Sem estoque</option>
+            </select>
+          </div>
         </div>
 
-        {feedback ? <div className="products-feedback success">{feedback}</div> : null}
-        {error ? <div className="products-feedback error">{error}</div> : null}
-
-        <section className="widget-box products-toolbar">
-          <div className="products-search-group">
-            <div className="products-search-input">
-              <FaSearch />
-              <input
-                type="text"
-                placeholder="Buscar por nome, referência ou marca..."
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-
-            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-              <option value="TODOS">Todas categorias</option>
-              <option value="mais-vendidos">Mais vendidos</option>
-              <option value="novidades">Lançamentos</option>
-              <option value="geral">Geral</option>
-            </select>
-
-            <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value)}>
-              <option value="TODOS">Todos os estoques</option>
-              <option value="COM_ESTOQUE">Com estoque</option>
-              <option value="SEM_ESTOQUE">Sem estoque</option>
-            </select>
-          </div>
-
-          <div className="products-toolbar-actions">
-            <button type="button" className="btn-refresh" onClick={loadProducts}>
-              <FaSyncAlt /> Atualizar
-            </button>
-            <button type="button" className="btn-gold btn-create-product" onClick={openCreateModal}>
-              <FaPlus /> Novo Produto
-            </button>
-          </div>
-        </section>
-
-        <section className="widget-box">
-          {loading ? (
-            <p className="text-center products-loading">Carregando produtos...</p>
-          ) : (
-            <div className="table-responsive">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Produto</th>
-                    <th>Ref</th>
-                    <th>Marca</th>
-                    <th>Categoria</th>
-                    <th>Preço</th>
-                    <th>Estoque</th>
-                    <th>Status</th>
-                    <th className="text-center">Ações</th>
+        {loading ? (
+          <div className="spinner">Carregando produtos…</div>
+        ) : filtered.length === 0 ? (
+          <p style={{ color: "var(--text-secondary)", padding: "2rem 0", textAlign: "center" }}>Nenhum produto encontrado.</p>
+        ) : (
+          <div className="table-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Imagem</th>
+                  <th>Ref.</th>
+                  <th>Nome</th>
+                  <th>Marca</th>
+                  <th>Categoria</th>
+                  <th>Preço</th>
+                  <th>Estoque</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr key={p.ref || p.id}>
+                    <td>
+                      {p.image ? (
+                        <img
+                          src={p.image}
+                          alt={p.name}
+                          style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)" }}
+                          onError={(e) => { e.target.style.display = "none"; }}
+                        />
+                      ) : (
+                        <div style={{ width: 40, height: 40, background: "var(--surface-2)", borderRadius: 6, border: "1px solid var(--border)" }} />
+                      )}
+                    </td>
+                    <td style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{p.ref}</td>
+                    <td style={{ maxWidth: 180, fontSize: "0.875rem" }}>{p.name}</td>
+                    <td style={{ fontSize: "0.85rem" }}>{p.marca}</td>
+                    <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{p.category}</td>
+                    <td style={{ fontWeight: 600 }}>{formatBRL(p.price)}</td>
+                    <td style={{ textAlign: "center" }}>{p.qnt}</td>
+                    <td><StatusBadge product={p} /></td>
+                    <td>
+                      <div style={{ display: "flex", gap: "0.35rem" }}>
+                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(p)} title="Editar">
+                          <FaEdit />
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(p.ref)}
+                          disabled={deleting === p.ref}
+                          title="Excluir"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="text-center">Nenhum produto encontrado para os filtros aplicados.</td>
-                    </tr>
-                  ) : (
-                    filteredProducts.map((product) => {
-                      const badge = getBadgeType(product);
-                      return (
-                        <tr key={product.id || product.ref}>
-                          <td className="product-cell">
-                            <img src={product.image} alt={product.name} className="product-thumb" />
-                            <div>
-                              <strong>{product.name}</strong>
-                            </div>
-                          </td>
-                          <td>{product.ref}</td>
-                          <td>{product.marca || 'N/I'}</td>
-                          <td>{categoryLabel[product.category] || product.category}</td>
-                          <td>
-                            {Number(product.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                          </td>
-                          <td>{product.qnt}</td>
-                          <td><span className={`badge ${badge.className}`}>{badge.label}</span></td>
-                          <td className="actions-cell">
-                            <button className="btn-action btn-view" title="Editar" onClick={() => openEditModal(product)}>
-                              <FaEdit />
-                            </button>
-                            <button className="btn-action btn-cancel" title="Remover" onClick={() => handleDelete(product)}>
-                              <FaTrash />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-        <section className="widget-box products-footnote">
-          <h3><FaBoxes /> Regras de integração com o site</h3>
-          <ul>
-            <li>Categoria <strong>novidades</strong>: produto aparece na página de Lançamentos.</li>
-            <li>Categoria <strong>mais-vendidos</strong> e <strong>geral</strong>: produto aparece em Peças e Home.</li>
-            <li>Preço até <strong>R$ 2.000,00</strong>: também entra na página de Promoções.</li>
-            <li>Estoque <strong>0</strong>: produto permanece cadastrado, porém sinalizado como sem estoque.</li>
-          </ul>
-        </section>
-      </main>
-
-      {isModalOpen ? (
+      {/* Modal criar/editar */}
+      {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content product-modal" onClick={(event) => event.stopPropagation()}>
-            <button className="modal-close-btn" onClick={closeModal}>×</button>
-            <h2 className="modal-title">
-              {editingRef ? 'Editar Produto' : 'Cadastrar Novo Produto'}
-            </h2>
+          <div className="modal-box modal-box--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">{editRef ? "Editar Produto" : "Novo Produto"}</h2>
+              <button className="modal-close" onClick={closeModal}><FaTimes /></button>
+            </div>
 
-            <form className="product-form" onSubmit={handleSubmit}>
-              <div className="product-form-grid">
-                <label>
-                  Nome do produto *
-                  <input name="name" value={formData.name} onChange={handleFormChange} required />
-                </label>
+            {formError && <div className="alert alert-error">{formError}</div>}
 
-                <label>
-                  Referência (ref) *
-                  <input name="ref" value={formData.ref} onChange={handleFormChange} required />
-                </label>
-
-                <label>
-                  Marca
-                  <input name="marca" value={formData.marca} onChange={handleFormChange} placeholder="Ex.: BOSCH" />
-                </label>
-
-                <label>
-                  Categoria *
-                  <select name="category" value={formData.category} onChange={handleFormChange} required>
-                    <option value="geral">Geral</option>
-                    <option value="novidades">Lançamentos</option>
-                    <option value="mais-vendidos">Mais vendidos</option>
+            <form onSubmit={handleSubmit}>
+              <div className="grid-2">
+                <div className="input-group col-span-2">
+                  <label>Nome do produto *</label>
+                  <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+                </div>
+                <div className="input-group">
+                  <label>Referência (REF) *</label>
+                  <input value={form.ref} onChange={(e) => setForm((f) => ({ ...f, ref: e.target.value }))} required disabled={!!editRef} />
+                </div>
+                <div className="input-group">
+                  <label>Marca *</label>
+                  <input value={form.marca} onChange={(e) => setForm((f) => ({ ...f, marca: e.target.value }))} required />
+                </div>
+                <div className="input-group">
+                  <label>Preço (R$) *</label>
+                  <input type="number" min="0.01" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} required />
+                </div>
+                <div className="input-group">
+                  <label>Quantidade em estoque *</label>
+                  <input type="number" min="0" step="1" value={form.qnt} onChange={(e) => setForm((f) => ({ ...f, qnt: e.target.value }))} required />
+                </div>
+                <div className="input-group">
+                  <label>Categoria</label>
+                  <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                </label>
-
-                <label>
-                  Preço *
+                </div>
+                <div className="input-group">
+                  <label>URL da imagem ou upload</label>
                   <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleFormChange}
-                    min="0"
-                    step="0.01"
-                    required
+                    type="text"
+                    placeholder="https://... ou selecione um arquivo abaixo"
+                    value={form.image.startsWith("data:") ? "" : form.image}
+                    onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
                   />
-                </label>
-
-                <label>
-                  Quantidade em estoque *
-                  <input
-                    type="number"
-                    name="qnt"
-                    value={formData.qnt}
-                    onChange={handleFormChange}
-                    min="0"
-                    step="1"
-                    required
-                  />
-                </label>
+                </div>
+                <div className="input-group col-span-2">
+                  <label>Upload de imagem (JPG / PNG / WebP — máx. 2MB)</label>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" ref={fileRef} onChange={handleImageFile} />
+                </div>
+                {form.image && (
+                  <div className="col-span-2">
+                    <img
+                      src={form.image}
+                      alt="preview"
+                      style={{ height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }}
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                  </div>
+                )}
               </div>
 
-              <label>
-                Upload da imagem (JPG/PNG) *
-                <input
-                  key={editingRef || 'new-product-image'}
-                  type="file"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                  onChange={handleImageFileChange}
-                />
-                <small className="image-field-help">
-                  Selecione um arquivo JPG ou PNG. Tamanho mínimo: {IMAGE_MIN_WIDTH}x{IMAGE_MIN_HEIGHT}px e proporção 1:1.
-                </small>
-              </label>
-
-              {selectedImageName ? (
-                <p className="image-upload-name">Arquivo selecionado: {selectedImageName}</p>
-              ) : null}
-
-              {formData.image ? (
-                <div className="image-preview-box">
-                  <img src={formData.image} alt="Prévia do produto" />
-                </div>
-              ) : null}
-
-              <div className="product-form-actions">
-                <button type="button" className="btn-modal-cancel" onClick={closeModal}>Cancelar</button>
-                <button type="submit" className="btn-modal-approve" disabled={saving}>
-                  {saving ? 'Salvando...' : editingRef ? 'Atualizar produto' : 'Cadastrar produto'}
+              <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+                <button type="button" className="btn btn-outline" onClick={closeModal}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? "Salvando…" : editRef ? "Atualizar" : "Criar Produto"}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

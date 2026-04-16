@@ -1,35 +1,72 @@
-/* ─── Design System (alinhado ao e-commerce) ─── */
+/* ─────────────────────────────────────────────────────────────────
+   index.css — Estilos globais do painel administrativo
+
+   Define o design system completo: variáveis CSS, reset,
+   tipografia, layout principal, componentes reutilizáveis
+   (cards, botões, inputs, tabelas, badges, modais, alertas,
+   spinner, grids e paginação) e responsividade.
+
+   Todos os componentes do painel importam este arquivo indiretamente
+   via main.jsx. Não é necessário importar em cada componente.
+
+   Para alterar a identidade visual (cores, raios, sombras):
+   edite as variáveis CSS em :root abaixo.
+   ───────────────────────────────────────────────────────────────── */
+
+/* ─── Design System (alinhado ao e-commerce) ───
+   Variáveis CSS globais que controlam toda a aparência do painel.
+   Para criar um tema escuro, sobreponha estas variáveis em uma
+   media query (prefers-color-scheme: dark) ou classe .dark.       */
 :root {
+  /* Cores primárias — usadas em botões, links e destaques */
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
-  --primary-soft: #eff6ff;
+  --primary-soft: #eff6ff;        /* Fundo suave para elementos com cor primária */
   --success: #059669;
-  --page-bg: #f4f6f9;
-  --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --text: #1a1f36;
-  --text-secondary: #5c6578;
-  --border: #e8ecf1;
-  --border-strong: #d1d9e6;
+
+  /* Cores de fundo e superfície */
+  --page-bg: #f4f6f9;             /* Fundo cinza claro da área de conteúdo */
+  --surface: #ffffff;             /* Fundo branco para cards e modais */
+  --surface-2: #f8fafc;          /* Fundo levemente acinzentado para inputs e cabeçalhos de tabela */
+
+  /* Cores de texto */
+  --text: #1a1f36;                /* Texto principal (quase preto) */
+  --text-secondary: #5c6578;     /* Texto secundário (cinza médio) */
+
+  /* Bordas */
+  --border: #e8ecf1;              /* Borda padrão sutil */
+  --border-strong: #d1d9e6;      /* Borda mais visível para botões outline */
+
+  /* Sombras — usadas em cards, modais e sidebar */
   --shadow-sm: 0 1px 2px rgba(26, 31, 54, 0.05);
   --shadow-md: 0 4px 16px rgba(26, 31, 54, 0.08);
   --shadow-lg: 0 12px 40px rgba(26, 31, 54, 0.1);
-  --radius: 12px;
-  --radius-sm: 8px;
 
-  /* Status semântico */
-  --status-pending-bg: #fef3c7;   --status-pending-text: #92400e;
-  --status-paid-bg: #d1fae5;      --status-paid-text: #065f46;
-  --status-preparing-bg: #dbeafe; --status-preparing-text: #1e40af;
-  --status-shipped-bg: #ede9fe;   --status-shipped-text: #5b21b6;
-  --status-delivered-bg: #d1fae5; --status-delivered-text: #047857;
-  --status-cancelled-bg: #fee2e2; --status-cancelled-text: #991b1b;
+  /* Raios de borda — para consistência visual entre componentes */
+  --radius: 12px;                 /* Raio padrão — cards, modais */
+  --radius-sm: 8px;               /* Raio menor — botões, inputs, badges */
 
+  /* Cores semânticas de status — usadas nos badges de pedidos/produtos.
+     Cada status tem uma cor de fundo (bg) e uma cor de texto (text). */
+  --status-pending-bg: #fef3c7;   --status-pending-text: #92400e;      /* Amarelo — aguardando */
+  --status-paid-bg: #d1fae5;      --status-paid-text: #065f46;         /* Verde — pago */
+  --status-preparing-bg: #dbeafe; --status-preparing-text: #1e40af;   /* Azul — em separação */
+  --status-shipped-bg: #ede9fe;   --status-shipped-text: #5b21b6;      /* Roxo — enviado */
+  --status-delivered-bg: #d1fae5; --status-delivered-text: #047857;   /* Verde escuro — entregue */
+  --status-cancelled-bg: #fee2e2; --status-cancelled-text: #991b1b;   /* Vermelho — cancelado */
+
+  /* Largura da sidebar — usada para calcular a margem do conteúdo principal */
   --sidebar-width: 240px;
 }
 
+/* ─── Reset e box model ───
+   Remove margens e paddings padrão do navegador e define box-sizing
+   para que padding e border não aumentem o tamanho dos elementos.  */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ─── Tipografia e fundo global ───
+   Define a fonte do sistema (San Francisco/Segoe UI/Roboto),
+   cor de fundo, cor de texto e antialiasing para suavizar fontes.  */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--page-bg);
@@ -39,21 +76,29 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Links ───
+   Estilo padrão de links — cor primária sem sublinhado,
+   sublinhado ao passar o mouse.                                     */
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-/* ─── Layout principal ─── */
+/* ─── Layout principal ───
+   .admin-layout: flex container com sidebar fixa + área de conteúdo.
+   .admin-main: área de conteúdo principal que respeita a largura da sidebar
+   com transição suave para animação em dispositivos móveis.         */
 .admin-layout { display: flex; min-height: 100vh; }
 
 .admin-main {
   flex: 1;
-  margin-left: var(--sidebar-width);
+  margin-left: var(--sidebar-width);  /* Espaço para a sidebar fixa */
   padding: 2rem;
   min-height: 100vh;
-  transition: margin-left 0.25s;
+  transition: margin-left 0.25s;      /* Animação ao abrir/fechar sidebar no mobile */
 }
 
-/* ─── Cards ─── */
+/* ─── Cards ───
+   Contêiner branco com borda e sombra leve, usado para agrupar
+   conteúdo em todas as páginas do painel.                          */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -62,7 +107,10 @@ a:hover { text-decoration: underline; }
   padding: 1.5rem;
 }
 
-/* ─── Botões ─── */
+/* ─── Botões ───
+   .btn: estilo base compartilhado por todos os botões.
+   Variantes: btn-primary (azul), btn-outline (transparente com borda),
+   btn-danger (vermelho), btn-success (verde), btn-sm (tamanho menor). */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -77,18 +125,32 @@ a:hover { text-decoration: underline; }
   transition: background 0.18s, opacity 0.18s;
   white-space: nowrap;
 }
+/* Botão desabilitado — reduz opacidade e impede clique */
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Botão primário — azul sólido, para ações principais */
 .btn-primary  { background: var(--primary); color: #fff; }
 .btn-primary:hover:not(:disabled)  { background: var(--primary-hover); }
+
+/* Botão outline — transparente com borda, para ações secundárias */
 .btn-outline  { background: transparent; color: var(--text-secondary); border: 1.5px solid var(--border-strong); }
 .btn-outline:hover:not(:disabled)  { border-color: var(--primary); color: var(--primary); }
+
+/* Botão de perigo — vermelho, para ações destrutivas (ex: excluir) */
 .btn-danger   { background: #ef4444; color: #fff; }
 .btn-danger:hover:not(:disabled)   { background: #dc2626; }
+
+/* Botão de sucesso — verde, para ações de confirmação */
 .btn-success  { background: var(--success); color: #fff; }
 .btn-success:hover:not(:disabled)  { background: #047857; }
+
+/* Modificador de tamanho — botão menor para uso em tabelas e toolbars */
 .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
 
-/* ─── Inputs ─── */
+/* ─── Inputs, selects e textareas ───
+   .input-group: wrapper com label acima e campo abaixo (flex column).
+   Todos os campos compartilham o mesmo visual: borda suave, foco azul
+   com sombra, fundo levemente acinzentado.                          */
 .input-group { display: flex; flex-direction: column; gap: 0.3rem; }
 .input-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
 .input-group input,
@@ -104,6 +166,7 @@ a:hover { text-decoration: underline; }
   font-size: 0.9rem;
   transition: border-color 0.18s, box-shadow 0.18s;
 }
+/* Estado de foco: borda azul + sombra suave (ring de foco acessível) */
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
@@ -112,7 +175,10 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-/* ─── Tabelas ─── */
+/* ─── Tabelas ───
+   .admin-table: tabela full-width com colapso de bordas.
+   Cabeçalhos em caixa alta com fundo levemente acinzentado.
+   Linhas com hover para facilitar a leitura.                       */
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .admin-table th {
   background: var(--surface-2);
@@ -131,15 +197,20 @@ a:hover { text-decoration: underline; }
   color: var(--text);
   vertical-align: middle;
 }
+/* Remove a borda inferior da última linha */
 .admin-table tr:last-child td { border-bottom: none; }
+/* Destaca a linha ao passar o mouse */
 .admin-table tbody tr:hover { background: var(--surface-2); }
 
-/* ─── Badges de status ─── */
+/* ─── Badges de status ───
+   .badge: pill (pílula) colorida para indicar status de pedidos e produtos.
+   Cada variante tem fundo e cor de texto próprios (definidos em :root).
+   Para adicionar um novo status, crie uma nova classe .badge-NOME aqui.  */
 .badge {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.7rem;
-  border-radius: 999px;
+  border-radius: 999px;           /* Bordas totalmente arredondadas (pill shape) */
   font-size: 0.73rem;
   font-weight: 700;
   white-space: nowrap;
@@ -151,11 +222,16 @@ a:hover { text-decoration: underline; }
 .badge-delivered  { background: var(--status-delivered-bg);  color: var(--status-delivered-text); }
 .badge-cancelled  { background: var(--status-cancelled-bg);  color: var(--status-cancelled-text); }
 
-/* ─── Modal ─── */
+/* ─── Modal ───
+   .modal-overlay: fundo escuro semitransparente que cobre toda a tela
+   e centraliza o modal com flexbox. Clicável para fechar.
+   .modal-box: contêiner branco do conteúdo do modal, com scroll
+   vertical quando o conteúdo ultrapassa 90% da viewport.
+   .modal-box--wide: variante mais larga (ex: detalhes de pedido).   */
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(26, 31, 54, 0.45);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);     /* Desfoque no fundo para melhor hierarquia visual */
   display: flex; align-items: center; justify-content: center;
   z-index: 200; padding: 1rem;
 }
@@ -164,35 +240,52 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   width: 100%; max-width: 680px;
-  max-height: 90vh; overflow-y: auto;
+  max-height: 90vh; overflow-y: auto;  /* Scroll interno para conteúdos longos */
   padding: 2rem;
 }
+/* Variante larga do modal — para pedidos e produtos com muitos campos */
 .modal-box--wide { max-width: 900px; }
+
+/* Cabeçalho do modal: título à esquerda, botão fechar à direita */
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
 .modal-title  { font-size: 1.1rem; font-weight: 700; }
+
+/* Botão de fechar (×) no canto superior direito do modal */
 .modal-close  { background: none; border: none; color: var(--text-secondary); font-size: 1.25rem; cursor: pointer; padding: 0.25rem; border-radius: 4px; }
 .modal-close:hover { color: var(--text); }
 
-/* ─── Page header ─── */
+/* ─── Page header ───
+   Cabeçalho padrão de cada página: título e subtítulo à esquerda,
+   botões de ação à direita. Usa flex com wrap para telas pequenas. */
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
 .page-title  { font-size: 1.4rem; font-weight: 700; }
 .page-subtitle { font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.15rem; }
 
-/* ─── Alertas ─── */
+/* ─── Alertas ───
+   .alert: caixa de mensagem com borda e ícone de cor semântica.
+   .alert-error: fundo vermelho claro para erros.
+   .alert-success: fundo verde claro para confirmações.             */
 .alert { padding: 0.7rem 1rem; border-radius: var(--radius-sm); font-size: 0.875rem; margin-bottom: 1rem; }
 .alert-error   { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
 .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
 
-/* ─── Spinner ─── */
+/* ─── Spinner ───
+   Indicador de carregamento centrado horizontalmente.
+   Exibido enquanto dados são buscados da API.                      */
 .spinner { display: flex; align-items: center; justify-content: center; padding: 3rem; color: var(--text-secondary); gap: 0.5rem; }
 
-/* ─── Grids ─── */
+/* ─── Grids ───
+   Utilitários de grade para layouts de formulários e cards.
+   .grid-2: 2 colunas iguais | .grid-3: 3 colunas | .grid-4: 4 colunas.
+   .col-span-2: ocupa toda a largura do grid (útil em formulários). */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
 .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
 .col-span-2 { grid-column: 1 / -1; }
 
-/* ─── Paginação ─── */
+/* ─── Paginação ───
+   Controles de página centralizados abaixo das tabelas.
+   Botão ativo e hover recebem fundo primário (azul).               */
 .pagination { display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 1.25rem; }
 .pagination button {
   width: 32px; height: 32px;
@@ -200,16 +293,21 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-sm); cursor: pointer;
   font-size: 0.85rem; color: var(--text-secondary); transition: all 0.18s;
 }
+/* Página ativa e hover — fundo azul primário com texto branco */
 .pagination button.active,
 .pagination button:hover:not(:disabled) { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* Botão desabilitado (primeira/última página) */
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* ─── Responsividade ─── */
+/* ─── Responsividade ───
+   Em telas ≤768px: remove a margem da sidebar (ela se torna overlay),
+   e colapsa os grids para coluna única.
+   Em telas ≤540px: reduz o padding do modal e empilha o page-header. */
 @media (max-width: 768px) {
-  .admin-main { margin-left: 0; padding: 1rem; }
-  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .admin-main { margin-left: 0; padding: 1rem; }         /* Sidebar vira overlay, sem margem */
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } /* Grids colapsam para 1 coluna */
 }
 @media (max-width: 540px) {
-  .modal-box { padding: 1.25rem; }
-  .page-header { flex-direction: column; align-items: flex-start; }
+  .modal-box { padding: 1.25rem; }                        /* Modal com menos padding */
+  .page-header { flex-direction: column; align-items: flex-start; } /* Header empilhado */
 }

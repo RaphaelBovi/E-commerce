@@ -10,8 +10,10 @@ package com.ecommerce.Auth.Service;
 // ─────────────────────────────────────────────────────────────────
 
 import com.ecommerce.Auth.Entity.Dto.AuthResponse;
+import com.ecommerce.Auth.Entity.Dto.ChangePasswordRequest;
 import com.ecommerce.Auth.Entity.Dto.LoginRequest;
 import com.ecommerce.Auth.Entity.Dto.RegisterRequest;
+import com.ecommerce.Auth.Entity.Dto.UpdateProfileRequest;
 import com.ecommerce.Auth.Entity.Dto.UserProfileResponse;
 import com.ecommerce.Auth.Entity.Role;
 import com.ecommerce.Auth.Entity.User;
@@ -138,6 +140,77 @@ public class AuthService {
                 user.getRole().name(),
                 user.getCreatedAt()
         );
+    }
+
+    // ── ATUALIZAR PERFIL ──────────────────────────────────────────
+    // Atualiza os dados do usuário autenticado (exceto e-mail e CPF)
+    public UserProfileResponse updateProfile(UpdateProfileRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new com.ecommerce.Product.Exception.ResourceNotFoundException("Usuário não encontrado"));
+
+        user.setFullName(request.fullName().trim());
+
+        if (request.phone() != null && !request.phone().isBlank()) {
+            String phoneDigits = digitsOnly(request.phone());
+            if (phoneDigits.length() < 10 || phoneDigits.length() > 11) {
+                throw new BusinessException("Telefone deve ter 10 ou 11 dígitos");
+            }
+            user.setPhone(phoneDigits);
+        }
+
+        if (request.birthDate() != null) {
+            user.setBirthDate(request.birthDate());
+        }
+
+        if (request.address() != null) {
+            user.setAddress(request.address().trim());
+        }
+
+        if (request.city() != null) {
+            user.setCity(request.city().trim());
+        }
+
+        if (request.state() != null && !request.state().isBlank()) {
+            String stateUf = request.state().trim().toUpperCase();
+            if (!stateUf.matches("[A-Z]{2}")) {
+                throw new BusinessException("UF deve ter 2 letras");
+            }
+            user.setState(stateUf);
+        }
+
+        if (request.zipCode() != null && !request.zipCode().isBlank()) {
+            String zipDigits = digitsOnly(request.zipCode());
+            if (zipDigits.length() != 8) {
+                throw new BusinessException("CEP deve conter 8 dígitos");
+            }
+            user.setZipCode(zipDigits);
+        }
+
+        userRepository.save(user);
+        log.info("Perfil atualizado: {}", email);
+
+        return new UserProfileResponse(
+                user.getId(), user.getEmail(), user.getFullName(), user.getCpf(),
+                user.getBirthDate(), user.getPhone(), user.getAddress(), user.getCity(),
+                user.getState(), user.getZipCode(), user.getRole().name(), user.getCreatedAt()
+        );
+    }
+
+    // ── ALTERAR SENHA ─────────────────────────────────────────────
+    // Verifica a senha atual e aplica a nova senha com hash BCrypt
+    public void changePassword(ChangePasswordRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new com.ecommerce.Product.Exception.ResourceNotFoundException("Usuário não encontrado"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new BusinessException("Senha atual incorreta");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        log.info("Senha alterada: {}", email);
     }
 
     // ── LOGIN ─────────────────────────────────────────────────────

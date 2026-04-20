@@ -103,8 +103,8 @@ export default function Navbar({ cartCount, onOpenCart }) {
                   <span className="icon-user" aria-hidden>
                     <FaRegUser />
                   </span>
-                  <Link to="/minha-conta" className="user-email" title={user.email}>
-                    {user.email}
+                  <Link to="/minha-conta" className="user-email">
+                    Minha conta
                   </Link>
                   <button type="button" className="btn-logout-nav" onClick={logout}>
                     Sair

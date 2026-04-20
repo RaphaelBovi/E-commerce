@@ -119,13 +119,37 @@ export async function loginRequest(email, password) {
 
 // ─── getUserProfile ──────────────────────────────────────────────
 // Retorna os dados completos do usuário autenticado (GET /auth/me).
-// Inclui: fullName, cpf, birthDate, phone, address, city, state, zipCode, role, createdAt
 export async function getUserProfile() {
   const response = await fetch(`${API_BASE_URL}/auth/me`, {
     headers: { ...getAuthHeader(), Accept: 'application/json' },
   });
-  if (!response.ok) throw new Error(`Erro ${response.status}`);
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
   return response.json();
+}
+
+// ─── updateProfile ───────────────────────────────────────────────
+// Atualiza dados pessoais do usuário (PATCH /auth/me).
+// Campos: fullName, phone, birthDate, address, city, state, zipCode
+export async function updateProfile(data) {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    method: 'PATCH',
+    headers: { ...getAuthHeader(), 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+  return response.json();
+}
+
+// ─── changePassword ──────────────────────────────────────────────
+// Altera a senha do usuário (PATCH /auth/me/password).
+// Requer currentPassword e newPassword.
+export async function changePassword(data) {
+  const response = await fetch(`${API_BASE_URL}/auth/me/password`, {
+    method: 'PATCH',
+    headers: { ...getAuthHeader(), 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
 }
 
 // ─── registerRequest ─────────────────────────────────────────────

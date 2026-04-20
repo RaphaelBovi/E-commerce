@@ -75,6 +75,9 @@ public class SecurityConfig {
                 // ORDEM IMPORTA: regras mais específicas devem vir antes das mais genéricas
                 .authorizeHttpRequests(auth -> auth
 
+                        // Edição de perfil e senha — exige autenticação
+                        .requestMatchers(HttpMethod.PATCH, "/api/auth/me", "/api/auth/me/password").authenticated()
+
                         // Público — qualquer pessoa pode acessar (sem token)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-category", "/api/product-category/**").permitAll()

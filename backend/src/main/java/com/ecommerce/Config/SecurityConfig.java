@@ -77,7 +77,7 @@ public class SecurityConfig {
 
                         // Público — qualquer pessoa pode acessar (sem token)
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/product-category/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/product-category", "/api/product-category/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
 
                         // Produtos — leitura pública; escrita restrita a ADMIN ou MASTER

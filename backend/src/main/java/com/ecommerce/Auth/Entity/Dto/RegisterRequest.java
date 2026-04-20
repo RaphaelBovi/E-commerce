@@ -30,11 +30,7 @@ public record RegisterRequest(
         @NotBlank @Email String email,
 
         // Senha do usuário — será criptografada com BCrypt antes de ser persistida
-        // @Size(min=12) — impede senhas curtas demais
-        // @Pattern       — exige complexidade: ao menos 1 maiúscula, 1 minúscula, 1 dígito e 1 especial
-        @NotBlank @Size(min = 12, message = "Senha deve ter no mínimo 12 caracteres")
-        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d]).+$",
-                 message = "Senha deve conter letras maiúsculas, minúsculas, números e um caractere especial") String password,
+        @NotBlank @Size(min = 6, message = "Senha deve ter no mínimo 6 caracteres") String password,
 
         // Nome completo do cliente
         @NotBlank String fullName,

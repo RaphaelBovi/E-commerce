@@ -22,6 +22,7 @@ import {
   loadStoredSession,
   loginRequest,
   registerRequest,
+  googleLoginRequest,
   saveSession,
 } from "../services/authApi";
 
@@ -64,6 +65,23 @@ export default function AuthProvider({ children }) {
     setUser(session);
   }, []);
 
+  // ─── Google Login ────────────────────────────────────────────────
+  // Verifies Google ID token via backend and starts session.
+  const googleLogin = useCallback(async (idToken) => {
+    const data = await googleLoginRequest(idToken);
+    const session = { token: data.token, email: data.email, role: data.role ?? "" };
+    saveSession(session);
+    setUser(session);
+  }, []);
+
+  // ─── Login with Token ────────────────────────────────────────────
+  // Saves an already-obtained AuthResponse directly (used after OTP confirm).
+  const loginWithToken = useCallback((data) => {
+    const session = { token: data.token, email: data.email, role: data.role ?? "" };
+    saveSession(session);
+    setUser(session);
+  }, []);
+
   // ─── Logout ─────────────────────────────────────────────────────
   // Remove a sessão do localStorage e define o usuário como null,
   // forçando todos os componentes que consomem o contexto a atualizar.
@@ -81,10 +99,12 @@ export default function AuthProvider({ children }) {
       user,
       login,
       register,
+      googleLogin,
+      loginWithToken,
       logout,
       isAuthenticated: Boolean(user),
     }),
-    [user, login, register, logout]
+    [user, login, register, googleLogin, loginWithToken, logout]
   );
 
   // Fornece o valor calculado para todos os componentes filhos

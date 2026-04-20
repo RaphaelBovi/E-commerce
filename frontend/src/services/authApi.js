@@ -152,6 +152,42 @@ export async function changePassword(data) {
   if (!response.ok) throw new Error(await parseErrorMessage(response));
 }
 
+// ─── sendVerificationCode ────────────────────────────────────────
+// Validates all registration data and sends OTP to the user's email.
+// POST /auth/register/initiate — returns 202, no body.
+export async function sendVerificationCode(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/register/initiate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+}
+
+// ─── confirmRegistration ─────────────────────────────────────────
+// Verifies OTP and creates the account. Returns { token, email, role }.
+export async function confirmRegistration(email, code) {
+  const response = await fetch(`${API_BASE_URL}/auth/register/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+  return response.json();
+}
+
+// ─── googleLoginRequest ──────────────────────────────────────────
+// Sends Google ID token to backend for verification. Returns { token, email, role }.
+export async function googleLoginRequest(idToken) {
+  const response = await fetch(`${API_BASE_URL}/auth/google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+  return response.json();
+}
+
 // ─── registerRequest ─────────────────────────────────────────────
 // Envia os dados de cadastro para POST /auth/register.
 // O payload deve conter: email, password, fullName, cpf, birthDate,

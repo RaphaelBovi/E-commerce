@@ -1,467 +1,616 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { FaStore } from "react-icons/fa";
+import {
+  FaStore, FaEye, FaEyeSlash, FaCheckCircle,
+  FaShieldAlt, FaShippingFast, FaStar, FaLock,
+} from "react-icons/fa";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/useAuth";
+import { sendVerificationCode, confirmRegistration as confirmRegistrationApi } from "../services/authApi";
 import "./Login.css";
 
-function digitsOnly(value) {
-  return String(value || "").replace(/\D/g, "");
+// ─── helpers ──────────────────────────────────────────────────────
+const digitsOnly = (v) => String(v || "").replace(/\D/g, "");
+
+function getStrength(pwd) {
+  if (!pwd) return null;
+  const len = pwd.length;
+  if (len < 6)  return { level: 0, label: "Muito fraca",  pct: 15  };
+  if (len < 8)  return { level: 1, label: "Fraca",        pct: 38  };
+  if (len < 12) return { level: 2, label: "Moderada",     pct: 68  };
+  return        { level: 3, label: "Forte",        pct: 100 };
 }
 
+const BR_STATES = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA",
+  "MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN",
+  "RS","RO","RR","SC","SP","SE","TO",
+];
+
+// ─── PasswordInput — input with show/hide toggle ──────────────────
+function PasswordInput({ id, value, onChange, placeholder, autoComplete, disabled }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="auth-pwd-wrap">
+      <input
+        id={id}
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        disabled={disabled}
+        required
+      />
+      <button
+        type="button"
+        className="auth-pwd-toggle"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+        tabIndex={-1}
+      >
+        {show ? <FaEyeSlash /> : <FaEye />}
+      </button>
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────
 export default function Login() {
-  const [mode, setMode] = useState("login");
-  const [step, setStep] = useState(1);
+  // view: 'login' | 'reg1' | 'reg2' | 'otp' | 'success'
+  const [view, setView] = useState("login");
 
-  // Etapa 1
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  // Login fields
+  const [loginEmail, setLoginEmail]   = useState("");
+  const [loginPwd,   setLoginPwd]     = useState("");
+
+  // Register step 1
+  const [regEmail,   setRegEmail]     = useState("");
+  const [regPwd,     setRegPwd]       = useState("");
+  const [regConfirm, setRegConfirm]   = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [termsError, setTermsError] = useState(false);
 
-  // Etapa 2
-  const [fullName, setFullName] = useState("");
-  const [cpf, setCpf] = useState("");
+  // Register step 2
+  const [fullName,  setFullName]  = useState("");
+  const [cpf,       setCpf]       = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [stateUf, setStateUf] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [receivePromo, setReceivePromo] = useState(false);
+  const [phone,     setPhone]     = useState("");
+  const [address,   setAddress]   = useState("");
+  const [city,      setCity]      = useState("");
+  const [stateUf,   setStateUf]   = useState("");
+  const [zipCode,   setZipCode]   = useState("");
 
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, register, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  // OTP
+  const [otpCode,        setOtpCode]        = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [pendingPayload, setPendingPayload] = useState(null);
+  const [pendingAuth,    setPendingAuth]    = useState(null);
+
+  // UI
+  const [error,       setError]       = useState("");
+  const [submitting,  setSubmitting]  = useState(false);
+  const [successName, setSuccessName] = useState("");
+
+  const { login, googleLogin, loginWithToken, isAuthenticated } = useAuth();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const from = location.state?.from?.pathname || "/";
 
+  // Redirect if already authenticated (but not on success screen)
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true });
-    }
-  }, [isAuthenticated, from, navigate]);
+    if (isAuthenticated && view !== "success") navigate(from, { replace: true });
+  }, [isAuthenticated, from, navigate, view]);
 
+  // Resend cooldown countdown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  const clearError = () => setError("");
+
+  const resetRegister = useCallback(() => {
+    setRegEmail(""); setRegPwd(""); setRegConfirm(""); setAcceptTerms(false);
+    setFullName(""); setCpf(""); setBirthDate(""); setPhone("");
+    setAddress(""); setCity(""); setStateUf(""); setZipCode("");
+    setOtpCode(""); setPendingPayload(null); setPendingAuth(null);
+    setError("");
+  }, []);
+
+  // ── Login ──────────────────────────────────────────────────────
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
+    clearError();
+    setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(loginEmail.trim(), loginPwd);
     } catch (err) {
-      setError(err?.message || "Não foi possível entrar. Tente novamente.");
+      setError(err?.message || "E-mail ou senha incorretos.");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
+  // ── Google ─────────────────────────────────────────────────────
+  const handleGoogleLogin = async (credential) => {
+    clearError();
+    setSubmitting(true);
+    try {
+      await googleLogin(credential);
+    } catch (err) {
+      setError(err?.message || "Falha no login com Google. Tente novamente.");
+      setSubmitting(false);
+    }
+  };
+
+  // ── Register step 1 ────────────────────────────────────────────
   const handleStep1 = (e) => {
     e.preventDefault();
-    setError("");
-    setTermsError(false);
-
-    if (!acceptTerms) {
-      setTermsError(true);
-      return;
-    }
-    if (password.length < 12) {
-      setError("A senha deve ter pelo menos 12 caracteres.");
-      return;
-    }
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d])/.test(password)) {
-      setError("A senha deve conter letras maiúsculas, minúsculas, números e um caractere especial.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("As senhas não coincidem.");
-      return;
-    }
-
-    setStep(2);
+    clearError();
+    if (!acceptTerms) { setError("Você precisa aceitar os termos para criar uma conta."); return; }
+    if (regPwd.length < 6) { setError("A senha deve ter pelo menos 6 caracteres."); return; }
+    if (regPwd !== regConfirm) { setError("As senhas não coincidem."); return; }
+    setView("reg2");
   };
 
-  const handleRegister = async (e) => {
+  // ── Register step 2 → send OTP ─────────────────────────────────
+  const handleStep2 = async (e) => {
     e.preventDefault();
-    setError("");
+    clearError();
 
-    const cpfDigits = digitsOnly(cpf);
-    const phoneDigits = digitsOnly(phone);
-    const zipDigits = digitsOnly(zipCode);
-    const uf = stateUf.trim().toUpperCase();
+    const cpfD   = digitsOnly(cpf);
+    const phoneD = digitsOnly(phone);
+    const zipD   = digitsOnly(zipCode);
+    const uf     = stateUf.trim().toUpperCase();
 
-    if (cpfDigits.length !== 11) {
-      setError("CPF deve ter 11 dígitos.");
-      return;
-    }
-    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
-      setError("Telefone deve ter 10 ou 11 dígitos.");
-      return;
-    }
-    if (zipDigits.length !== 8) {
-      setError("CEP deve ter 8 dígitos.");
-      return;
-    }
-    if (uf.length !== 2 || !/^[A-Z]{2}$/.test(uf)) {
-      setError("UF deve ter 2 letras (ex.: SP).");
-      return;
-    }
-    if (!birthDate) {
-      setError("Informe a data de nascimento.");
-      return;
-    }
+    if (cpfD.length !== 11)                             { setError("CPF deve ter 11 dígitos."); return; }
+    if (phoneD.length < 10 || phoneD.length > 11)       { setError("Telefone deve ter 10 ou 11 dígitos."); return; }
+    if (zipD.length !== 8)                              { setError("CEP deve ter 8 dígitos."); return; }
+    if (!birthDate)                                     { setError("Informe a data de nascimento."); return; }
 
-    setIsSubmitting(true);
+    const payload = {
+      email: regEmail.trim(),
+      password: regPwd,
+      fullName: fullName.trim(),
+      cpf: cpfD,
+      birthDate,
+      phone: phoneD,
+      address: address.trim(),
+      city: city.trim(),
+      state: uf,
+      zipCode: zipD,
+    };
+
+    setSubmitting(true);
     try {
-      await register({
-        email: email.trim(),
-        password,
-        fullName: fullName.trim(),
-        cpf: cpfDigits,
-        birthDate,
-        phone: phoneDigits,
-        address: address.trim(),
-        city: city.trim(),
-        state: uf,
-        zipCode: zipDigits,
-      });
+      await sendVerificationCode(payload);
+      setPendingPayload(payload);
+      setResendCooldown(60);
+      setView("otp");
     } catch (err) {
-      setError(err?.message || "Não foi possível criar a conta. Tente novamente.");
+      setError(err?.message || "Não foi possível enviar o código. Tente novamente.");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
-  const resetRegisterFields = () => {
-    setStep(1);
-    setConfirmPassword("");
-    setFullName("");
-    setCpf("");
-    setBirthDate("");
-    setPhone("");
-    setAddress("");
-    setCity("");
-    setStateUf("");
-    setZipCode("");
-    setAcceptTerms(false);
-    setReceivePromo(false);
-    setTermsError(false);
+  // ── OTP confirm ────────────────────────────────────────────────
+  const handleOtp = async (e) => {
+    e.preventDefault();
+    clearError();
+    if (otpCode.replace(/\D/g, "").length !== 6) { setError("O código deve ter 6 dígitos."); return; }
+
+    setSubmitting(true);
+    try {
+      const data = await confirmRegistrationApi(regEmail.trim(), otpCode.trim());
+      setPendingAuth(data);
+      setSuccessName(fullName || data.email);
+      setView("success");
+    } catch (err) {
+      setError(err?.message || "Código incorreto. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  // ── Resend OTP ─────────────────────────────────────────────────
+  const handleResend = async () => {
+    if (!pendingPayload || resendCooldown > 0) return;
+    clearError();
+    try {
+      await sendVerificationCode(pendingPayload);
+      setResendCooldown(60);
+    } catch (err) {
+      setError(err?.message || "Não foi possível reenviar o código.");
+    }
+  };
+
+  // ── Enter store from success screen ───────────────────────────
+  const handleEnterStore = () => {
+    if (pendingAuth) loginWithToken(pendingAuth);
+    navigate(from, { replace: true });
+  };
+
+  // ── Progress steps label ───────────────────────────────────────
+  const stepIndex = { reg1: 0, reg2: 1, otp: 2 }[view] ?? -1;
+
+  // ── Render ─────────────────────────────────────────────────────
   return (
-    <main className={`login-page ${mode === "register" ? "login-page--register" : ""}`}>
-      <div
-        className={`login-page-box login-page-box--wide ${
-          mode === "register" ? "login-page-box--register" : ""
-        }`}
-      >
-        <div className="login-page-mark" aria-hidden>
-          <FaStore />
+    <div className="auth-page">
+      {/* ── Left decorative panel ── */}
+      <aside className="auth-left" aria-hidden="true">
+        <div className="auth-left-logo">
+          <span className="auth-left-icon"><FaStore /></span>
+          <span className="auth-left-brand">Sua Loja</span>
         </div>
+        <h2 className="auth-left-heading">
+          Compre com <span className="auth-left-accent">confiança</span>
+        </h2>
+        <p className="auth-left-sub">
+          Milhares de clientes satisfeitos já fazem parte da nossa comunidade.
+        </p>
+        <ul className="auth-left-features">
+          <li><FaShieldAlt className="feat-icon" /><span>Pagamento 100% seguro</span></li>
+          <li><FaShippingFast className="feat-icon" /><span>Entrega rápida para todo o Brasil</span></li>
+          <li><FaStar className="feat-icon" /><span>Produtos com garantia</span></li>
+          <li><FaLock className="feat-icon" /><span>Seus dados protegidos</span></li>
+        </ul>
+      </aside>
 
-        <div className="login-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "login"}
-            className={`login-tab ${mode === "login" ? "is-active" : ""}`}
-            onClick={() => {
-              setMode("login");
-              setError("");
-              resetRegisterFields();
-            }}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "register"}
-            className={`login-tab ${mode === "register" ? "is-active" : ""}`}
-            onClick={() => {
-              setMode("register");
-              setError("");
-              setStep(1);
-            }}
-          >
-            Criar conta
-          </button>
-        </div>
+      {/* ── Right form panel ── */}
+      <main className="auth-right">
+        <div className="auth-form-box">
 
-        {mode === "login" ? (
-          <>
-            <h1 className="login-page-title">
-              Acessar <span className="highlight-text">conta</span>
-            </h1>
-            <p className="login-page-sub">Use seu e-mail e senha.</p>
-          </>
-        ) : (
-          <>
-            <h1 className="login-page-title">
-              Nova <span className="highlight-text">conta</span>
-            </h1>
-            <p className="login-page-sub">
-              {step === 1
-                ? "Informe seu e-mail e crie uma senha com no mínimo 12 caracteres, incluindo maiúsculas, minúsculas, números e um caractere especial."
-                : "Preencha seus dados pessoais para concluir o cadastro."}
-            </p>
-            <div className="register-steps">
-              <span className={`register-step ${step === 1 ? "is-active" : "is-done"}`}>1</span>
-              <span className="register-step-line" />
-              <span className={`register-step ${step === 2 ? "is-active" : ""}`}>2</span>
-            </div>
-          </>
-        )}
-
-        {error ? <div className="login-page-error" role="alert">{error}</div> : null}
-
-        {mode === "login" ? (
-          <form className="login-page-form" onSubmit={handleLogin}>
-            <div className="input-group">
-              <label htmlFor="login-email">E-mail</label>
-              <input
-                id="login-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="input-group">
-              <label htmlFor="login-password">Senha</label>
-              <input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-            <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
-              {isSubmitting ? "Entrando…" : "Entrar"}
-            </button>
-          </form>
-        ) : step === 1 ? (
-          <form className="login-page-form" onSubmit={handleStep1}>
-            <div className="input-group">
-              <label htmlFor="register-email">E-mail</label>
-              <input
-                id="register-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="input-group">
-              <label htmlFor="register-password">Senha</label>
-              <input
-                id="register-password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={12}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="input-group">
-              <label htmlFor="register-confirm">Confirmar senha</label>
-              <input
-                id="register-confirm"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={12}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="register-consents">
-              <div className={`consent-group ${termsError ? "consent-group--error" : ""}`}>
-                <input
-                  id="accept-terms"
-                  type="checkbox"
-                  className="consent-checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => {
-                    setAcceptTerms(e.target.checked);
-                    if (e.target.checked) setTermsError(false);
-                  }}
-                  disabled={isSubmitting}
-                  aria-required="true"
-                  aria-describedby={termsError ? "terms-error-msg" : undefined}
-                />
-                <label htmlFor="accept-terms" className="consent-label">
-                  Li e aceito os{" "}
-                  <Link to="/institucional" className="consent-link" tabIndex={0}>
-                    termos e condições
-                  </Link>{" "}
-                  da loja <span className="consent-required" aria-label="obrigatório">*</span>
-                </label>
+          {/* ── LOGIN view ── */}
+          {view === "login" && (
+            <>
+              <div className="auth-form-header">
+                <div className="auth-form-icon"><FaStore /></div>
+                <h1 className="auth-form-title">Bem-vindo de volta</h1>
+                <p className="auth-form-sub">Entre com seu e-mail e senha</p>
               </div>
-              {termsError && (
-                <p className="consent-error" id="terms-error-msg" role="alert">
-                  Você precisa aceitar os termos para criar uma conta.
+
+              {error && <div className="auth-error" role="alert">{error}</div>}
+
+              <form className="auth-form" onSubmit={handleLogin} noValidate>
+                <div className="auth-field">
+                  <label htmlFor="l-email">E-mail</label>
+                  <input
+                    id="l-email" type="email" autoComplete="email" required
+                    placeholder="seu@email.com"
+                    value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+                    disabled={submitting}
+                  />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="l-pwd">Senha</label>
+                  <PasswordInput
+                    id="l-pwd" value={loginPwd}
+                    onChange={(e) => setLoginPwd(e.target.value)}
+                    autoComplete="current-password" disabled={submitting}
+                  />
+                </div>
+                <button type="submit" className="auth-btn-primary" disabled={submitting}>
+                  {submitting ? "Entrando…" : "Entrar"}
+                </button>
+              </form>
+
+              <div className="auth-divider"><span>ou continue com</span></div>
+
+              <div className="auth-google-wrap">
+                <GoogleLogin
+                  onSuccess={(cr) => handleGoogleLogin(cr.credential)}
+                  onError={() => setError("Falha no login com Google.")}
+                  text="continue_with"
+                  shape="rectangular"
+                  theme="outline"
+                  size="large"
+                  width="340"
+                />
+              </div>
+
+              <p className="auth-switch">
+                Ainda não tem conta?{" "}
+                <button type="button" className="auth-link-btn"
+                  onClick={() => { clearError(); setView("reg1"); }}>
+                  Criar conta
+                </button>
+              </p>
+              <Link to="/" className="auth-back-link">← Voltar à loja</Link>
+            </>
+          )}
+
+          {/* ── REGISTER step 1 — email + senha ── */}
+          {view === "reg1" && (
+            <>
+              <div className="auth-form-header">
+                <div className="auth-form-icon"><FaStore /></div>
+                <h1 className="auth-form-title">Criar conta</h1>
+                <p className="auth-form-sub">Passo 1 de 3 — Acesso</p>
+              </div>
+              <div className="auth-steps">
+                {["Acesso", "Dados", "Verificação"].map((label, i) => (
+                  <div key={label} className={`auth-step ${i < stepIndex ? "done" : i === stepIndex ? "active" : ""}`}>
+                    <span className="auth-step-dot">{i < stepIndex ? "✓" : i + 1}</span>
+                    <span className="auth-step-label">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {error && <div className="auth-error" role="alert">{error}</div>}
+
+              <form className="auth-form" onSubmit={handleStep1} noValidate>
+                <div className="auth-field">
+                  <label htmlFor="r1-email">E-mail</label>
+                  <input
+                    id="r1-email" type="email" autoComplete="email" required
+                    placeholder="seu@email.com"
+                    value={regEmail} onChange={(e) => setRegEmail(e.target.value)}
+                    disabled={submitting}
+                  />
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="r1-pwd">Senha</label>
+                  <PasswordInput
+                    id="r1-pwd" value={regPwd}
+                    onChange={(e) => setRegPwd(e.target.value)}
+                    autoComplete="new-password" placeholder="Mínimo 6 caracteres"
+                    disabled={submitting}
+                  />
+                  {regPwd && (() => {
+                    const s = getStrength(regPwd);
+                    return (
+                      <div className="auth-strength">
+                        <div className="auth-strength-bar">
+                          <div
+                            className={`auth-strength-fill level-${s.level}`}
+                            style={{ width: `${s.pct}%` }}
+                          />
+                        </div>
+                        <span className={`auth-strength-label level-${s.level}`}>{s.label}</span>
+                      </div>
+                    );
+                  })()}
+                  <p className="auth-field-hint">
+                    <span className={regPwd.length >= 6 ? "hint-ok" : "hint-dim"}>✓ Mínimo 6 caracteres</span>
+                  </p>
+                </div>
+                <div className="auth-field">
+                  <label htmlFor="r1-confirm">Confirmar senha</label>
+                  <PasswordInput
+                    id="r1-confirm" value={regConfirm}
+                    onChange={(e) => setRegConfirm(e.target.value)}
+                    autoComplete="new-password" placeholder="Repita a senha"
+                    disabled={submitting}
+                  />
+                  {regConfirm && regPwd !== regConfirm && (
+                    <p className="auth-field-error">As senhas não coincidem</p>
+                  )}
+                </div>
+
+                <div className="auth-terms">
+                  <input
+                    id="terms" type="checkbox" className="auth-checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    disabled={submitting}
+                  />
+                  <label htmlFor="terms">
+                    Li e aceito os{" "}
+                    <Link to="/institucional" className="auth-text-link">termos e condições</Link>
+                    {" "}<span className="auth-required">*</span>
+                  </label>
+                </div>
+
+                <button type="submit" className="auth-btn-primary" disabled={submitting}>
+                  Continuar
+                </button>
+              </form>
+
+              <div className="auth-divider"><span>ou continue com</span></div>
+              <div className="auth-google-wrap">
+                <GoogleLogin
+                  onSuccess={(cr) => handleGoogleLogin(cr.credential)}
+                  onError={() => setError("Falha no login com Google.")}
+                  text="signup_with"
+                  shape="rectangular"
+                  theme="outline"
+                  size="large"
+                  width="340"
+                />
+              </div>
+
+              <p className="auth-switch">
+                Já tem conta?{" "}
+                <button type="button" className="auth-link-btn"
+                  onClick={() => { clearError(); resetRegister(); setView("login"); }}>
+                  Entrar
+                </button>
+              </p>
+              <Link to="/" className="auth-back-link">← Voltar à loja</Link>
+            </>
+          )}
+
+          {/* ── REGISTER step 2 — dados pessoais ── */}
+          {view === "reg2" && (
+            <>
+              <div className="auth-form-header">
+                <h1 className="auth-form-title">Dados pessoais</h1>
+                <p className="auth-form-sub">Passo 2 de 3 — Dados</p>
+              </div>
+              <div className="auth-steps">
+                {["Acesso", "Dados", "Verificação"].map((label, i) => (
+                  <div key={label} className={`auth-step ${i < stepIndex ? "done" : i === stepIndex ? "active" : ""}`}>
+                    <span className="auth-step-dot">{i < stepIndex ? "✓" : i + 1}</span>
+                    <span className="auth-step-label">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {error && <div className="auth-error" role="alert">{error}</div>}
+
+              <form className="auth-form" onSubmit={handleStep2} noValidate>
+                <div className="auth-grid-2">
+                  <div className="auth-field auth-span-2">
+                    <label htmlFor="r2-name">Nome completo</label>
+                    <input id="r2-name" type="text" autoComplete="name" required
+                      value={fullName} onChange={(e) => setFullName(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field">
+                    <label htmlFor="r2-cpf">CPF</label>
+                    <input id="r2-cpf" type="text" inputMode="numeric" required
+                      placeholder="000.000.000-00"
+                      value={cpf} onChange={(e) => setCpf(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field">
+                    <label htmlFor="r2-birth">Nascimento</label>
+                    <input id="r2-birth" type="date" required
+                      value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field">
+                    <label htmlFor="r2-phone">Telefone</label>
+                    <input id="r2-phone" type="text" inputMode="numeric" autoComplete="tel" required
+                      placeholder="(11) 99999-9999"
+                      value={phone} onChange={(e) => setPhone(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field">
+                    <label htmlFor="r2-cep">CEP</label>
+                    <input id="r2-cep" type="text" inputMode="numeric" required
+                      placeholder="00000-000"
+                      value={zipCode} onChange={(e) => setZipCode(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field auth-span-2">
+                    <label htmlFor="r2-addr">Endereço</label>
+                    <input id="r2-addr" type="text" autoComplete="street-address" required
+                      placeholder="Rua, número, complemento"
+                      value={address} onChange={(e) => setAddress(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field">
+                    <label htmlFor="r2-city">Cidade</label>
+                    <input id="r2-city" type="text" required
+                      value={city} onChange={(e) => setCity(e.target.value)}
+                      disabled={submitting} />
+                  </div>
+                  <div className="auth-field">
+                    <label htmlFor="r2-uf">Estado</label>
+                    <select id="r2-uf" required
+                      value={stateUf} onChange={(e) => setStateUf(e.target.value)}
+                      disabled={submitting}>
+                      <option value="">UF</option>
+                      {BR_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="auth-step2-actions">
+                  <button type="button" className="auth-btn-secondary"
+                    onClick={() => { clearError(); setView("reg1"); }}
+                    disabled={submitting}>
+                    ← Voltar
+                  </button>
+                  <button type="submit" className="auth-btn-primary auth-flex-1" disabled={submitting}>
+                    {submitting ? "Enviando código…" : "Criar conta"}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {/* ── OTP verification ── */}
+          {view === "otp" && (
+            <>
+              <div className="auth-form-header">
+                <div className="auth-otp-icon">
+                  <FaShieldAlt />
+                </div>
+                <h1 className="auth-form-title">Verifique seu e-mail</h1>
+                <p className="auth-form-sub">
+                  Enviamos um código de 6 dígitos para<br />
+                  <strong>{regEmail}</strong>
                 </p>
-              )}
-            </div>
+              </div>
+              <div className="auth-steps">
+                {["Acesso", "Dados", "Verificação"].map((label, i) => (
+                  <div key={label} className={`auth-step ${i < 2 ? "done" : i === 2 ? "active" : ""}`}>
+                    <span className="auth-step-dot">{i < 2 ? "✓" : i + 1}</span>
+                    <span className="auth-step-label">{label}</span>
+                  </div>
+                ))}
+              </div>
 
-            <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
-              Continuar
-            </button>
-          </form>
-        ) : (
-          <form className="login-page-form login-page-form--register" onSubmit={handleRegister}>
-            <div className="register-fields-grid">
-              <div className="input-group register-span-2">
-                <label htmlFor="register-fullName">Nome completo</label>
-                <input
-                  id="register-fullName"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-cpf">CPF</label>
-                <input
-                  id="register-cpf"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  required
-                  placeholder="Somente números"
-                  value={cpf}
-                  onChange={(e) => setCpf(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-birth">Data de nascimento</label>
-                <input
-                  id="register-birth"
-                  type="date"
-                  required
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-phone">Telefone</label>
-                <input
-                  id="register-phone"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  required
-                  placeholder="DDD + número"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-cep">CEP</label>
-                <input
-                  id="register-cep"
-                  type="text"
-                  inputMode="numeric"
-                  required
-                  placeholder="8 dígitos"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group register-span-2">
-                <label htmlFor="register-address">Endereço</label>
-                <input
-                  id="register-address"
-                  type="text"
-                  autoComplete="street-address"
-                  required
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-city">Cidade</label>
-                <input
-                  id="register-city"
-                  type="text"
-                  required
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="input-group">
-                <label htmlFor="register-uf">UF</label>
-                <input
-                  id="register-uf"
-                  type="text"
-                  required
-                  maxLength={2}
-                  placeholder="SP"
-                  value={stateUf}
-                  onChange={(e) => setStateUf(e.target.value.toUpperCase())}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
+              {error && <div className="auth-error" role="alert">{error}</div>}
 
-            <div className="register-consents">
-              <div className="consent-group">
-                <input
-                  id="receive-promo"
-                  type="checkbox"
-                  className="consent-checkbox"
-                  checked={receivePromo}
-                  onChange={(e) => setReceivePromo(e.target.checked)}
-                  disabled={isSubmitting}
-                />
-                <label htmlFor="receive-promo" className="consent-label">
-                  Desejo receber promoções e novidades por e-mail{" "}
-                  <span className="consent-optional">(opcional)</span>
-                </label>
-              </div>
-            </div>
+              <form className="auth-form" onSubmit={handleOtp} noValidate>
+                <div className="auth-field">
+                  <label htmlFor="otp-code">Código de verificação</label>
+                  <input
+                    id="otp-code"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    className="auth-otp-input"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    autoComplete="one-time-code"
+                    disabled={submitting}
+                  />
+                  <p className="auth-field-hint">Verifique também a pasta de spam.</p>
+                </div>
+                <button type="submit" className="auth-btn-primary" disabled={submitting || otpCode.length !== 6}>
+                  {submitting ? "Verificando…" : "Verificar e criar conta"}
+                </button>
+              </form>
 
-            <div className="register-step2-actions">
-              <button
-                type="button"
-                className="btn-outline btn-back"
-                onClick={() => { setError(""); setStep(1); }}
-                disabled={isSubmitting}
-              >
-                Voltar
+              <div className="auth-resend">
+                {resendCooldown > 0 ? (
+                  <span className="auth-resend-timer">
+                    Reenviar código em {resendCooldown}s
+                  </span>
+                ) : (
+                  <button type="button" className="auth-link-btn" onClick={handleResend}>
+                    Reenviar código
+                  </button>
+                )}
+              </div>
+
+              <button type="button" className="auth-back-link"
+                onClick={() => { clearError(); setOtpCode(""); setView("reg2"); }}>
+                ← Alterar dados
               </button>
-              <button type="submit" className="btn-gold btn-login-submit" disabled={isSubmitting}>
-                {isSubmitting ? "Criando…" : "Criar conta"}
-              </button>
-            </div>
-          </form>
-        )}
+            </>
+          )}
 
-        <Link to="/" className="login-page-back">
-          Voltar à loja
-        </Link>
-      </div>
-    </main>
+          {/* ── SUCCESS screen ── */}
+          {view === "success" && (
+            <div className="auth-success">
+              <div className="auth-success-icon">
+                <FaCheckCircle />
+              </div>
+              <h1 className="auth-success-title">Conta criada!</h1>
+              <p className="auth-success-msg">
+                Seja bem-vindo(a), <strong>{successName}</strong>!<br />
+                Seu cadastro foi concluído com sucesso. Agora você pode aproveitar
+                todos os benefícios da nossa loja.
+              </p>
+              <button type="button" className="auth-btn-primary auth-success-btn" onClick={handleEnterStore}>
+                Entrar na loja
+              </button>
+              <p className="auth-success-hint">
+                Você receberá ofertas e novidades no e-mail cadastrado.
+              </p>
+            </div>
+          )}
+
+        </div>
+      </main>
+    </div>
   );
 }

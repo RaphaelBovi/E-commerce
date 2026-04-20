@@ -14,6 +14,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import AuthProvider from './context/AuthProvider';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -133,9 +134,8 @@ function App() {
   const totalCartItemsCount = cartItems.reduce((total, item) => total + item.quantity, 0);
 
   return (
-    // BrowserRouter habilita roteamento baseado em URL (history API)
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
     <BrowserRouter>
-      {/* AuthProvider fornece contexto de autenticação para toda a árvore */}
       <AuthProvider>
       <div className="app">
         {/* Navbar fixa no topo; recebe contagem do carrinho e callback para abrir o drawer */}
@@ -231,6 +231,7 @@ function App() {
       </div>
       </AuthProvider>
     </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }
 

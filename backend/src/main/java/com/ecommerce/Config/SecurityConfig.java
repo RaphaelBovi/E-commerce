@@ -75,9 +75,6 @@ public class SecurityConfig {
                 // ORDEM IMPORTA: regras mais específicas devem vir antes das mais genéricas
                 .authorizeHttpRequests(auth -> auth
 
-                        // Preflight CORS — OPTIONS deve ser liberado antes de qualquer outra regra
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
                         // Público — qualquer pessoa pode acessar (sem token)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-category/**").permitAll()

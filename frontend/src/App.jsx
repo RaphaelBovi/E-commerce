@@ -29,6 +29,7 @@ import { products as fallbackProducts } from './data/mockData';
 import { fetchProducts } from './services/productsApi';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
+import MinhaConta from './pages/MinhaConta';
 
 function App() {
   // Lista de itens atualmente no carrinho; cada item é { ...produto, quantity }
@@ -219,6 +220,8 @@ function App() {
           <Route path="/checkout" element={<Checkout cartItems={cartItems} onClearCart={() => setCartItems([])} />} />
           {/* Página de login e cadastro */}
           <Route path="/login" element={<Login />} />
+          {/* Painel do usuário */}
+          <Route path="/minha-conta" element={<MinhaConta />} />
         </Routes>
 
         {/* Rodapé exibido em todas as páginas */}

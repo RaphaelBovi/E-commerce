@@ -103,10 +103,9 @@ export default function Navbar({ cartCount, onOpenCart }) {
                   <span className="icon-user" aria-hidden>
                     <FaRegUser />
                   </span>
-                  {/* Trunca o e-mail via CSS se for longo */}
-                  <span className="user-email" title={user.email}>
+                  <Link to="/minha-conta" className="user-email" title={user.email}>
                     {user.email}
-                  </span>
+                  </Link>
                   <button type="button" className="btn-logout-nav" onClick={logout}>
                     Sair
                   </button>

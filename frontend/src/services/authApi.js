@@ -117,6 +117,17 @@ export async function loginRequest(email, password) {
   return response.json();
 }
 
+// ─── getUserProfile ──────────────────────────────────────────────
+// Retorna os dados completos do usuário autenticado (GET /auth/me).
+// Inclui: fullName, cpf, birthDate, phone, address, city, state, zipCode, role, createdAt
+export async function getUserProfile() {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: { ...getAuthHeader(), Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`Erro ${response.status}`);
+  return response.json();
+}
+
 // ─── registerRequest ─────────────────────────────────────────────
 // Envia os dados de cadastro para POST /auth/register.
 // O payload deve conter: email, password, fullName, cpf, birthDate,

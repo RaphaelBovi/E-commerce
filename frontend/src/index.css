@@ -1,36 +1,82 @@
 :root {
-  --page-bg: #f4f6f9;
-  --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e8ecf1;
-  --border-strong: #d1d9e6;
-  --text: #1a1f36;
-  --text-secondary: #5c6578;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-soft: #eff6ff;
-  --success: #059669;
-  --shadow-sm: 0 1px 2px rgba(26, 31, 54, 0.05);
-  --shadow-md: 0 4px 16px rgba(26, 31, 54, 0.08);
-  --shadow-lg: 0 12px 40px rgba(26, 31, 54, 0.1);
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* ─── Surfaces ─────────────────────────────── */
+  --page-bg: #F7F7F8;
+  --surface: #FFFFFF;
+  --surface-2: #F4F4F6;
+  --surface-3: #ECECEE;
 
+  /* ─── Borders ──────────────────────────────── */
+  --border: #E4E4E7;
+  --border-strong: #D1D1D6;
+
+  /* ─── Text ─────────────────────────────────── */
+  --text: #0C0C0E;
+  --text-secondary: #52525B;
+  --text-muted: #A1A1AA;
+
+  /* ─── Brand — Blue (trust, links, info) ────── */
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-soft: #EFF6FF;
+  --primary-soft-border: #BFDBFE;
+
+  /* ─── Accent — Orange (conversão, CTAs) ────── */
+  --accent: #F97316;
+  --accent-hover: #EA6C0A;
+  --accent-soft: #FFF7ED;
+
+  /* ─── Semantic ─────────────────────────────── */
+  --success: #16A34A;
+  --success-soft: #F0FDF4;
+  --warning: #D97706;
+  --warning-soft: #FFFBEB;
+  --danger: #DC2626;
+  --danger-soft: #FEF2F2;
+
+  /* ─── Shadows ──────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1), 0 3px 8px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(0, 0, 0, 0.06);
+
+  /* ─── Radius ───────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* ─── Navbar height (promo + top + bottom) ─── */
+  --navbar-h: 137px;
+
+  /* ─── Transitions ──────────────────────────── */
+  --transition-fast: 0.15s ease;
+  --transition: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* ─── Legacy aliases (mantidos para compatibilidade) */
   --text-main: var(--text);
   --text-dark: var(--text);
-  --text-yellow: var(--primary);
-  --btn-gold: var(--primary);
+  --text-yellow: var(--accent);
+  --btn-gold: var(--accent);
   --btn-text: #ffffff;
   --bg-dark: var(--surface-2);
   --bg-graphite: var(--surface);
   --bg-gray: var(--surface-2);
-  --bg-light-gray: #f1f4f8;
+  --bg-light-gray: var(--surface-2);
 }
 
-* {
+/* ─── Reset ──────────────────────────────────── */
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* ─── Base ───────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -38,10 +84,31 @@ body {
   background-color: var(--page-bg);
   color: var(--text);
   overflow-x: hidden;
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
 }
 
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+/* ─── App shell ──────────────────────────────── */
 .app {
   min-height: 100vh;
   display: flex;
@@ -49,77 +116,129 @@ body {
   background-color: var(--page-bg);
 }
 
+/* ─── Container ──────────────────────────────── */
 .container {
   max-width: 1320px;
   margin: 0 auto;
-  padding: 0 1.25rem;
+  padding: 0 1.5rem;
 }
 
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1rem;
+  }
+}
+
+/* ─── Typography ─────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+/* ─── Utility ────────────────────────────────── */
 .highlight-text {
   color: var(--primary);
 }
 
+.accent-text {
+  color: var(--accent);
+}
+
+/* ─── Primary CTA button (orange) ───────────── */
 .btn-gold {
-  background-color: var(--primary);
-  color: var(--btn-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--accent);
+  color: #fff;
   border: none;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.95rem;
+  padding: 0.7rem 1.25rem;
+  font-size: 0.9rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
-  text-transform: none;
+  transition: background var(--transition), transform var(--transition-fast), box-shadow var(--transition);
   width: 100%;
-  box-shadow: var(--shadow-sm);
-  font-family: inherit;
+  min-height: 44px;
+  letter-spacing: -0.01em;
 }
 
 .btn-gold:hover {
-  background-color: var(--primary-hover);
+  background: var(--accent-hover);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
 }
 
 .btn-gold:active {
   transform: scale(0.98);
 }
 
-.responsive-grid {
-  display: grid;
-  gap: 1.5rem;
+.btn-gold:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-@media (max-width: 599px) {
-  .responsive-grid {
-    grid-template-columns: 1fr;
-  }
+/* ─── Section label (heading accent line) ────── */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
 }
-@media (min-width: 600px) and (max-width: 1023px) {
+
+.section-label::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 1.4em;
+  background: var(--accent);
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+/* ─── Responsive grid ────────────────────────── */
+.responsive-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (max-width: 479px) {
   .responsive-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .responsive-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (min-width: 1024px) and (max-width: 1439px) {
   .responsive-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
-@media (min-width: 1440px) and (max-width: 1919px) {
-  .responsive-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-@media (min-width: 1920px) {
+
+@media (min-width: 1440px) {
   .responsive-grid {
     grid-template-columns: repeat(5, 1fr);
   }
 }
 
-h1,
-h2,
-h3,
-h4 {
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
-  font-weight: 700;
-  text-transform: none;
-  letter-spacing: -0.02em;
+/* ─── Focus ring ─────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }

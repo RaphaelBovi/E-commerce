@@ -15,3 +15,7 @@ app:
     from: ${MAIL_FROM:no-reply@sualoja.com}
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
+pagseguro:
+  token: ${PAGSEGURO_TOKEN:}
+  api-url: ${PAGSEGURO_API_URL:https://sandbox.api.pagseguro.com}
+  notification-url: ${PAGSEGURO_NOTIFICATION_URL:}

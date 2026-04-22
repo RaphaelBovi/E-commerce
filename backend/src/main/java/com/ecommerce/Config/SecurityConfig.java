@@ -89,6 +89,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/product-category/**").hasAnyRole("ADMIN", "MASTER")
                         .requestMatchers(HttpMethod.DELETE, "/api/product-category/**").hasAnyRole("ADMIN", "MASTER")
 
+                        // Webhook do PagSeguro — chamado pelo gateway sem token
+                        .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+
+                        // Checkout e chave pública — requer usuário autenticado
+                        .requestMatchers(HttpMethod.POST, "/api/checkout").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/payments/public-key").authenticated()
+
                         // Pedidos do cliente — qualquer usuário autenticado
                         .requestMatchers(HttpMethod.POST, "/api/orders").authenticated()
                         .requestMatchers("/api/orders/my/**").authenticated()

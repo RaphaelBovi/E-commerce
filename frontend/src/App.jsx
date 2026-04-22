@@ -13,7 +13,8 @@
 // ─────────────────────────────────────────────────────────────────
 
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './context/useAuth';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import AuthProvider from './context/AuthProvider';
 import Navbar from './components/Navbar';
@@ -31,6 +32,16 @@ import { fetchProducts } from './services/productsApi';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import MinhaConta from './pages/MinhaConta';
+
+// Redirects unauthenticated users to /login, preserving the intended destination
+function ProtectedRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
 
 function App() {
   // Lista de itens atualmente no carrinho; cada item é { ...produto, quantity }
@@ -216,8 +227,12 @@ function App() {
               />
             }
           />
-          {/* Checkout: recebe itens do carrinho e callback para limpar após pedido */}
-          <Route path="/checkout" element={<Checkout cartItems={cartItems} onClearCart={() => setCartItems([])} />} />
+          {/* Checkout: protegido — redireciona para /login se não autenticado */}
+          <Route path="/checkout" element={
+            <ProtectedRoute>
+              <Checkout cartItems={cartItems} onClearCart={() => setCartItems([])} />
+            </ProtectedRoute>
+          } />
           {/* Página de login e cadastro */}
           <Route path="/login" element={<Login />} />
           {/* Painel do usuário */}

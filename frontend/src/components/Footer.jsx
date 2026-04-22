@@ -1,75 +1,88 @@
-// ─────────────────────────────────────────────────────────────────
-// Footer.jsx — Rodapé da loja
-//
-// Componente estático (sem estado ou props) exibido em todas as páginas.
-// Contém três seções principais:
-//  1. Topo: colunas com central de vendas, atendimento e links rápidos
-//  2. Rodapé intermediário: formas de pagamento e selos de segurança
-//  3. Rodapé legal: texto de aviso do template
-//
-// Para personalizar: substitua os textos, telefones, e-mails e links
-// diretamente no JSX abaixo. Para adicionar redes sociais ou mais
-// colunas, basta incluir um novo <div className="footer-col">.
-// ─────────────────────────────────────────────────────────────────
-
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { FaStore, FaInstagram, FaFacebook, FaWhatsapp, FaYoutube } from 'react-icons/fa';
 import './Footer.css';
 
 export default function Footer() {
   return (
     <footer className="footer">
-      {/* ── Seção superior: informações de contato e links úteis ── */}
-      <div className="container footer-top">
-        {/* Coluna 1: central de vendas com telefone principal */}
-        <div className="footer-col">
-          <h4>Central de vendas</h4>
-          <p className="phone">0800 000 0000</p>
-          <p>Segunda a sexta, 9h às 18h</p>
-        </div>
+      {/* ── Main footer ── */}
+      <div className="footer-main">
+        <div className="container footer-grid">
 
-        {/* Coluna 2: telefone de atendimento e e-mail de contato */}
-        <div className="footer-col">
-          <h4>Atendimento</h4>
-          <p>(00) 0000-0000</p>
-          <p>contato@sualoja.com.br</p>
-        </div>
+          {/* Brand column */}
+          <div className="footer-brand">
+            <Link to="/" className="footer-logo">
+              <span className="footer-logo-mark"><FaStore /></span>
+              <span className="footer-logo-name">Sua Loja</span>
+            </Link>
+            <p className="footer-brand-desc">
+              Produtos de qualidade com entrega rápida para todo o Brasil.
+              Compre com segurança e confiança.
+            </p>
+            <div className="footer-social">
+              <a href="#instagram" className="social-link" aria-label="Instagram"><FaInstagram /></a>
+              <a href="#facebook" className="social-link" aria-label="Facebook"><FaFacebook /></a>
+              <a href="#whatsapp" className="social-link" aria-label="WhatsApp"><FaWhatsapp /></a>
+              <a href="#youtube" className="social-link" aria-label="YouTube"><FaYoutube /></a>
+            </div>
+          </div>
 
-        {/* Coluna 3: links rápidos para áreas da conta e políticas */}
-        <div className="footer-col">
-          <ul className="footer-links">
-            <li><a href="#conta">Minha conta</a></li>
-            <li><a href="#pedidos">Meus pedidos</a></li>
-            <li><a href="#privacidade">Privacidade</a></li>
-            <li><a href="#trocas">Trocas e devoluções</a></li>
-          </ul>
+          {/* Links column */}
+          <div className="footer-col">
+            <h4 className="footer-col-title">Navegação</h4>
+            <ul className="footer-links">
+              <li><Link to="/">Início</Link></li>
+              <li><Link to="/catalogo">Catálogo</Link></li>
+              <li><Link to="/lancamentos">Novidades</Link></li>
+              <li><Link to="/promocoes">Ofertas</Link></li>
+              <li><Link to="/institucional">Sobre nós</Link></li>
+            </ul>
+          </div>
+
+          {/* Account column */}
+          <div className="footer-col">
+            <h4 className="footer-col-title">Minha Conta</h4>
+            <ul className="footer-links">
+              <li><Link to="/minha-conta">Painel</Link></li>
+              <li><Link to="/minha-conta">Meus pedidos</Link></li>
+              <li><Link to="/minha-conta">Endereços</Link></li>
+              <li><Link to="/minha-conta">Segurança</Link></li>
+              <li><Link to="/login">Entrar</Link></li>
+            </ul>
+          </div>
+
+          {/* Contact column */}
+          <div className="footer-col">
+            <h4 className="footer-col-title">Atendimento</h4>
+            <ul className="footer-links">
+              <li><span>0800 000 0000</span></li>
+              <li><span>Seg–Sex, 9h às 18h</span></li>
+              <li><a href="mailto:contato@sualoja.com.br">contato@sualoja.com.br</a></li>
+            </ul>
+            <div className="footer-payment">
+              <p className="footer-payment-label">Pagamos com</p>
+              <div className="footer-badges">
+                <span className="foot-badge">Cartão</span>
+                <span className="foot-badge">PIX</span>
+                <span className="foot-badge">Boleto</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* ── Seção intermediária: pagamento e segurança ── */}
-      <div className="container footer-bottom">
-        {/* Formas de pagamento aceitas — adicione/remova badges conforme necessário */}
-        <div className="payment-methods">
-          <h4>Formas de pagamento</h4>
-          <div className="badges">
-            <span className="badge">Cartão</span>
-            <span className="badge">PIX</span>
-            <span className="badge">Boleto</span>
+      {/* ── Bottom bar ── */}
+      <div className="footer-bottom">
+        <div className="container footer-bottom-inner">
+          <p>© {new Date().getFullYear()} Sua Loja. Template de e-commerce.</p>
+          <div className="footer-bottom-links">
+            <a href="#privacidade">Privacidade</a>
+            <a href="#termos">Termos de uso</a>
+            <a href="#trocas">Trocas e devoluções</a>
           </div>
         </div>
-
-        {/* Selos de segurança — substitua por imagens de certificados reais se desejar */}
-        <div className="security">
-          <h4>Compra segura</h4>
-          <div className="badges">
-            <span className="badge safe">HTTPS</span>
-            <span className="badge safe">Dados protegidos</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Nota legal do template — substitua pelo texto real da sua loja ── */}
-      <div className="container footer-legal">
-        <p>Template de loja virtual — personalize textos e integrações conforme seu projeto.</p>
       </div>
     </footer>
   );

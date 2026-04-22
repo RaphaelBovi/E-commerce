@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  FaStore, FaEye, FaEyeSlash, FaCheckCircle,
-  FaShieldAlt, FaShippingFast, FaStar, FaLock,
+  FaStore, FaEye, FaEyeSlash, FaCheckCircle, FaShieldAlt,
 } from "react-icons/fa";
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/useAuth";
@@ -238,27 +237,7 @@ export default function Login() {
   // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="auth-page">
-      {/* ── Left decorative panel ── */}
-      <aside className="auth-left" aria-hidden="true">
-        <div className="auth-left-logo">
-          <span className="auth-left-icon"><FaStore /></span>
-          <span className="auth-left-brand">Sua Loja</span>
-        </div>
-        <h2 className="auth-left-heading">
-          Compre com <span className="auth-left-accent">confiança</span>
-        </h2>
-        <p className="auth-left-sub">
-          Milhares de clientes satisfeitos já fazem parte da nossa comunidade.
-        </p>
-        <ul className="auth-left-features">
-          <li><FaShieldAlt className="feat-icon" /><span>Pagamento 100% seguro</span></li>
-          <li><FaShippingFast className="feat-icon" /><span>Entrega rápida para todo o Brasil</span></li>
-          <li><FaStar className="feat-icon" /><span>Produtos com garantia</span></li>
-          <li><FaLock className="feat-icon" /><span>Seus dados protegidos</span></li>
-        </ul>
-      </aside>
-
-      {/* ── Right form panel ── */}
+      {/* ── Form panel ── */}
       <main className="auth-right">
         <div className="auth-form-box">
 

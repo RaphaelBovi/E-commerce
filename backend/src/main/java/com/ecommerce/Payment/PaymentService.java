@@ -1,0 +1,261 @@
+package com.ecommerce.Payment;
+
+import com.ecommerce.Auth.Entity.User;
+import com.ecommerce.Auth.Repository.UserRepository;
+import com.ecommerce.Order.Entity.*;
+import com.ecommerce.Order.Repository.OrderRepository;
+import com.ecommerce.Payment.Dto.CheckoutRequest;
+import com.ecommerce.Payment.Dto.CheckoutResponse;
+import com.ecommerce.Product.Exception.ResourceNotFoundException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.math.BigDecimal;
+import java.util.*;
+
+@Slf4j
+@Service
+public class PaymentService {
+
+    @Value("${pagseguro.token:}")
+    private String pagseguroToken;
+
+    @Value("${pagseguro.api-url:https://sandbox.api.pagseguro.com}")
+    private String pagseguroApiUrl;
+
+    @Value("${pagseguro.notification-url:}")
+    private String notificationUrl;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    private final RestClient restClient = RestClient.create();
+
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {};
+
+    // ── UTILITÁRIO ────────────────────────────────────────────────
+    private User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+    }
+
+    // ── CHAVE PÚBLICA ─────────────────────────────────────────────
+    // Retorna a chave pública RSA do PagSeguro usada pelo SDK JS do frontend
+    // para encriptar os dados do cartão antes de enviá-los ao servidor
+    public String getPublicKey() {
+        if (pagseguroToken == null || pagseguroToken.isBlank()) {
+            throw new IllegalStateException("Token do PagSeguro não configurado");
+        }
+        try {
+            Map<String, Object> response = restClient.get()
+                    .uri(pagseguroApiUrl + "/public-keys/CREDIT_CARD")
+                    .header("Authorization", "Bearer " + pagseguroToken)
+                    .retrieve()
+                    .body(MAP_TYPE);
+
+            if (response == null || !response.containsKey("public_key")) {
+                throw new RuntimeException("Chave pública não retornada pelo PagSeguro");
+            }
+            return (String) response.get("public_key");
+
+        } catch (Exception e) {
+            log.error("Falha ao obter chave pública do PagSeguro", e);
+            throw new RuntimeException("Não foi possível obter a chave de pagamento: " + e.getMessage());
+        }
+    }
+
+    // ── CHECKOUT ─────────────────────────────────────────────────
+    // Cria o pedido no banco e processa o pagamento no PagSeguro atomicamente
+    @Transactional
+    public CheckoutResponse processCheckout(CheckoutRequest request) {
+        User user = getCurrentUser();
+
+        // 1. Monta e persiste o pedido com status PENDING_PAYMENT
+        Order order = Order.builder()
+                .user(user)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .paymentMethod(PaymentMethod.CREDIT_CARD)
+                .totalAmount(BigDecimal.ZERO)
+                .deliveryAddress(request.deliveryAddress())
+                .build();
+
+        List<OrderItem> items = request.items().stream().map(i -> OrderItem.builder()
+                .order(order)
+                .productId(i.productId())
+                .productName(i.productName())
+                .productImage(i.productImage())
+                .unitPrice(i.unitPrice())
+                .quantity(i.quantity())
+                .build()
+        ).toList();
+
+        // Total calculado no backend — nunca confiar no valor enviado pelo cliente
+        BigDecimal total = items.stream()
+                .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        order.setTotalAmount(total);
+        order.getItems().addAll(items);
+        Order savedOrder = orderRepository.save(order);
+
+        // 2. Processa o pagamento via PagSeguro
+        ChargeResult charge = createCharge(savedOrder.getId(), total, request);
+
+        // 3. Atualiza status do pedido conforme resultado da cobrança
+        return switch (charge.status()) {
+            case "PAID", "AUTHORIZED" -> {
+                savedOrder.setStatus(OrderStatus.PAID);
+                savedOrder.setPagseguroChargeId(charge.chargeId());
+                orderRepository.save(savedOrder);
+                yield new CheckoutResponse(savedOrder.getId(), charge.chargeId(), charge.status(),
+                        total, true, "Pagamento aprovado! Seu pedido está sendo preparado.");
+            }
+            case "IN_ANALYSIS" -> {
+                savedOrder.setPagseguroChargeId(charge.chargeId());
+                orderRepository.save(savedOrder);
+                yield new CheckoutResponse(savedOrder.getId(), charge.chargeId(), charge.status(),
+                        total, true, "Pagamento em análise. Você receberá uma confirmação por e-mail.");
+            }
+            case "DECLINED" -> {
+                savedOrder.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(savedOrder);
+                String msg = charge.message() != null
+                        ? charge.message()
+                        : "Pagamento recusado. Verifique os dados do cartão e tente novamente.";
+                yield new CheckoutResponse(savedOrder.getId(), null, "DECLINED", total, false, msg);
+            }
+            default -> {
+                savedOrder.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(savedOrder);
+                yield new CheckoutResponse(savedOrder.getId(), null, "ERROR", total, false,
+                        "Erro ao processar o pagamento. Tente novamente em instantes.");
+            }
+        };
+    }
+
+    // ── CHAMADA AO PAGSEGURO ──────────────────────────────────────
+    @SuppressWarnings("unchecked")
+    private ChargeResult createCharge(UUID orderId, BigDecimal totalBrl, CheckoutRequest request) {
+        int centavos = totalBrl.multiply(BigDecimal.valueOf(100)).intValue();
+
+        Map<String, Object> card = new LinkedHashMap<>();
+        card.put("encrypted", request.encryptedCard());
+        card.put("holder", Map.of("name", request.holderName().toUpperCase()));
+        card.put("store", false);
+
+        Map<String, Object> paymentMethod = new LinkedHashMap<>();
+        paymentMethod.put("type", "CREDIT_CARD");
+        paymentMethod.put("installments", request.installments());
+        paymentMethod.put("capture", true);
+        paymentMethod.put("card", card);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("reference_id", orderId.toString());
+        body.put("description", "Pedido #" + orderId.toString().substring(0, 8).toUpperCase());
+        body.put("amount", Map.of("value", centavos, "currency", "BRL"));
+        body.put("payment_method", paymentMethod);
+        if (notificationUrl != null && !notificationUrl.isBlank()) {
+            body.put("notification_urls", List.of(notificationUrl));
+        }
+
+        try {
+            Map<String, Object> response = restClient.post()
+                    .uri(pagseguroApiUrl + "/charges")
+                    .header("Authorization", "Bearer " + pagseguroToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(MAP_TYPE);
+
+            if (response == null) {
+                return new ChargeResult(null, "ERROR", "Resposta vazia do gateway");
+            }
+
+            String chargeId = (String) response.get("id");
+            String status   = (String) response.getOrDefault("status", "ERROR");
+            String message  = extractDeclinedMessage(response);
+            return new ChargeResult(chargeId, status, message);
+
+        } catch (HttpClientErrorException e) {
+            log.warn("PagSeguro 4xx para pedido {}: {}", orderId, e.getStatusCode());
+            // Tenta extrair mensagem de erro do corpo da resposta
+            String declMsg = parseDeclinedMessage(e.getResponseBodyAsString());
+            return new ChargeResult(null, "DECLINED", declMsg);
+
+        } catch (HttpServerErrorException e) {
+            log.error("PagSeguro 5xx para pedido {}: {}", orderId, e.getStatusCode());
+            return new ChargeResult(null, "ERROR", "Serviço de pagamento indisponível");
+
+        } catch (RestClientException e) {
+            log.error("Falha de conexão com PagSeguro para pedido {}", orderId, e);
+            return new ChargeResult(null, "ERROR", "Não foi possível conectar ao gateway de pagamento");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractDeclinedMessage(Map<String, Object> response) {
+        Object paymentResponse = response.get("payment_response");
+        if (paymentResponse instanceof Map<?, ?> pr) {
+            Object msg = pr.get("message");
+            if (msg instanceof String s) return s;
+        }
+        return null;
+    }
+
+    private String parseDeclinedMessage(String body) {
+        if (body == null || body.isBlank()) return "Pagamento recusado";
+        if (body.contains("INSUFFICIENT_FUNDS") || body.contains("INSUFFICIENT FUNDS"))
+            return "Saldo insuficiente no cartão";
+        if (body.contains("INVALID_CVV") || body.contains("INVALID_SECURITY_CODE"))
+            return "CVV inválido";
+        if (body.contains("INVALID_NUMBER"))
+            return "Número do cartão inválido";
+        if (body.contains("EXPIRED"))
+            return "Cartão expirado";
+        return "Pagamento recusado. Verifique os dados do cartão.";
+    }
+
+    // ── WEBHOOK ───────────────────────────────────────────────────
+    // Recebe notificações assíncronas do PagSeguro quando o status muda
+    @Transactional
+    public void handleWebhook(Map<String, Object> payload) {
+        String chargeId    = (String) payload.get("id");
+        String status      = (String) payload.get("status");
+        String referenceId = (String) payload.get("reference_id");
+
+        if (referenceId == null || status == null) return;
+
+        try {
+            UUID orderId = UUID.fromString(referenceId);
+            orderRepository.findById(orderId).ifPresent(order -> {
+                if (chargeId != null) order.setPagseguroChargeId(chargeId);
+                if ("PAID".equals(status) || "AUTHORIZED".equals(status)) {
+                    order.setStatus(OrderStatus.PAID);
+                } else if ("DECLINED".equals(status) && order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+                    order.setStatus(OrderStatus.CANCELLED);
+                }
+                orderRepository.save(order);
+                log.info("Webhook PagSeguro: pedido {} → {}", orderId, order.getStatus());
+            });
+        } catch (IllegalArgumentException e) {
+            log.warn("reference_id inválido no webhook PagSeguro: {}", referenceId);
+        }
+    }
+
+    private record ChargeResult(String chargeId, String status, String message) {}
+}

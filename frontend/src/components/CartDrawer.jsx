@@ -61,7 +61,7 @@ export default function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantit
                   <h4>{item.name}</h4>
 
                   {/* Preço unitário formatado em Real */}
-                  <p className="highlight-text">
+                  <p className="item-price">
                     {item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </p>
 

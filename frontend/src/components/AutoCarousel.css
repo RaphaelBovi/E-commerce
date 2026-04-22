@@ -1,115 +1,109 @@
+/* ─── Wrapper ────────────────────────────────── */
 .carousel-wrapper {
   position: relative;
   width: 100%;
-  padding: 0 0.5rem;
 }
 
+/* ─── Scroll track ───────────────────────────── */
 .auto-carousel {
   overflow-x: auto;
   scroll-behavior: smooth;
-  padding-bottom: 0.5rem;
   scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+  scrollbar-width: none;
 }
 
 .auto-carousel::-webkit-scrollbar {
-  height: 6px;
+  display: none;
 }
 
-.auto-carousel::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 999px;
-}
-
-.auto-carousel {
-  -ms-overflow-style: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
-}
-
+/* ─── Grid of cards ──────────────────────────── */
 .carousel-grid {
   display: flex !important;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
+/* ─── Individual card slot ───────────────────── */
 .carousel-item {
-  flex: 0 0 calc(100% / 4 - 1rem);
-  min-width: 250px;
+  flex: 0 0 calc(25% - 0.75rem);
+  min-width: 200px;
   scroll-snap-align: start;
 }
 
+/* ─── Nav arrows ─────────────────────────────── */
 .carousel-arrow {
   position: absolute;
   top: 42%;
   transform: translateY(-50%);
-  background-color: var(--surface);
-  color: var(--primary);
-  border: 1px solid var(--border);
-  width: 42px;
-  height: 42px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  font-size: 1rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 10;
   box-shadow: var(--shadow-md);
-  transition: opacity 0.2s, transform 0.2s, background 0.2s;
+  transition: background var(--transition), color var(--transition),
+              border-color var(--transition), transform var(--transition);
 }
 
 .carousel-arrow:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary);
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+  transform: translateY(-50%) scale(1.08);
 }
 
-.left-arrow {
-  left: 0;
-}
+.left-arrow  { left: -16px; }
+.right-arrow { right: -16px; }
 
-.right-arrow {
-  right: 0;
-}
-
+/* ─── Dot indicators ─────────────────────────── */
 .carousel-dots {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 0.45rem;
+  margin-top: 1.25rem;
 }
 
 .dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--border-strong);
+  width: 6px;
+  height: 6px;
+  background: var(--border-strong);
   border-radius: 50%;
-  transition: background-color 0.2s, transform 0.2s;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition), width var(--transition);
 }
 
 .dot.active {
-  background-color: var(--primary);
-  transform: scale(1.25);
+  background: var(--accent);
+  transform: scale(1.2);
+  width: 20px;
+  border-radius: 99px;
 }
 
+/* ─── Responsive ─────────────────────────────── */
 @media (max-width: 599px) {
   .carousel-item {
-    flex: 0 0 100%;
+    flex: 0 0 calc(100% - 0.5rem);
   }
-  .left-arrow {
-    left: 4px;
-  }
-  .right-arrow {
-    right: 4px;
-  }
+
+  .left-arrow  { left: 4px; }
+  .right-arrow { right: 4px; }
 }
 
 @media (min-width: 600px) and (max-width: 1023px) {
   .carousel-item {
-    flex: 0 0 calc(100% / 2 - 0.75rem);
+    flex: 0 0 calc(50% - 0.5rem);
   }
 }
 
 @media (min-width: 1024px) {
   .carousel-item {
-    flex: 0 0 calc(100% / 4 - 1rem);
+    flex: 0 0 calc(25% - 0.75rem);
   }
 }

@@ -101,8 +101,11 @@ public class Order {
     private Instant createdAt;
 
     // Data e hora da última atualização — atualizada automaticamente pelo Hibernate a cada modificação
-    // @UpdateTimestamp — equivalente ao @PreUpdate, mas gerenciado pelo Hibernate
     @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;
+
+    // ID da cobrança gerada no PagSeguro — preenchido após processamento do pagamento
+    @Column
+    private String pagseguroChargeId;
 }

@@ -18,7 +18,7 @@
 
 import React from 'react';
 import { FaBars, FaSearch, FaRegUser, FaShoppingCart, FaStore } from 'react-icons/fa';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import './Navbar.css';
 
@@ -55,6 +55,11 @@ export default function Navbar({ cartCount, onOpenCart }) {
 
   return (
     <header className="navbar">
+      {/* ── Promo bar ── */}
+      <div className="navbar-promo">
+        <span>Frete grátis em compras acima de <strong>R$ 299</strong> · Parcele em até 6x sem juros</span>
+      </div>
+
       {/* ── Linha superior: logo + busca desktop + ações do usuário ── */}
       <div className="navbar-top container">
         <div className="navbar-main-row">
@@ -73,7 +78,7 @@ export default function Navbar({ cartCount, onOpenCart }) {
               </span>
               <div className="logo-text-wrapper">
                 <div className="logo-title">
-                  Sua <span className="highlight-text">Loja</span>
+                  Sua<span className="logo-accent">Loja</span>
                 </div>
                 <span className="logo-subtitle">template e-commerce</span>
               </div>
@@ -148,10 +153,10 @@ export default function Navbar({ cartCount, onOpenCart }) {
       {/* ── Linha inferior: links de categorias ── */}
       <div className="navbar-bottom">
         <nav className="container nav-links" aria-label="Categorias principais">
-          <Link to="/lancamentos">Novidades</Link>
-          <Link to="/catalogo">Catálogo</Link>
-          <Link to="/promocoes">Ofertas</Link>
-          <Link to="/institucional">Sobre</Link>
+          <NavLink to="/lancamentos" className={({ isActive }) => isActive ? 'nav-active' : ''}>Novidades</NavLink>
+          <NavLink to="/catalogo"    className={({ isActive }) => isActive ? 'nav-active' : ''}>Catálogo</NavLink>
+          <NavLink to="/promocoes"   className={({ isActive }) => isActive ? 'nav-active' : ''}>Ofertas</NavLink>
+          <NavLink to="/institucional" className={({ isActive }) => isActive ? 'nav-active' : ''}>Sobre</NavLink>
         </nav>
       </div>
     </header>

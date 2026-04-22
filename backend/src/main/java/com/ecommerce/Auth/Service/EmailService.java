@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,7 @@ public class EmailService {
             helper.setText(buildHtml(code), true);
             mailSender.send(message);
             log.info("E-mail de verificação enviado para: {}", toEmail);
-        } catch (MessagingException e) {
+        } catch (MessagingException | MailException e) {
             log.error("Falha ao enviar e-mail para {}: {}", toEmail, e.getMessage());
             throw new RuntimeException("Não foi possível enviar o e-mail de verificação. Tente novamente.");
         }

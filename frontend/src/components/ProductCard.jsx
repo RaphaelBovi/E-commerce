@@ -61,6 +61,19 @@ export default function ProductCard({
       <Link to={`/produto/${product.id}`} className="product-link">
         <div className="image-container">
           <img src={product.image} alt={product.name} className="product-image" />
+          {/* Overlay de adição rápida — aparece no hover pelo CSS */}
+          {layout !== 'list' && (
+            <div className="product-card-overlay">
+              <button
+                type="button"
+                className="btn-quick-add"
+                onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
+                aria-label={`Adicionar ${product.name} ao carrinho`}
+              >
+                + Adicionar ao Carrinho
+              </button>
+            </div>
+          )}
         </div>
       </Link>
 

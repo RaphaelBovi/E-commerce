@@ -274,6 +274,12 @@
 .chk-field--sm { width: 140px; flex-shrink: 0; }
 .chk-field--xs { width: 80px; flex-shrink: 0; }
 
+.chk-field-divider {
+  height: 1px;
+  background: var(--border, #e5e7eb);
+  margin: 0.25rem 0;
+}
+
 .req {
   color: var(--danger);
   margin-left: 2px;
@@ -287,29 +293,81 @@
 
 .chk-cep-wrap input { flex: 1; }
 
-.chk-cep-btn {
-  padding: 0 1rem;
-  background: var(--surface-2);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
+.chk-cep-spinner {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* ─── Payment method selector ───────────────── */
+.chk-payment-hint {
+  font-size: 0.88rem;
   color: var(--text-secondary);
+  margin: 0 0 1.25rem;
+  line-height: 1.55;
+}
+
+.chk-payment-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.chk-method-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
   cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition), border-color var(--transition);
+  text-align: left;
   font-family: inherit;
-  min-height: 42px;
+  transition: border-color var(--transition), background var(--transition);
+  width: 100%;
 }
 
-.chk-cep-btn:hover:not(:disabled) {
-  background: var(--surface-3);
-  border-color: var(--border-strong);
+.chk-method-card:hover {
+  border-color: var(--gold);
+  background: var(--surface-2);
 }
 
-.chk-cep-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.chk-method-card.selected {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 8%, var(--surface));
+}
+
+.chk-method-icon {
+  font-size: 1.3rem;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.chk-method-card div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.chk-method-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chk-method-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chk-method-check {
+  font-size: 1rem;
+  color: var(--gold);
+  min-width: 1rem;
 }
 
 /* ─── Card number field ──────────────────────── */
@@ -595,9 +653,10 @@
   display: block;
 }
 
-.chk-result--success .chk-result-icon { color: var(--success); }
-.chk-result--analysis .chk-result-icon { color: var(--warning); }
-.chk-result--declined .chk-result-icon { color: var(--danger); }
+.chk-result--success    .chk-result-icon { color: var(--success); }
+.chk-result--analysis   .chk-result-icon { color: var(--warning); }
+.chk-result--declined   .chk-result-icon { color: var(--danger); }
+.chk-result--redirecting .chk-result-icon { color: var(--gold); font-size: 2.5rem; }
 
 .chk-result h2 {
   font-size: 1.4rem;

@@ -6,6 +6,8 @@ import com.ecommerce.Order.Entity.*;
 import com.ecommerce.Order.Repository.OrderRepository;
 import com.ecommerce.Payment.Dto.CheckoutRequest;
 import com.ecommerce.Payment.Dto.CheckoutResponse;
+import com.ecommerce.Payment.Dto.CreateCheckoutSessionRequest;
+import com.ecommerce.Payment.Dto.CheckoutSessionResponse;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,9 @@ public class PaymentService {
 
     @Value("${pagseguro.notification-url:}")
     private String notificationUrl;
+
+    @Value("${pagseguro.redirect-url:http://localhost:5173/minha-conta}")
+    private String redirectUrl;
 
     @Autowired
     private OrderRepository orderRepository;
@@ -228,6 +233,166 @@ public class PaymentService {
         if (body.contains("EXPIRED"))
             return "Cartão expirado";
         return "Pagamento recusado. Verifique os dados do cartão.";
+    }
+
+    // ── CHECKOUT REDIRECT ─────────────────────────────────────────
+    // Cria o pedido no banco e uma sessão de checkout no PagSeguro.
+    // O frontend redireciona o usuário para o paymentUrl retornado.
+    @Transactional
+    public CheckoutSessionResponse createCheckoutSession(CreateCheckoutSessionRequest request) {
+        User user = getCurrentUser();
+
+        PaymentMethod method = switch (request.paymentMethod().toUpperCase()) {
+            case "PIX"    -> PaymentMethod.PIX;
+            case "BOLETO" -> PaymentMethod.BOLETO;
+            default       -> PaymentMethod.CREDIT_CARD;
+        };
+
+        Order order = Order.builder()
+                .user(user)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .paymentMethod(method)
+                .totalAmount(BigDecimal.ZERO)
+                .deliveryAddress(buildAddressString(request))
+                .build();
+
+        List<OrderItem> items = request.items().stream().map(i -> OrderItem.builder()
+                .order(order)
+                .productId(i.productId())
+                .productName(i.productName())
+                .productImage(i.productImage())
+                .unitPrice(i.unitPrice())
+                .quantity(i.quantity())
+                .build()
+        ).toList();
+
+        BigDecimal total = items.stream()
+                .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        order.setTotalAmount(total);
+        order.getItems().addAll(items);
+        Order savedOrder = orderRepository.save(order);
+
+        String paymentUrl = callPagseguroCheckout(savedOrder, user.getEmail(), total, request);
+        return new CheckoutSessionResponse(savedOrder.getId(), paymentUrl);
+    }
+
+    private String buildAddressString(CreateCheckoutSessionRequest r) {
+        return String.join(", ",
+                java.util.stream.Stream.of(
+                        "Destinatário: " + r.recipientName(),
+                        r.recipientCpf() != null && !r.recipientCpf().isBlank() ? "CPF: " + r.recipientCpf() : null,
+                        r.recipientPhone() != null && !r.recipientPhone().isBlank() ? "Tel: " + r.recipientPhone() : null,
+                        r.recipientPhone2() != null && !r.recipientPhone2().isBlank() ? "Tel2: " + r.recipientPhone2() : null,
+                        r.street() + ", " + r.streetNumber(),
+                        r.complement(),
+                        r.neighborhood(),
+                        r.city() + "-" + r.state(),
+                        "CEP: " + r.zipCode()
+                ).filter(s -> s != null && !s.isBlank())
+                .toArray(String[]::new)
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private String callPagseguroCheckout(Order order, String userEmail,
+                                         BigDecimal total, CreateCheckoutSessionRequest request) {
+        if (pagseguroToken == null || pagseguroToken.isBlank()) {
+            throw new IllegalStateException("Token do PagSeguro não configurado");
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("reference_id", order.getId().toString());
+        body.put("expiration_date",
+                java.time.OffsetDateTime.now().plusDays(1)
+                        .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+
+        // Customer
+        Map<String, Object> customer = new LinkedHashMap<>();
+        customer.put("name", request.recipientName());
+        customer.put("email", userEmail);
+        if (request.recipientCpf() != null && !request.recipientCpf().isBlank()) {
+            customer.put("tax_id", digitsOnly(request.recipientCpf()));
+        }
+        List<Map<String, Object>> phones = new ArrayList<>();
+        addPhone(phones, request.recipientPhone(), "MOBILE");
+        addPhone(phones, request.recipientPhone2(), "HOME");
+        if (!phones.isEmpty()) customer.put("phones", phones);
+        body.put("customer", customer);
+
+        // Items
+        List<Map<String, Object>> itemsList = order.getItems().stream().map(item -> {
+            Map<String, Object> i = new LinkedHashMap<>();
+            i.put("reference_id", item.getProductId() != null ? item.getProductId().toString() : "item");
+            i.put("name", item.getProductName());
+            i.put("quantity", item.getQuantity());
+            i.put("unit_amount", item.getUnitPrice().multiply(BigDecimal.valueOf(100)).intValue());
+            return i;
+        }).collect(java.util.stream.Collectors.toList());
+        body.put("items", itemsList);
+
+        // Shipping
+        Map<String, Object> shipAddr = new LinkedHashMap<>();
+        shipAddr.put("street", request.street());
+        shipAddr.put("number", request.streetNumber());
+        if (request.complement() != null && !request.complement().isBlank())
+            shipAddr.put("complement", request.complement());
+        if (request.neighborhood() != null && !request.neighborhood().isBlank())
+            shipAddr.put("locality", request.neighborhood());
+        shipAddr.put("city", request.city());
+        shipAddr.put("region_code", request.state().toUpperCase());
+        shipAddr.put("country", "BRA");
+        shipAddr.put("postal_code", digitsOnly(request.zipCode()));
+        body.put("shipping", Map.of("type", "FREE", "address", shipAddr));
+
+        // Redirect and notification
+        if (redirectUrl != null && !redirectUrl.isBlank()) {
+            body.put("redirect_url", redirectUrl);
+            body.put("return_url", redirectUrl);
+        }
+        if (notificationUrl != null && !notificationUrl.isBlank()) {
+            body.put("notification_urls", List.of(notificationUrl));
+        }
+
+        // Payment methods config (credit card with installments)
+        body.put("payment_methods_configs", List.of(
+                Map.of("type", "CREDIT_CARD", "config", Map.of("installments_limit", 12))
+        ));
+
+        try {
+            Map<String, Object> response = restClient.post()
+                    .uri(pagseguroApiUrl + "/checkouts")
+                    .header("Authorization", "Bearer " + pagseguroToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(MAP_TYPE);
+
+            if (response == null || !response.containsKey("payment_url")) {
+                throw new RuntimeException("payment_url não retornado pelo PagSeguro");
+            }
+            return (String) response.get("payment_url");
+
+        } catch (HttpClientErrorException e) {
+            log.error("PagSeguro 4xx ao criar checkout: {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Não foi possível criar a sessão de pagamento: " + e.getMessage());
+        } catch (HttpServerErrorException e) {
+            log.error("PagSeguro 5xx ao criar checkout: {}", e.getStatusCode());
+            throw new RuntimeException("Serviço de pagamento indisponível. Tente novamente em instantes.");
+        }
+    }
+
+    private void addPhone(List<Map<String, Object>> list, String raw, String type) {
+        if (raw == null || raw.isBlank()) return;
+        String d = digitsOnly(raw);
+        if (d.length() < 10) return;
+        list.add(Map.of("country", "55", "area", d.substring(0, 2),
+                        "number", d.substring(2), "type", type));
+    }
+
+    private static String digitsOnly(String v) {
+        return v == null ? "" : v.replaceAll("\\D", "");
     }
 
     // ── WEBHOOK ───────────────────────────────────────────────────

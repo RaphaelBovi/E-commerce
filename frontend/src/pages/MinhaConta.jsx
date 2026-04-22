@@ -383,6 +383,7 @@ export default function MinhaConta() {
   function renderSecurity() {
     return (
       <SecuritySection
+        isGoogleAccount={profile?.googleAccount ?? false}
         onSaved={() => showToast('Senha alterada com sucesso!')}
         onError={msg => showToast(msg, 'error')}
       />
@@ -462,6 +463,7 @@ function ProfileSection({ profile: p, loading, onSaved, onError }) {
   function startEdit() {
     setForm({
       fullName:  p?.fullName  ?? '',
+      cpf:       '',
       phone:     p?.phone     ?? '',
       birthDate: p?.birthDate ?? '',
     });
@@ -482,6 +484,7 @@ function ProfileSection({ profile: p, loading, onSaved, onError }) {
     try {
       const updated = await updateProfile({
         fullName:  form.fullName.trim(),
+        cpf:       !p?.cpf && form.cpf ? form.cpf : null,
         phone:     form.phone || null,
         birthDate: form.birthDate || null,
         address:   p?.address   ?? null,
@@ -540,11 +543,25 @@ function ProfileSection({ profile: p, loading, onSaved, onError }) {
                 <input value={p?.email ?? ''} disabled className="mc-input-disabled" />
                 <span className="mc-field-note">O e-mail não pode ser alterado</span>
               </div>
-              <div className="mc-field-group">
-                <label>CPF</label>
-                <input value={p?.cpf ?? ''} disabled className="mc-input-disabled" />
-                <span className="mc-field-note">O CPF não pode ser alterado</span>
-              </div>
+              {p?.cpf ? (
+                <div className="mc-field-group">
+                  <label>CPF</label>
+                  <input value={p.cpf} disabled className="mc-input-disabled" />
+                  <span className="mc-field-note">O CPF não pode ser alterado</span>
+                </div>
+              ) : (
+                <div className="mc-field-group">
+                  <label>CPF</label>
+                  <input
+                    name="cpf"
+                    value={form?.cpf ?? ''}
+                    onChange={onChange}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                  />
+                  <span className="mc-field-note">Informe seu CPF para habilitar compras</span>
+                </div>
+              )}
               <div className="mc-field-group">
                 <label>Data de Nascimento</label>
                 <input name="birthDate" type="date" value={form.birthDate} onChange={onChange} />
@@ -691,7 +708,7 @@ function AddressSection({ profile: p, loading, onSaved, onError }) {
 
 // ─── SecuritySection ──────────────────────────────────────────────
 
-function SecuritySection({ onSaved, onError }) {
+function SecuritySection({ isGoogleAccount, onSaved, onError }) {
   const [form, setForm]       = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [saving, setSaving]   = useState(false);
   const [errors, setErrors]   = useState({});
@@ -705,7 +722,7 @@ function SecuritySection({ onSaved, onError }) {
 
   function validate() {
     const errs = {};
-    if (!form.currentPassword) errs.currentPassword = 'Informe a senha atual.';
+    if (!isGoogleAccount && !form.currentPassword) errs.currentPassword = 'Informe a senha atual.';
     if (!form.newPassword)     errs.newPassword = 'Informe a nova senha.';
     else if (form.newPassword.length < 8) errs.newPassword = 'A nova senha deve ter pelo menos 8 caracteres.';
     if (form.newPassword !== form.confirmPassword) errs.confirmPassword = 'As senhas não coincidem.';
@@ -718,7 +735,10 @@ function SecuritySection({ onSaved, onError }) {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true);
     try {
-      await changePassword({ currentPassword: form.currentPassword, newPassword: form.newPassword });
+      await changePassword({
+        currentPassword: isGoogleAccount ? null : form.currentPassword,
+        newPassword: form.newPassword,
+      });
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       onSaved();
     } catch (err) {
@@ -759,8 +779,15 @@ function SecuritySection({ onSaved, onError }) {
       <div className="mc-security-card">
         <div className="mc-security-icon"><FaLock /></div>
         <form className="mc-edit-form" onSubmit={handleSubmit} style={{ flex: 1 }}>
+          {isGoogleAccount && (
+            <div className="mc-google-pwd-notice">
+              Sua conta foi criada com o Google. Defina uma senha para também poder entrar com e-mail e senha.
+            </div>
+          )}
           <div className="mc-form-grid">
-            <PasswordInput name="currentPassword" label="Senha atual *"    placeholder="Digite sua senha atual" />
+            {!isGoogleAccount && (
+              <PasswordInput name="currentPassword" label="Senha atual *" placeholder="Digite sua senha atual" />
+            )}
             <PasswordInput name="newPassword"     label="Nova senha *"     placeholder="Mínimo 8 caracteres" />
             <PasswordInput name="confirmPassword" label="Confirmar nova senha *" placeholder="Repita a nova senha" />
           </div>

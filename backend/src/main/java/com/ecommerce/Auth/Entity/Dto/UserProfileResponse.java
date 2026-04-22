@@ -51,5 +51,8 @@ public record UserProfileResponse(
         String role,
 
         // Data e hora de criação da conta no formato ISO-8601 (fuso UTC)
-        Instant createdAt
+        Instant createdAt,
+
+        // true se a conta foi criada via Google OAuth
+        boolean googleAccount
 ) {}

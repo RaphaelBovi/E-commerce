@@ -8,6 +8,9 @@ public record UpdateProfileRequest(
         @NotBlank(message = "Nome completo é obrigatório")
         String fullName,
 
+        // CPF aceito apenas quando o usuário ainda não tem um cadastrado (ex.: conta Google)
+        String cpf,
+
         String phone,
 
         LocalDate birthDate,

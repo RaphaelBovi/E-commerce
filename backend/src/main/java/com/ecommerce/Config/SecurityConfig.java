@@ -94,6 +94,7 @@ public class SecurityConfig {
 
                         // Checkout e chave pública — requer usuário autenticado
                         .requestMatchers(HttpMethod.POST, "/api/checkout").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/checkout/session").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/payments/public-key").authenticated()
 
                         // Pedidos do cliente — qualquer usuário autenticado

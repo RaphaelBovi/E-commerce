@@ -2,6 +2,8 @@ package com.ecommerce.Payment;
 
 import com.ecommerce.Payment.Dto.CheckoutRequest;
 import com.ecommerce.Payment.Dto.CheckoutResponse;
+import com.ecommerce.Payment.Dto.CreateCheckoutSessionRequest;
+import com.ecommerce.Payment.Dto.CheckoutSessionResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,16 @@ public class PaymentController {
     @PostMapping("/api/checkout")
     public ResponseEntity<CheckoutResponse> processCheckout(@Valid @RequestBody CheckoutRequest request) {
         CheckoutResponse result = paymentService.processCheckout(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    // POST /api/checkout/session
+    // Cria o pedido e uma sessão de checkout no PagSeguro (redirect).
+    // Retorna 201 com { orderId, paymentUrl } — o frontend redireciona para paymentUrl.
+    @PostMapping("/api/checkout/session")
+    public ResponseEntity<CheckoutSessionResponse> createCheckoutSession(
+            @Valid @RequestBody CreateCheckoutSessionRequest request) {
+        CheckoutSessionResponse result = paymentService.createCheckoutSession(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 

@@ -163,6 +163,7 @@ public class AuthService {
                     .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                     .role(Role.CUSTOMER)
                     .fullName(name)
+                    .googleAccount(true)
                     .build();
             userRepository.save(newUser);
             log.info("Novo usuário via Google: {}", email);
@@ -229,6 +230,14 @@ public class AuthService {
 
         user.setFullName(request.fullName().trim());
 
+        // CPF só pode ser definido se o usuário ainda não tiver um (conta Google sem CPF)
+        if (request.cpf() != null && !request.cpf().isBlank() && user.getCpf() == null) {
+            String cpfDigits = digitsOnly(request.cpf());
+            if (cpfDigits.length() != 11) throw new BusinessException("CPF deve conter 11 dígitos");
+            if (userRepository.existsByCpf(cpfDigits)) throw new BusinessException("CPF já cadastrado");
+            user.setCpf(cpfDigits);
+        }
+
         if (request.phone() != null && !request.phone().isBlank()) {
             String phoneDigits = digitsOnly(request.phone());
             if (phoneDigits.length() < 10 || phoneDigits.length() > 11) {
@@ -261,8 +270,14 @@ public class AuthService {
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
 
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new BusinessException("Senha atual incorreta");
+        if (!user.isGoogleAccount()) {
+            // Contas normais precisam confirmar a senha atual
+            if (request.currentPassword() == null || request.currentPassword().isBlank()) {
+                throw new BusinessException("Senha atual é obrigatória");
+            }
+            if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+                throw new BusinessException("Senha atual incorreta");
+            }
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
@@ -290,7 +305,8 @@ public class AuthService {
         return new UserProfileResponse(
                 user.getId(), user.getEmail(), user.getFullName(), user.getCpf(),
                 user.getBirthDate(), user.getPhone(), user.getAddress(), user.getCity(),
-                user.getState(), user.getZipCode(), user.getRole().name(), user.getCreatedAt());
+                user.getState(), user.getZipCode(), user.getRole().name(), user.getCreatedAt(),
+                user.isGoogleAccount());
     }
 
     @SuppressWarnings("unchecked")

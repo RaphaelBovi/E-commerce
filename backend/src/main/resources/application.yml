@@ -19,3 +19,4 @@ pagseguro:
   token: ${PAGSEGURO_TOKEN:}
   api-url: ${PAGSEGURO_API_URL:https://sandbox.api.pagseguro.com}
   notification-url: ${PAGSEGURO_NOTIFICATION_URL:}
+  redirect-url: ${PAGSEGURO_REDIRECT_URL:http://localhost:5173/minha-conta}

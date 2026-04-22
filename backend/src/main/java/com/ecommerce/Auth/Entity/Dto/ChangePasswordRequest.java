@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record ChangePasswordRequest(
-        @NotBlank(message = "Senha atual é obrigatória")
+        // Null/em branco é aceito para contas Google (sem senha cadastrada)
         String currentPassword,
 
         @NotBlank(message = "Nova senha é obrigatória")

@@ -3,30 +3,32 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   FaCheck, FaLock, FaShieldAlt, FaCreditCard, FaMapMarkerAlt,
   FaShoppingCart, FaChevronRight, FaChevronLeft, FaSpinner,
-  FaCheckCircle, FaTimesCircle, FaExclamationCircle,
+  FaCheckCircle, FaTimesCircle, FaBarcode, FaQrcode,
 } from 'react-icons/fa';
-import { getPagseguroPublicKey, processCheckout } from '../services/checkoutApi';
+import { createCheckoutSession } from '../services/checkoutApi';
+import { getUserProfile } from '../services/authApi';
 import './Checkout.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 const fmt = (value) =>
   Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const formatCardNumber = (v) =>
-  v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-
-const formatExpiry = (v) => {
-  const d = v.replace(/\D/g, '').slice(0, 4);
-  return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+const formatCpf = (v) => {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 };
 
-const getCardBrand = (number) => {
-  const n = number.replace(/\s/g, '');
-  if (/^4/.test(n)) return 'visa';
-  if (/^5[1-5]/.test(n) || /^2[2-7]/.test(n)) return 'mastercard';
-  if (/^3[47]/.test(n)) return 'amex';
-  return null;
-};
+const PAYMENT_METHODS = [
+  { id: 'CREDIT_CARD', label: 'Cartão de Crédito', Icon: FaCreditCard,
+    desc: 'Parcelamento em até 12x' },
+  { id: 'PIX',         label: 'Pix',               Icon: FaQrcode,
+    desc: 'Aprovação imediata' },
+  { id: 'BOLETO',      label: 'Boleto Bancário',   Icon: FaBarcode,
+    desc: 'Vence em 3 dias úteis' },
+];
 
 const STEPS = ['Carrinho', 'Entrega', 'Pagamento', 'Confirmação'];
 
@@ -109,32 +111,34 @@ export default function Checkout({ cartItems, onClearCart }) {
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
 
-  // Step 2 — Delivery address
+  // Step 2 — Delivery address + recipient info
   const [address, setAddress] = useState({
+    recipientName: '', recipientPhone: '', recipientPhone2: '', recipientCpf: '',
     cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
   });
   const [cepLoading, setCepLoading] = useState(false);
 
-  // Step 3 — Payment
-  const [card, setCard] = useState({
-    number: '', holder: '', expiry: '', cvv: '', installments: 1,
-  });
-  const [publicKey, setPublicKey] = useState(null);
-  const [pkError, setPkError] = useState(false);
+  // Pre-fill delivery form from user profile on mount
+  useEffect(() => {
+    getUserProfile().then((profile) => {
+      setAddress((prev) => ({
+        ...prev,
+        recipientName: profile.fullName || '',
+        recipientPhone: profile.phone || '',
+        recipientCpf: profile.cpf ? formatCpf(profile.cpf) : '',
+        cep: profile.zipCode || '',
+        cidade: profile.city || '',
+        estado: profile.state || '',
+        rua: profile.address || '',
+      }));
+    }).catch(() => {});
+  }, []);
+
+  // Step 3 — Payment method
+  const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Step 4 — Result
-  const [orderResult, setOrderResult] = useState(null);
-
   const total = cartItems.reduce((s, it) => s + it.price * it.quantity, 0);
-
-  // Fetch PagSeguro public key when user reaches payment step
-  useEffect(() => {
-    if (step !== 3) return;
-    getPagseguroPublicKey()
-      .then((data) => setPublicKey(data.publicKey))
-      .catch(() => setPkError(true));
-  }, [step]);
 
   // Redirect to catalog if cart is empty (only on steps 1-3)
   useEffect(() => {
@@ -152,16 +156,18 @@ export default function Checkout({ cartItems, onClearCart }) {
   };
 
   // ── CEP Auto-fill ────────────────────────────────────────────────
-  const handleCepLookup = useCallback(async () => {
+  const handleCepLookup = useCallback(async (rawCep) => {
+    const digits = (rawCep || address.cep).replace(/\D/g, '');
+    if (digits.length !== 8) return;
     setCepLoading(true);
-    const data = await fetchViaCep(address.cep);
+    const data = await fetchViaCep(digits);
     if (data) {
       setAddress((prev) => ({
         ...prev,
-        rua: data.logradouro || '',
-        bairro: data.bairro || '',
-        cidade: data.localidade || '',
-        estado: data.uf || '',
+        rua: data.logradouro || prev.rua,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        estado: data.uf || prev.estado,
       }));
     } else {
       setError('CEP não encontrado. Preencha o endereço manualmente.');
@@ -173,73 +179,33 @@ export default function Checkout({ cartItems, onClearCart }) {
   const handleDeliverySubmit = (e) => {
     e.preventDefault();
     clearError();
-    const { cep, rua, numero, cidade, estado } = address;
-    if (!cep || !rua || !numero || !cidade || !estado) {
+    const { recipientName, cep, rua, numero, cidade, estado } = address;
+    if (!recipientName || !cep || !rua || !numero || !cidade || !estado) {
       setError('Preencha todos os campos obrigatórios do endereço.');
       return;
     }
     setStep(3);
   };
 
-  // ── Payment submit ───────────────────────────────────────────────
+  // ── Payment submit → redirect to PagSeguro ───────────────────────
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     clearError();
-
-    if (!window.PagSeguro) {
-      setError('Módulo de pagamento não carregado. Recarregue a página e tente novamente.');
-      return;
-    }
-    if (!publicKey) {
-      setError('Chave de pagamento não disponível. Tente novamente em instantes.');
-      return;
-    }
-
-    const [expMonth, expYear] = card.expiry.split('/');
-    if (!expMonth || !expYear || expMonth.length !== 2 || expYear.length !== 2) {
-      setError('Data de validade inválida. Use o formato MM/AA.');
-      return;
-    }
-
-    // Encrypt card data with PagSeguro JS SDK
-    const encrypted = window.PagSeguro.encryptCard({
-      publicKey,
-      holder: card.holder.trim().toUpperCase(),
-      number: card.number.replace(/\s/g, ''),
-      expMonth,
-      expYear: `20${expYear}`,
-      securityCode: card.cvv,
-    });
-
-    if (encrypted.hasErrors) {
-      const messages = encrypted.errors.map((err) => {
-        const map = {
-          INVALID_NUMBER: 'Número do cartão inválido',
-          INVALID_SECURITY_CODE: 'CVV inválido',
-          INVALID_EXPIRATION_MONTH: 'Mês de validade inválido',
-          INVALID_EXPIRATION_YEAR: 'Ano de validade inválido',
-          INVALID_HOLDER: 'Nome do titular inválido',
-        };
-        return map[err.code] || 'Dado do cartão inválido';
-      });
-      setError(messages.join(' · '));
-      return;
-    }
-
-    const deliveryAddress = [
-      address.rua, address.numero,
-      address.complemento, address.bairro,
-      address.cidade, address.estado,
-      address.cep,
-    ].filter(Boolean).join(', ');
-
     setIsProcessing(true);
     try {
-      const result = await processCheckout({
-        encryptedCard: encrypted.encryptedCard,
-        holderName: card.holder.trim().toUpperCase(),
-        installments: parseInt(card.installments, 10),
-        deliveryAddress,
+      const result = await createCheckoutSession({
+        paymentMethod,
+        recipientName: address.recipientName,
+        recipientCpf: address.recipientCpf.replace(/\D/g, '') || null,
+        recipientPhone: address.recipientPhone || null,
+        recipientPhone2: address.recipientPhone2 || null,
+        street: address.rua,
+        streetNumber: address.numero,
+        complement: address.complemento || null,
+        neighborhood: address.bairro || null,
+        city: address.cidade,
+        state: address.estado,
+        zipCode: address.cep.replace(/\D/g, ''),
         items: cartItems.map((item) => ({
           productId: item.id,
           productName: item.name,
@@ -248,26 +214,15 @@ export default function Checkout({ cartItems, onClearCart }) {
           quantity: item.quantity,
         })),
       });
-
-      setOrderResult(result);
+      onClearCart();
+      // Briefly show redirecting state, then navigate to PagSeguro
       setStep(4);
-      if (result.success) {
-        onClearCart();
-      }
+      setTimeout(() => { window.location.href = result.paymentUrl; }, 1200);
     } catch (err) {
-      setError(err.message || 'Erro ao processar pedido. Tente novamente.');
-    } finally {
+      setError(err.message || 'Erro ao criar sessão de pagamento. Tente novamente.');
       setIsProcessing(false);
     }
   };
-
-  // ── Installment options ──────────────────────────────────────────
-  const installmentOptions = Array.from({ length: 12 }, (_, i) => {
-    const n = i + 1;
-    return { value: n, label: `${n}x de ${fmt(total / n)} sem juros` };
-  });
-
-  const cardBrand = getCardBrand(card.number);
 
   // ─── Render ───────────────────────────────────────────────────────
   return (
@@ -280,46 +235,16 @@ export default function Checkout({ cartItems, onClearCart }) {
           <StepsBar current={step} />
         </div>
 
-        {/* ── Step 4 — Confirmation (full-width, no sidebar) ── */}
-        {step === 4 && orderResult && (
+        {/* ── Step 4 — Redirecting to PagSeguro ── */}
+        {step === 4 && (
           <div className="chk-confirmation">
-            {orderResult.success ? (
-              orderResult.paymentStatus === 'IN_ANALYSIS' ? (
-                <div className="chk-result chk-result--analysis">
-                  <FaExclamationCircle className="chk-result-icon" />
-                  <h2>Pagamento em análise</h2>
-                  <p>{orderResult.message}</p>
-                </div>
-              ) : (
-                <div className="chk-result chk-result--success">
-                  <FaCheckCircle className="chk-result-icon" />
-                  <h2>Pedido confirmado!</h2>
-                  <p>{orderResult.message}</p>
-                </div>
-              )
-            ) : (
-              <div className="chk-result chk-result--declined">
-                <FaTimesCircle className="chk-result-icon" />
-                <h2>Pagamento não aprovado</h2>
-                <p>{orderResult.message}</p>
-              </div>
-            )}
-
-            {orderResult.orderId && (
-              <div className="chk-order-ref">
-                <span>Pedido</span>
-                <strong>#{orderResult.orderId.toString().substring(0, 8).toUpperCase()}</strong>
-              </div>
-            )}
-
-            <div className="chk-confirmation-amount">
-              <span>Total cobrado</span>
-              <strong>{fmt(orderResult.totalAmount)}</strong>
-            </div>
-
-            <div className="chk-confirmation-actions">
-              <Link to="/minha-conta" className="btn-gold">Ver meus pedidos</Link>
-              <Link to="/" className="chk-btn-ghost">Continuar comprando</Link>
+            <div className="chk-result chk-result--redirecting">
+              <FaSpinner className="chk-result-icon spin" />
+              <h2>Redirecionando para o pagamento…</h2>
+              <p>
+                Você será enviado para a página segura do <strong>PagBank</strong> em instantes.<br />
+                Não feche esta aba.
+              </p>
             </div>
           </div>
         )}
@@ -378,6 +303,49 @@ export default function Checkout({ cartItems, onClearCart }) {
                     <h2>Endereço de entrega</h2>
                   </div>
                   <form className="chk-form" onSubmit={handleDeliverySubmit} noValidate>
+
+                    <div className="chk-field-row">
+                      <div className="chk-field chk-field--grow">
+                        <label htmlFor="chk-recipient">Nome do destinatário <span className="req">*</span></label>
+                        <input
+                          id="chk-recipient" type="text"
+                          placeholder="Quem vai receber o pedido"
+                          value={address.recipientName}
+                          onChange={(e) => setAddress({ ...address, recipientName: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="chk-field chk-field--sm">
+                        <label htmlFor="chk-recphone">Telefone principal</label>
+                        <input
+                          id="chk-recphone" type="tel" inputMode="numeric"
+                          placeholder="(11) 99999-9999"
+                          value={address.recipientPhone}
+                          onChange={(e) => setAddress({ ...address, recipientPhone: e.target.value })}
+                        />
+                      </div>
+                      <div className="chk-field chk-field--sm">
+                        <label htmlFor="chk-recphone2">Telefone secundário</label>
+                        <input
+                          id="chk-recphone2" type="tel" inputMode="numeric"
+                          placeholder="(11) 99999-9999"
+                          value={address.recipientPhone2}
+                          onChange={(e) => setAddress({ ...address, recipientPhone2: e.target.value })}
+                        />
+                      </div>
+                      <div className="chk-field chk-field--sm">
+                        <label htmlFor="chk-reccpf">CPF do destinatário</label>
+                        <input
+                          id="chk-reccpf" type="text" inputMode="numeric"
+                          placeholder="000.000.000-00" maxLength={14}
+                          value={address.recipientCpf}
+                          onChange={(e) => setAddress({ ...address, recipientCpf: formatCpf(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="chk-field-divider" />
+
                     <div className="chk-field-row">
                       <div className="chk-field chk-field--sm">
                         <label htmlFor="chk-cep">CEP <span className="req">*</span></label>
@@ -386,13 +354,13 @@ export default function Checkout({ cartItems, onClearCart }) {
                             id="chk-cep" type="text" inputMode="numeric"
                             placeholder="00000-000" maxLength={9}
                             value={address.cep}
-                            onChange={(e) => setAddress({ ...address, cep: e.target.value })}
-                            onBlur={handleCepLookup}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setAddress({ ...address, cep: val });
+                              if (val.replace(/\D/g, '').length === 8) handleCepLookup(val);
+                            }}
                           />
-                          <button type="button" className="chk-cep-btn" onClick={handleCepLookup}
-                            disabled={cepLoading}>
-                            {cepLoading ? <FaSpinner className="spin" /> : 'Buscar'}
-                          </button>
+                          {cepLoading && <FaSpinner className="chk-cep-spinner spin" />}
                         </div>
                       </div>
                     </div>
@@ -454,108 +422,55 @@ export default function Checkout({ cartItems, onClearCart }) {
                 </div>
               )}
 
-              {/* ── Step 3 — Payment ── */}
+              {/* ── Step 3 — Payment method selection ── */}
               {step === 3 && (
                 <div className="chk-card">
                   <div className="chk-card-header">
-                    <FaCreditCard className="chk-card-icon" />
-                    <h2>Dados do cartão</h2>
+                    <FaLock className="chk-card-icon" />
+                    <h2>Forma de pagamento</h2>
                     <div className="chk-pagseguro-badge">
                       Processado pelo <strong>PagBank</strong>
                     </div>
                   </div>
 
-                  {pkError && (
-                    <div className="chk-error">
-                      <FaTimesCircle /> Módulo de pagamento indisponível. Verifique sua conexão e recarregue a página.
-                    </div>
-                  )}
+                  <p className="chk-payment-hint">
+                    Escolha como prefere pagar. Você será redirecionado para a página segura do PagBank para concluir.
+                  </p>
 
-                  <form className="chk-form" onSubmit={handlePaymentSubmit} noValidate>
-
-                    {/* Card number */}
-                    <div className="chk-field">
-                      <label htmlFor="chk-card-num">Número do cartão <span className="req">*</span></label>
-                      <div className="chk-card-num-wrap">
-                        <input
-                          id="chk-card-num" type="text" inputMode="numeric"
-                          placeholder="0000 0000 0000 0000"
-                          value={card.number}
-                          onChange={(e) => setCard({ ...card, number: formatCardNumber(e.target.value) })}
-                          maxLength={19} autoComplete="cc-number" required
-                        />
-                        {cardBrand && (
-                          <span className={`chk-card-brand chk-card-brand--${cardBrand}`}>{cardBrand}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Holder name */}
-                    <div className="chk-field">
-                      <label htmlFor="chk-holder">Nome impresso no cartão <span className="req">*</span></label>
-                      <input
-                        id="chk-holder" type="text" placeholder="NOME SOBRENOME"
-                        value={card.holder}
-                        onChange={(e) => setCard({ ...card, holder: e.target.value.toUpperCase() })}
-                        autoComplete="cc-name" required
-                      />
-                    </div>
-
-                    {/* Expiry + CVV */}
-                    <div className="chk-field-row">
-                      <div className="chk-field chk-field--sm">
-                        <label htmlFor="chk-expiry">Validade <span className="req">*</span></label>
-                        <input
-                          id="chk-expiry" type="text" inputMode="numeric"
-                          placeholder="MM/AA" maxLength={5}
-                          value={card.expiry}
-                          onChange={(e) => setCard({ ...card, expiry: formatExpiry(e.target.value) })}
-                          autoComplete="cc-exp" required
-                        />
-                      </div>
-                      <div className="chk-field chk-field--sm">
-                        <label htmlFor="chk-cvv">
-                          CVV <span className="req">*</span>
-                          <span className="chk-cvv-hint">(3 ou 4 dígitos)</span>
-                        </label>
-                        <input
-                          id="chk-cvv" type="text" inputMode="numeric"
-                          placeholder="•••" maxLength={4}
-                          value={card.cvv}
-                          onChange={(e) => setCard({ ...card, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                          autoComplete="cc-csc" required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Installments */}
-                    <div className="chk-field">
-                      <label htmlFor="chk-parcelas">Parcelas <span className="req">*</span></label>
-                      <select
-                        id="chk-parcelas"
-                        value={card.installments}
-                        onChange={(e) => setCard({ ...card, installments: e.target.value })}
+                  <div className="chk-payment-methods">
+                    {PAYMENT_METHODS.map(({ id, label, Icon, desc }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`chk-method-card ${paymentMethod === id ? 'selected' : ''}`}
+                        onClick={() => setPaymentMethod(id)}
                       >
-                        {installmentOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                        <Icon className="chk-method-icon" />
+                        <div>
+                          <span className="chk-method-label">{label}</span>
+                          <span className="chk-method-desc">{desc}</span>
+                        </div>
+                        <div className="chk-method-check">
+                          {paymentMethod === id && <FaCheckCircle />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
 
-                    {/* Security seal */}
-                    <div className="chk-security-seal">
-                      <FaLock /> Seus dados são criptografados com segurança pelo PagBank
-                    </div>
+                  <div className="chk-security-seal">
+                    <FaShieldAlt /> Ambiente 100% seguro — seus dados são protegidos pelo PagBank
+                  </div>
 
+                  <form onSubmit={handlePaymentSubmit}>
                     <div className="chk-form-actions">
                       <button type="button" className="chk-btn-ghost"
                         onClick={() => setStep(2)} disabled={isProcessing}>
                         <FaChevronLeft /> Voltar
                       </button>
-                      <button type="submit" className="btn-gold chk-pay-btn" disabled={isProcessing || pkError}>
+                      <button type="submit" className="btn-gold chk-pay-btn" disabled={isProcessing}>
                         {isProcessing
-                          ? <><FaSpinner className="spin" /> Processando…</>
-                          : <><FaLock /> Finalizar compra · {fmt(total)}</>}
+                          ? <><FaSpinner className="spin" /> Aguarde…</>
+                          : <><FaLock /> Ir para o pagamento · {fmt(total)}</>}
                       </button>
                     </div>
                   </form>

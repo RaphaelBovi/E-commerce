@@ -370,6 +370,17 @@
 .mc-security-card { display: flex; gap: 1.5rem; align-items: flex-start; }
 .mc-security-icon { width: 52px; height: 52px; border-radius: 12px; background: var(--primary-soft, #eef2ff); color: var(--primary, #4f46e5); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; margin-top: 0.25rem; }
 
+.mc-google-pwd-notice {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.83rem;
+  color: #92400e;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
 .mc-pwd-rules { display: flex; gap: 1.25rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .mc-pwd-rules span { font-size: 0.77rem; color: var(--text-secondary, #9ca3af); display: flex; align-items: center; gap: 0.3rem; transition: color 0.2s; }
 .mc-pwd-rules span.rule-ok { color: #10b981; font-weight: 600; }

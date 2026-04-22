@@ -92,6 +92,11 @@ public class User implements UserDetails {
     @Column(length = 8)
     private String zipCode;
 
+    // true quando a conta foi criada via Google OAuth (sem senha própria no cadastro)
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean googleAccount = false;
+
     // @PrePersist — executado automaticamente pelo JPA antes de salvar o registro pela primeira vez
     // Define a data de criação com o horário atual
     @PrePersist

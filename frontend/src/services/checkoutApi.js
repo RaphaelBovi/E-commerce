@@ -37,3 +37,18 @@ export async function processCheckout({ encryptedCard, holderName, installments,
   });
   return handleResponse(res);
 }
+
+// Creates a PagSeguro redirect checkout session.
+// Returns { orderId, paymentUrl } — the caller should redirect to paymentUrl.
+export async function createCheckoutSession(payload) {
+  const res = await fetch(`${BASE}/checkout/session`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}

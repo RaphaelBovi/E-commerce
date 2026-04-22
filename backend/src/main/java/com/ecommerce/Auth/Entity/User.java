@@ -93,8 +93,9 @@ public class User implements UserDetails {
     private String zipCode;
 
     // true quando a conta foi criada via Google OAuth (sem senha própria no cadastro)
+    // columnDefinition com DEFAULT false: permite ALTER TABLE em tabelas já populadas
     @Builder.Default
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean NOT NULL DEFAULT false")
     private boolean googleAccount = false;
 
     // @PrePersist — executado automaticamente pelo JPA antes de salvar o registro pela primeira vez

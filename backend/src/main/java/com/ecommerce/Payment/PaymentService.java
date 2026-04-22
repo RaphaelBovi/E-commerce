@@ -8,6 +8,7 @@ import com.ecommerce.Payment.Dto.CheckoutRequest;
 import com.ecommerce.Payment.Dto.CheckoutResponse;
 import com.ecommerce.Payment.Dto.CreateCheckoutSessionRequest;
 import com.ecommerce.Payment.Dto.CheckoutSessionResponse;
+import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -299,8 +300,11 @@ public class PaymentService {
     private String callPagseguroCheckout(Order order, String userEmail,
                                          BigDecimal total, CreateCheckoutSessionRequest request) {
         if (pagseguroToken == null || pagseguroToken.isBlank()) {
-            throw new IllegalStateException("Token do PagSeguro não configurado");
+            throw new BusinessException("Token do PagSeguro não configurado. Configure a variável PAGSEGURO_TOKEN.");
         }
+
+        // Remove trailing slash para não gerar URLs com //
+        String baseUrl = pagseguroApiUrl.replaceAll("/+$", "");
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("reference_id", order.getId().toString());
@@ -362,7 +366,7 @@ public class PaymentService {
 
         try {
             Map<String, Object> response = restClient.post()
-                    .uri(pagseguroApiUrl + "/checkouts")
+                    .uri(baseUrl + "/checkouts")
                     .header("Authorization", "Bearer " + pagseguroToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
@@ -370,16 +374,22 @@ public class PaymentService {
                     .body(MAP_TYPE);
 
             if (response == null || !response.containsKey("payment_url")) {
-                throw new RuntimeException("payment_url não retornado pelo PagSeguro");
+                throw new BusinessException("Resposta inválida do PagSeguro: payment_url não retornado");
             }
             return (String) response.get("payment_url");
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (HttpClientErrorException e) {
-            log.error("PagSeguro 4xx ao criar checkout: {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("Não foi possível criar a sessão de pagamento: " + e.getMessage());
+            String responseBody = e.getResponseBodyAsString();
+            log.error("PagSeguro 4xx ao criar checkout [{}]: {}", e.getStatusCode(), responseBody);
+            throw new BusinessException("PagSeguro recusou a requisição (" + e.getStatusCode() + "): " + responseBody);
         } catch (HttpServerErrorException e) {
             log.error("PagSeguro 5xx ao criar checkout: {}", e.getStatusCode());
-            throw new RuntimeException("Serviço de pagamento indisponível. Tente novamente em instantes.");
+            throw new BusinessException("Serviço PagSeguro indisponível (" + e.getStatusCode() + "). Tente novamente.");
+        } catch (RestClientException e) {
+            log.error("Falha de conexão com PagSeguro ao criar checkout", e);
+            throw new BusinessException("Não foi possível conectar ao PagSeguro: " + e.getMessage());
         }
     }
 

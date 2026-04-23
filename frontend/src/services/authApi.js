@@ -99,12 +99,13 @@ export function getAuthHeader() {
 // Envia as credenciais para POST /auth/login.
 // Em caso de sucesso, retorna o JSON com { token, email, role }.
 // Em caso de erro HTTP, lança um Error com mensagem legível.
-export async function loginRequest(email, password) {
+export async function loginRequest(email, password, captchaToken) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
+      ...(captchaToken ? { "X-Captcha-Token": captchaToken } : {}),
     },
     body: JSON.stringify({ email, password }),
   });
@@ -155,10 +156,14 @@ export async function changePassword(data) {
 // ─── sendVerificationCode ────────────────────────────────────────
 // Validates all registration data and sends OTP to the user's email.
 // POST /auth/register/initiate — returns 202, no body.
-export async function sendVerificationCode(payload) {
+export async function sendVerificationCode(payload, captchaToken) {
   const response = await fetch(`${API_BASE_URL}/auth/register/initiate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(captchaToken ? { "X-Captcha-Token": captchaToken } : {}),
+    },
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response));

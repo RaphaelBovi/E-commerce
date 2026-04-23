@@ -62,7 +62,7 @@ public class CorsConfig {
         // Authorization → necessário para enviar o token JWT
         // Content-Type  → necessário para enviar JSON no body
         // Accept        → indica os tipos de resposta aceitos
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Captcha-Token"));
 
         // Permite o envio de cookies e headers de autenticação (Authorization) nas requisições cross-origin
         configuration.setAllowCredentials(true);

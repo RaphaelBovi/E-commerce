@@ -579,3 +579,10 @@
     padding: 1.5rem 0.75rem;
   }
 }
+
+/* ─── CAPTCHA ─────────────────────────────────── */
+.auth-captcha {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 0.5rem;
+}

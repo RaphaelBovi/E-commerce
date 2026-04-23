@@ -2,6 +2,7 @@ package com.ecommerce.Auth.Controller;
 
 import com.ecommerce.Auth.Entity.Dto.*;
 import com.ecommerce.Auth.Service.AuthService;
+import com.ecommerce.Config.RecaptchaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,12 +16,18 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private RecaptchaService recaptchaService;
+
     // ── POST /api/auth/register/initiate ──────────────────────────
     // Step 1: validates data, stores pending registration, sends OTP email.
     // Returns 202 Accepted — account not created yet.
     @PostMapping("/register/initiate")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void initiateRegistration(@Valid @RequestBody RegisterRequest request) {
+    public void initiateRegistration(
+            @Valid @RequestBody RegisterRequest request,
+            @RequestHeader(value = "X-Captcha-Token", required = false) String captchaToken) {
+        recaptchaService.verify(captchaToken);
         authService.initiateRegistration(request);
     }
 
@@ -42,13 +49,19 @@ public class AuthController {
     // ── POST /api/auth/register (legacy) ─────────────────────────
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
+    public AuthResponse register(
+            @Valid @RequestBody RegisterRequest request,
+            @RequestHeader(value = "X-Captcha-Token", required = false) String captchaToken) {
+        recaptchaService.verify(captchaToken);
         return authService.register(request);
     }
 
     // ── POST /api/auth/login ──────────────────────────────────────
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    public AuthResponse login(
+            @Valid @RequestBody LoginRequest request,
+            @RequestHeader(value = "X-Captcha-Token", required = false) String captchaToken) {
+        recaptchaService.verify(captchaToken);
         return authService.login(request);
     }
 

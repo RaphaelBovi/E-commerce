@@ -39,8 +39,8 @@ export default function AuthProvider({ children }) {
   // e atualiza o estado com os dados do usuário retornados pela API.
   // useCallback garante que a referência da função não muda entre renders,
   // evitando re-renderizações desnecessárias nos consumidores do contexto.
-  const login = useCallback(async (email, password) => {
-    const data = await loginRequest(email, password);
+  const login = useCallback(async (email, password, captchaToken) => {
+    const data = await loginRequest(email, password, captchaToken);
     const session = {
       token: data.token,
       email: data.email,

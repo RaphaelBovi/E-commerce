@@ -4,7 +4,7 @@ import {
   FaUser, FaBoxOpen, FaMapMarkerAlt, FaHeart, FaTicketAlt,
   FaBell, FaCog, FaSignOutAlt, FaChevronRight, FaArrowLeft,
   FaShoppingBag, FaCheckCircle, FaTruck, FaTimesCircle, FaClock,
-  FaCreditCard, FaLock, FaEdit, FaSave, FaTimes,
+  FaCreditCard, FaLock, FaEdit, FaSave, FaTimes, FaWrench,
 } from 'react-icons/fa';
 import { useAuth } from '../context/useAuth';
 import { getMyOrders, cancelMyOrder } from '../services/ordersApi';
@@ -396,7 +396,7 @@ export default function MinhaConta() {
       <div className="mc-section">
         <h1 className="mc-title">{labels[section]}</h1>
         <div className="mc-coming-soon">
-          <span className="mc-coming-soon-emoji">🚧</span>
+          <div className="mc-coming-soon-icon"><FaWrench /></div>
           <h3>Em breve</h3>
           <p>Esta funcionalidade está em desenvolvimento e será lançada em breve.</p>
         </div>

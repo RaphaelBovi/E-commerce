@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaStore, FaEye, FaEyeSlash, FaCheckCircle, FaShieldAlt,
 } from "react-icons/fa";
 import { GoogleLogin } from "@react-oauth/google";
+import ReCAPTCHA from "react-google-recaptcha";
 import { useAuth } from "../context/useAuth";
 import { sendVerificationCode, confirmRegistration as confirmRegistrationApi } from "../services/authApi";
 import "./Login.css";
+
+const RECAPTCHA_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
 
 // ─── helpers ──────────────────────────────────────────────────────
 const digitsOnly = (v) => String(v || "").replace(/\D/g, "");
@@ -90,6 +93,12 @@ export default function Login() {
   const [submitting,  setSubmitting]  = useState(false);
   const [successName, setSuccessName] = useState("");
 
+  // CAPTCHA refs + tokens
+  const captchaLoginRef = useRef(null);
+  const captchaRegRef   = useRef(null);
+  const [captchaLogin,  setCaptchaLogin]  = useState("");
+  const [captchaReg,    setCaptchaReg]    = useState("");
+
   const { login, googleLogin, loginWithToken, isAuthenticated } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -115,17 +124,25 @@ export default function Login() {
     setAddress(""); setCity(""); setStateUf(""); setZipCode("");
     setOtpCode(""); setPendingPayload(null); setPendingAuth(null);
     setError("");
+    captchaLoginRef.current?.reset(); setCaptchaLogin("");
+    captchaRegRef.current?.reset();   setCaptchaReg("");
   }, []);
 
   // ── Login ──────────────────────────────────────────────────────
   const handleLogin = async (e) => {
     e.preventDefault();
     clearError();
+    if (RECAPTCHA_KEY && !captchaLogin) {
+      setError("Confirme que você não é um robô.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await login(loginEmail.trim(), loginPwd);
+      await login(loginEmail.trim(), loginPwd, captchaLogin);
     } catch (err) {
       setError(err?.message || "E-mail ou senha incorretos.");
+      captchaLoginRef.current?.reset();
+      setCaptchaLogin("");
     } finally {
       setSubmitting(false);
     }
@@ -158,6 +175,11 @@ export default function Login() {
     e.preventDefault();
     clearError();
 
+    if (RECAPTCHA_KEY && !captchaReg) {
+      setError("Confirme que você não é um robô.");
+      return;
+    }
+
     const cpfD   = digitsOnly(cpf);
     const phoneD = digitsOnly(phone);
     const zipD   = digitsOnly(zipCode);
@@ -183,12 +205,14 @@ export default function Login() {
 
     setSubmitting(true);
     try {
-      await sendVerificationCode(payload);
+      await sendVerificationCode(payload, captchaReg);
       setPendingPayload(payload);
       setResendCooldown(60);
       setView("otp");
     } catch (err) {
       setError(err?.message || "Não foi possível enviar o código. Tente novamente.");
+      captchaRegRef.current?.reset();
+      setCaptchaReg("");
     } finally {
       setSubmitting(false);
     }
@@ -270,7 +294,21 @@ export default function Login() {
                     autoComplete="current-password" disabled={submitting}
                   />
                 </div>
-                <button type="submit" className="auth-btn-primary" disabled={submitting}>
+                {RECAPTCHA_KEY && (
+                  <div className="auth-captcha">
+                    <ReCAPTCHA
+                      ref={captchaLoginRef}
+                      sitekey={RECAPTCHA_KEY}
+                      onChange={(t) => setCaptchaLogin(t || "")}
+                      onExpired={() => setCaptchaLogin("")}
+                    />
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  className="auth-btn-primary"
+                  disabled={submitting || (RECAPTCHA_KEY && !captchaLogin)}
+                >
                   {submitting ? "Entrando…" : "Entrar"}
                 </button>
               </form>
@@ -488,13 +526,28 @@ export default function Login() {
                   </div>
                 </div>
 
+                {RECAPTCHA_KEY && (
+                  <div className="auth-captcha">
+                    <ReCAPTCHA
+                      ref={captchaRegRef}
+                      sitekey={RECAPTCHA_KEY}
+                      onChange={(t) => setCaptchaReg(t || "")}
+                      onExpired={() => setCaptchaReg("")}
+                    />
+                  </div>
+                )}
+
                 <div className="auth-step2-actions">
                   <button type="button" className="auth-btn-secondary"
                     onClick={() => { clearError(); setView("reg1"); }}
                     disabled={submitting}>
                     ← Voltar
                   </button>
-                  <button type="submit" className="auth-btn-primary auth-flex-1" disabled={submitting}>
+                  <button
+                    type="submit"
+                    className="auth-btn-primary auth-flex-1"
+                    disabled={submitting || (RECAPTCHA_KEY && !captchaReg)}
+                  >
                     {submitting ? "Enviando código…" : "Criar conta"}
                   </button>
                 </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaShieldAlt, FaShippingFast, FaStar, FaCreditCard } from 'react-icons/fa';
+import { FaShieldAlt, FaShippingFast, FaStar, FaCreditCard, FaTag, FaArrowRight } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import AutoCarousel from '../components/AutoCarousel';
 import './Home.css';
@@ -12,36 +12,41 @@ function sortByNewest(list) {
   });
 }
 
+function SkeletonCard() {
+  return <div className="home-skeleton-card" aria-hidden="true" />;
+}
+
 export default function Home({ onAddToCart, products, isLoadingProducts, productsError }) {
-  const heroProduct = products[0];
-  const maisVendidos = products.filter(p => p.category === 'mais-vendidos').slice(0, 10);
-  const novidades    = sortByNewest(products).slice(0, 15);
-  const gerais       = products.filter(p => p.category === 'geral').slice(0, 10);
+  const heroProduct   = products[0];
+  const maisVendidos  = products.filter(p => p.category === 'mais-vendidos').slice(0, 10);
+  const novidades     = sortByNewest(products).slice(0, 15);
+  const gerais        = products.filter(p => p.category === 'geral').slice(0, 10);
 
   return (
     <main className="home-main">
       <div className="container home-container">
 
-        {/* ── Banners de status ── */}
+        {/* ── Banner de erro ── */}
         {productsError && (
-          <p className="home-banner home-banner--warn">{productsError}</p>
-        )}
-        {isLoadingProducts && (
-          <p className="home-banner">Carregando produtos…</p>
+          <p className="home-banner home-banner--warn" role="alert">{productsError}</p>
         )}
 
         {/* ── Hero ── */}
         <section className="home-hero">
           <div className="hero-content">
             <span className="hero-kicker">Bem-vindo à loja</span>
-            <h1>Produtos com qualidade e preço justo</h1>
+            <h1>Produtos com qualidade<br />e preço justo</h1>
             <p className="hero-description">
               Navegue pelo catálogo, compare opções e monte seu pedido com poucos cliques.
               Entrega rápida para todo o Brasil.
             </p>
             <div className="hero-actions">
-              <Link to="/catalogo" className="hero-cta-primary">Ver catálogo completo</Link>
-              <Link to="/promocoes" className="hero-link-secondary">Ver ofertas</Link>
+              <Link to="/catalogo" className="hero-cta-primary">
+                Ver catálogo completo
+              </Link>
+              <Link to="/promocoes" className="hero-link-secondary">
+                Ver ofertas
+              </Link>
             </div>
           </div>
 
@@ -94,24 +99,41 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
         </div>
 
         {/* ── Mais vendidos ── */}
-        {maisVendidos.length > 0 && (
-          <section className="product-section">
-            <div className="section-header">
-              <div className="section-header-left">
-                <div>
-                  <h2>Mais vendidos</h2>
-                  <p className="section-subtitle">Produtos favoritos dos nossos clientes</p>
-                </div>
+        <section className="product-section">
+          <div className="section-header">
+            <div className="section-header-left">
+              <div>
+                <h2>Mais vendidos</h2>
+                <p className="section-subtitle">Produtos favoritos dos nossos clientes</p>
               </div>
-              <Link to="/catalogo" className="section-view-all">Ver todos →</Link>
             </div>
+            <Link to="/catalogo" className="section-view-all">Ver todos →</Link>
+          </div>
+
+          {isLoadingProducts ? (
+            <div className="home-product-grid">
+              {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : (
             <div className="home-product-grid">
               {maisVendidos.map(product => (
                 <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
+
+        {/* ── Banner promocional ── */}
+        <div className="home-promo-banner">
+          <div className="home-promo-banner-icon"><FaTag /></div>
+          <div className="home-promo-banner-text">
+            <strong>Ofertas imperdíveis</strong>
+            <span>Aproveite descontos exclusivos por tempo limitado</span>
+          </div>
+          <Link to="/promocoes" className="home-promo-banner-cta">
+            Ver ofertas <FaArrowRight />
+          </Link>
+        </div>
 
         {/* ── Novidades ── */}
         <section className="product-section">
@@ -124,11 +146,18 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
             </div>
             <Link to="/lancamentos" className="section-view-all">Ver todos →</Link>
           </div>
-          <AutoCarousel products={novidades} onAddToCart={onAddToCart} />
+
+          {isLoadingProducts ? (
+            <div className="home-product-grid">
+              {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          ) : (
+            <AutoCarousel products={novidades} onAddToCart={onAddToCart} />
+          )}
         </section>
 
-        {/* ── Outras categorias ── */}
-        {gerais.length > 0 && (
+        {/* ── Explore o catálogo ── */}
+        {(isLoadingProducts || gerais.length > 0) && (
           <section className="product-section product-section-alt">
             <div className="section-header">
               <div className="section-header-left">
@@ -139,11 +168,19 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
               </div>
               <Link to="/catalogo" className="section-view-all">Ver todos →</Link>
             </div>
-            <div className="home-product-grid">
-              {gerais.map(product => (
-                <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
-              ))}
-            </div>
+
+            {isLoadingProducts ? (
+              <div className="home-product-grid">
+                {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : (
+              <div className="home-product-grid">
+                {gerais.map(product => (
+                  <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
+                ))}
+              </div>
+            )}
+
             <div className="view-all-container">
               <Link to="/catalogo" className="btn-view-all">Ver catálogo completo</Link>
             </div>

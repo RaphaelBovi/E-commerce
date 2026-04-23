@@ -1,204 +1,212 @@
-// ─────────────────────────────────────────────────────────────────
-// ProductDetails.jsx — Página de detalhes de um produto
-//
-// Exibe todas as informações de um produto específico, acessado via
-// URL /produto/:id. Inclui imagem, preço, seletor de quantidade,
-// botões de ação, simulação de frete, descrição e carrossel de
-// produtos relacionados (mesma categoria).
-//
-// Estrutura:
-//  - ProductDetails (componente exportado): lê o :id da URL,
-//    mostra loading e delega para ProductDetailsContent
-//  - ProductDetailsContent (componente interno): renderiza o conteúdo
-//    real do produto após os dados estarem disponíveis
-//
-// Props de ProductDetails:
-//  - onAddToCart       (function): callback para adicionar ao carrinho
-//  - products          (array): lista completa de produtos
-//  - isLoadingProducts (boolean): true enquanto a API carrega
-//
-// Para adicionar abas (ex.: especificações, avaliações), crie seções
-// abaixo do product-description-box.
-// ─────────────────────────────────────────────────────────────────
-
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FaTruck, FaClipboardList } from 'react-icons/fa';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  FaTruck, FaClipboardList, FaShieldAlt, FaUndo, FaStar,
+  FaChevronLeft, FaBoxOpen,
+} from 'react-icons/fa';
 import AutoCarousel from '../components/AutoCarousel';
 import './ProductDetails.css';
 
-// ─── ProductDetailsContent ────────────────────────────────────────
-// Componente interno que renderiza os detalhes do produto.
-// Separado do componente exportado para que o `key={id}` no pai
-// force uma remontagem completa ao navegar entre produtos.
-//
-// Props:
-//  - productId   (string): id do produto lido da URL
-//  - onAddToCart (function): callback para adicionar ao carrinho
-//  - products    (array): lista completa de produtos
-function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
-  // Quantidade selecionada pelo usuário (mínimo 1)
-  const [quantity, setQuantity] = useState(1);
+// ─── Skeleton de loading ──────────────────────────────────────────
+function SkeletonDetails() {
+  return (
+    <div className="product-layout pd-skeleton" aria-hidden="true">
+      <div className="pd-skeleton-image" />
+      <div className="pd-skeleton-info">
+        <div className="pd-skeleton-line pd-sk-title" />
+        <div className="pd-skeleton-line pd-sk-ref" />
+        <div className="pd-skeleton-line pd-sk-price" />
+        <div className="pd-skeleton-line pd-sk-text" />
+        <div className="pd-skeleton-line pd-sk-text pd-sk-short" />
+        <div className="pd-skeleton-actions">
+          <div className="pd-skeleton-btn" />
+          <div className="pd-skeleton-btn" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  // useNavigate para redirecionar ao checkout após "Comprar agora"
+// ─── ProductDetailsContent ────────────────────────────────────────
+function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
+  const [quantity, setQuantity] = useState(1);
   const navigate = useNavigate();
 
-  // Busca o produto pelo id (comparação como string para robustez)
   const product = products?.find((p) => String(p.id) === String(productId));
+  const relatedProducts = products?.filter(
+    (p) => p.category === product?.category && p.id !== product?.id
+  ) || [];
 
-  // Produtos da mesma categoria, excluindo o produto atual
-  const relatedProducts =
-    products?.filter((p) => p.category === product?.category && p.id !== product?.id) || [];
-
-  // ─── Scroll para o topo ao carregar o produto ─────────────────
-  // Garante que ao acessar a página de detalhes a tela começa no topo.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // ─── handleComprarAgora ───────────────────────────────────────
-  // Adiciona o produto com a quantidade selecionada ao carrinho
-  // e redireciona diretamente para o checkout.
   const handleComprarAgora = () => {
     onAddToCart(product, quantity);
     navigate('/checkout');
   };
 
-  // Produto não encontrado: exibe mensagem de erro
+  // Estado: produto não encontrado
   if (!product) {
     return (
-      <div className="container details-loading">
-        Produto não encontrado.
+      <div className="container details-page">
+        <div className="pd-not-found">
+          <div className="pd-not-found-icon"><FaBoxOpen /></div>
+          <h2>Produto não encontrado</h2>
+          <p>Este produto pode ter sido removido ou o link está incorreto.</p>
+          <Link to="/catalogo" className="pd-not-found-btn">Ver catálogo</Link>
+        </div>
       </div>
     );
   }
 
-  // Formata o preço no padrão brasileiro (R$)
   const formattedPrice = product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  // ─── decreaseQuantity ─────────────────────────────────────────
-  // Diminui a quantidade em 1, respeitando o mínimo de 1 unidade.
-  const decreaseQuantity = () => {
-    if (quantity > 1) setQuantity(quantity - 1);
-  };
-
-  // ─── increaseQuantity ─────────────────────────────────────────
-  // Aumenta a quantidade em 1 (sem limite superior — ajuste se necessário).
-  const increaseQuantity = () => {
-    setQuantity(quantity + 1);
-  };
 
   return (
     <main className="container details-page">
-      {/* ── Layout principal: imagem à esquerda, informações à direita ── */}
+
+      {/* ── Breadcrumb / voltar ── */}
+      <nav className="pd-breadcrumb" aria-label="Navegação">
+        <button type="button" className="pd-back-btn" onClick={() => navigate(-1)}>
+          <FaChevronLeft aria-hidden /> Voltar
+        </button>
+        <span className="pd-breadcrumb-sep" aria-hidden>›</span>
+        <Link to="/catalogo" className="pd-breadcrumb-link">Catálogo</Link>
+        <span className="pd-breadcrumb-sep" aria-hidden>›</span>
+        <span className="pd-breadcrumb-current">{product.name}</span>
+      </nav>
+
+      {/* ── Layout principal ── */}
       <div className="product-layout">
 
-        {/* Área da imagem do produto */}
+        {/* ── Imagem ── */}
         <div className="product-image-container">
-          {/* alt vazio pois a imagem é decorativa (o nome já está no h1 abaixo) */}
-          <img src={product.image} alt="" className="product-main-image" />
+          <img src={product.image} alt={product.name} className="product-main-image" />
         </div>
 
-        {/* Área de informações e ações do produto */}
+        {/* ── Informações ── */}
         <div className="product-info-container">
-          {/* Nome do produto */}
           <h1 className="details-title">{product.name}</h1>
-          {/* Código de referência do produto */}
           <p className="details-ref">
             Código / ref.: <span className="highlight-text">{product.ref}</span>
           </p>
           <hr className="divider" />
 
-          {/* Bloco de preços */}
+          {/* ── Preço ── */}
           <div className="price-box">
             <p className="details-price">{formattedPrice}</p>
-            <p className="details-pix">À vista no boleto ou PIX com condição promocional (configure no seu projeto).</p>
+            <p className="details-pix">À vista no boleto ou PIX com condição promocional.</p>
             <p className="details-installments">Parcelamento conforme política da loja</p>
           </div>
 
-          {/* Calculadora de frete por CEP (UI apenas — integração pendente) */}
+          {/* ── Frete ── */}
           <div className="shipping-calc">
             <p className="shipping-calc-title">
-              <FaTruck size={18} color="var(--primary)" aria-hidden />
+              <FaTruck aria-hidden />
               Simule frete e prazo
             </p>
             <div className="cep-input">
-              <input type="text" placeholder="CEP" aria-label="CEP para cálculo de frete" />
+              <input type="text" placeholder="Digite seu CEP" aria-label="CEP para cálculo de frete" maxLength={9} />
               <button type="button">Calcular</button>
             </div>
           </div>
 
-          {/* Seletor de quantidade com botões de incremento/decremento */}
+          {/* ── Quantidade ── */}
           <div className="quantity-selector-container">
             <span className="quantity-label">Quantidade</span>
             <div className="quantity-controls">
-              {/* Diminui quantidade (respeitando mínimo de 1) */}
-              <button type="button" onClick={decreaseQuantity} aria-label="Diminuir">−</button>
-              {/* Exibe a quantidade atual */}
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                aria-label="Diminuir quantidade"
+                disabled={quantity <= 1}
+              >
+                −
+              </button>
               <span className="quantity-display">{quantity}</span>
-              {/* Aumenta quantidade */}
-              <button type="button" onClick={increaseQuantity} aria-label="Aumentar">+</button>
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => q + 1)}
+                aria-label="Aumentar quantidade"
+              >
+                +
+              </button>
             </div>
           </div>
 
-          {/* Botões de ação: compra direta ou adição ao carrinho */}
+          {/* ── Botões de ação ── */}
           <div className="action-buttons">
-            {/* "Comprar agora": adiciona ao carrinho e vai para checkout */}
             <button type="button" className="btn-gold btn-large" onClick={handleComprarAgora}>
               Comprar agora
             </button>
-            {/* "Adicionar ao carrinho": abre o drawer sem redirecionar */}
-            <button type="button" className="btn-outline btn-large" onClick={() => onAddToCart(product, quantity)}>
+            <button
+              type="button"
+              className="btn-outline btn-large"
+              onClick={() => onAddToCart(product, quantity)}
+            >
               Adicionar ao carrinho
             </button>
+          </div>
+
+          {/* ── Selos de confiança ── */}
+          <div className="pd-trust-badges">
+            <div className="pd-trust-badge">
+              <FaShieldAlt aria-hidden />
+              <span>Compra segura</span>
+            </div>
+            <div className="pd-trust-badge">
+              <FaUndo aria-hidden />
+              <span>Trocas e devoluções</span>
+            </div>
+            <div className="pd-trust-badge">
+              <FaStar aria-hidden />
+              <span>Qualidade garantida</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Caixa de descrição do produto ── */}
+      {/* ── Descrição ── */}
       <div className="product-description-box">
         <h3 className="description-heading">
           <FaClipboardList aria-hidden />
-          Descrição
+          Descrição do produto
         </h3>
-        {/* Textos de template — substitua pelas informações reais do produto */}
-        <p><strong>Descrição:</strong> Informações do produto — personalize este texto no template.</p>
+        <p>Informações do produto — personalize este texto com os detalhes reais do item.</p>
         <p><strong>Garantia:</strong> Conforme política comercial da sua loja.</p>
-        <p>Dúvidas? Inclua aqui canais de atendimento (chat, e-mail ou mensagens).</p>
+        <p>Dúvidas? Entre em contato pelos nossos canais de atendimento.</p>
       </div>
 
-      {/* ── Seção de produtos relacionados (mesma categoria) ── */}
-      {/* Só renderiza o carrossel se houver produtos relacionados */}
-      {relatedProducts.length > 0 ? (
+      {/* ── Relacionados ── */}
+      {relatedProducts.length > 0 && (
         <section className="related-section">
-          <h2>Relacionados</h2>
-          <p className="section-subtitle related-subtitle">Outros itens na mesma categoria</p>
+          <div className="section-header">
+            <div className="section-header-left">
+              <div>
+                <h2>Produtos relacionados</h2>
+                <p className="section-subtitle">Outros itens da mesma categoria</p>
+              </div>
+            </div>
+          </div>
           <AutoCarousel products={relatedProducts} onAddToCart={onAddToCart} />
         </section>
-      ) : null}
+      )}
     </main>
   );
 }
 
-// ─── ProductDetails (componente exportado) ────────────────────────
-// Lê o :id da URL e gerencia o estado de carregamento.
-// Usa key={id} no ProductDetailsContent para forçar remontagem
-// completa ao navegar entre produtos diferentes, evitando que
-// o estado de quantidade fique "preso" no valor anterior.
+// ─── ProductDetails (exportado) ───────────────────────────────────
 export default function ProductDetails({ onAddToCart, products = [], isLoadingProducts }) {
-  // Lê o parâmetro dinâmico :id definido na rota /produto/:id
   const { id } = useParams();
 
-  // Exibe loading enquanto a lista de produtos ainda está sendo carregada
   if (isLoadingProducts) {
     return (
-      <div className="container details-loading">
-        Carregando produto…
+      <div className="container details-page">
+        <SkeletonDetails />
       </div>
     );
   }
 
-  // Renderiza o conteúdo; key={id} garante remontagem ao trocar de produto
   return (
     <ProductDetailsContent
       key={id}

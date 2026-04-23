@@ -1,29 +1,29 @@
-.institutional-page {
-  padding: 2rem 0 4rem;
+.inst-page {
+  padding: 1.75rem 0 4rem;
 }
 
 /* ─── Hero ───────────────────────────────────── */
-.institutional-hero {
+.inst-hero {
   background: linear-gradient(135deg, #0C0C0E 0%, #1e293b 60%, #1D4ED8 100%);
   border-radius: var(--radius-lg);
-  padding: 3rem 2.5rem;
-  margin-bottom: 2rem;
+  padding: 3.5rem 3rem;
+  margin-bottom: 3rem;
   overflow: hidden;
   position: relative;
 }
 
-.institutional-hero::before {
+.inst-hero::before {
   content: '';
   position: absolute;
   top: -60px;
-  right: -60px;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%);
+  right: -40px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(249,115,22,0.16) 0%, transparent 70%);
   pointer-events: none;
 }
 
-.institutional-kicker {
+.inst-kicker {
   display: inline-flex;
   align-items: center;
   color: var(--accent);
@@ -31,23 +31,33 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin-bottom: 0.85rem;
+  margin-bottom: 1rem;
   background: rgba(249,115,22,0.12);
-  border: 1px solid rgba(249,115,22,0.25);
+  border: 1px solid rgba(249,115,22,0.28);
   padding: 0.28rem 0.75rem;
   border-radius: 999px;
+  position: relative;
+  z-index: 1;
 }
 
-.institutional-hero h1 {
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
-  margin-bottom: 0.85rem;
-  line-height: 1.15;
+.inst-hero h1 {
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  margin-bottom: 1rem;
+  line-height: 1.12;
   color: #fff;
   letter-spacing: -0.035em;
+  max-width: 32rem;
+  position: relative;
+  z-index: 1;
 }
 
-.institutional-hero p {
-  color: rgba(255,255,255,0.65);
+.inst-highlight {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.inst-hero-desc {
+  color: rgba(255,255,255,0.62);
   max-width: 44rem;
   line-height: 1.7;
   font-size: 0.95rem;
@@ -55,15 +65,177 @@
   z-index: 1;
 }
 
-/* ─── Cards grid ─────────────────────────────── */
-.institutional-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+/* ─── Section header (padrão do projeto) ─────── */
+.inst-section {
+  margin-bottom: 3rem;
 }
 
-.institutional-card {
+.inst-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.inst-section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.inst-section-header-left::before {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 2rem;
+  background: var(--accent);
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+.inst-section-header-left h2 {
+  font-size: clamp(1.15rem, 2.5vw, 1.6rem);
+  color: var(--text);
+  letter-spacing: -0.03em;
+  margin-bottom: 0;
+}
+
+.inst-section-sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── Missão / Visão / Valores ───────────────── */
+.inst-mvv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.1rem;
+}
+
+.inst-mvv-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 1.5rem;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--transition), transform var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.inst-mvv-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+}
+
+.inst-mvv-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.inst-mvv-card h3 {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.inst-mvv-card p {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ─── Stats bar ──────────────────────────────── */
+.inst-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 3rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.inst-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2rem 1rem;
+  border-right: 1px solid var(--border);
+  text-align: center;
+  transition: background var(--transition);
+}
+
+.inst-stat:last-child {
+  border-right: none;
+}
+
+.inst-stat:hover {
+  background: var(--primary-soft);
+}
+
+.inst-stat-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  transition: background var(--transition), color var(--transition);
+}
+
+.inst-stat:hover .inst-stat-icon {
+  background: var(--primary);
+  color: #fff;
+}
+
+.inst-stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.inst-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ─── Benefits ───────────────────────────────── */
+.inst-benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.inst-benefit-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -72,70 +244,184 @@
   transition: box-shadow var(--transition), transform var(--transition);
 }
 
-.institutional-card:hover {
+.inst-benefit-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
-.institutional-card h3 {
-  color: var(--text);
-  margin-bottom: 0.6rem;
-  font-size: 1.05rem;
-  letter-spacing: -0.025em;
-}
-
-.institutional-card p {
-  color: var(--text-secondary);
-  line-height: 1.65;
-  font-size: 0.875rem;
-}
-
-/* ─── Contact CTA ────────────────────────────── */
-.institutional-contact {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.75rem 2rem;
-  background: var(--surface);
-  box-shadow: var(--shadow-xs);
+.inst-benefit-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  border: 1px solid var(--primary-soft-border);
 }
 
-.institutional-contact h2 {
-  margin-bottom: 0.45rem;
+.inst-benefit-card h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
   color: var(--text);
-  font-size: 1.15rem;
-  letter-spacing: -0.03em;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
 }
 
-.institutional-contact p {
-  color: var(--text-muted);
+.inst-benefit-card p {
+  font-size: 0.845rem;
+  color: var(--text-secondary);
   line-height: 1.6;
-  max-width: 38rem;
-  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ─── Contact channels ───────────────────────── */
+.inst-channels-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.inst-channel-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 1rem;
+  box-shadow: var(--shadow-xs);
+  text-align: center;
+  transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+}
+
+.inst-channel-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.inst-channel-link {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.inst-channel-link:hover {
+  border-color: var(--primary);
+}
+
+.inst-channel-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 1px solid var(--primary-soft-border);
+  transition: background var(--transition), color var(--transition);
+}
+
+.inst-channel-icon.accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(249,115,22,0.2);
+}
+
+.inst-channel-link:hover .inst-channel-icon {
+  background: var(--primary);
+  color: #fff;
+}
+
+.inst-channel-link:hover .inst-channel-icon.accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.inst-channel-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.inst-channel-text strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.inst-channel-info {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.inst-channel-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* ─── Responsive ─────────────────────────────── */
-@media (max-width: 950px) {
-  .institutional-grid {
-    grid-template-columns: 1fr 1fr;
+@media (max-width: 1024px) {
+  .inst-channels-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
+
+  .inst-stats-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .inst-stat:nth-child(2) { border-right: none; }
+  .inst-stat:nth-child(3) { border-top: 1px solid var(--border); }
+  .inst-stat:nth-child(4) { border-top: 1px solid var(--border); border-right: none; }
 }
 
-@media (max-width: 640px) {
-  .institutional-hero {
-    padding: 2rem 1.5rem;
+@media (max-width: 768px) {
+  .inst-page {
+    padding: 1.25rem 0 2.5rem;
   }
 
-  .institutional-grid {
+  .inst-hero {
+    padding: 2.5rem 1.75rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .inst-mvv-grid {
     grid-template-columns: 1fr;
   }
 
-  .institutional-contact {
+  .inst-benefits-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inst-section-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 0.35rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .inst-hero {
+    padding: 2rem 1.25rem;
+    border-radius: var(--radius);
+  }
+
+  .inst-channels-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .inst-stats-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .inst-channel-card {
+    padding: 1.25rem 0.75rem;
   }
 }

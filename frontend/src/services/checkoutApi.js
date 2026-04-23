@@ -1,8 +1,14 @@
-import { getAuthHeader } from './authApi';
+import { getAuthHeader, STORE_AUTH_KEY } from './authApi';
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/+$/, '');
 
 async function handleResponse(res) {
+  if (res.status === 401 || res.status === 403) {
+    // Token expirado ou sessão inválida — força novo login
+    localStorage.removeItem(STORE_AUTH_KEY);
+    window.location.href = '/login';
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
   if (!res.ok) {
     let message = `Erro ${res.status}`;
     try {

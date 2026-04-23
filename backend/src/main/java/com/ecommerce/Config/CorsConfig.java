@@ -56,7 +56,7 @@ public class CorsConfig {
 
         // Métodos HTTP permitidos nas requisições cross-origin
         // OPTIONS é necessário para requisições "preflight" do navegador
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         // Headers que o frontend pode enviar nas requisições
         // Authorization → necessário para enviar o token JWT

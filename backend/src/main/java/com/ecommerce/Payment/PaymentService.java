@@ -303,16 +303,18 @@ public class PaymentService {
             throw new BusinessException("Token do PagSeguro não configurado. Configure a variável PAGSEGURO_TOKEN.");
         }
 
-        // Remove trailing slash para não gerar URLs com //
         String baseUrl = pagseguroApiUrl.replaceAll("/+$", "");
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("reference_id", order.getId().toString());
+
+        // ISO 8601 sem nanosegundos: 2025-04-30T23:59:59-03:00
         body.put("expiration_date",
                 java.time.OffsetDateTime.now().plusDays(1)
+                        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
                         .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
 
-        // Customer
+        // Customer — pré-preenche o formulário na página do PagBank
         Map<String, Object> customer = new LinkedHashMap<>();
         customer.put("name", request.recipientName());
         customer.put("email", userEmail);
@@ -325,7 +327,7 @@ public class PaymentService {
         if (!phones.isEmpty()) customer.put("phones", phones);
         body.put("customer", customer);
 
-        // Items
+        // Items — reference_id é opcional, name/quantity/unit_amount são obrigatórios
         List<Map<String, Object>> itemsList = order.getItems().stream().map(item -> {
             Map<String, Object> i = new LinkedHashMap<>();
             i.put("reference_id", item.getProductId() != null ? item.getProductId().toString() : "item");
@@ -336,7 +338,7 @@ public class PaymentService {
         }).collect(java.util.stream.Collectors.toList());
         body.put("items", itemsList);
 
-        // Shipping
+        // Shipping — type deve ser "FIXED"; amount 0 = frete grátis
         Map<String, Object> shipAddr = new LinkedHashMap<>();
         shipAddr.put("street", request.street());
         shipAddr.put("number", request.streetNumber());
@@ -348,21 +350,24 @@ public class PaymentService {
         shipAddr.put("region_code", request.state().toUpperCase());
         shipAddr.put("country", "BRA");
         shipAddr.put("postal_code", digitsOnly(request.zipCode()));
-        body.put("shipping", Map.of("type", "FREE", "address", shipAddr));
 
-        // Redirect and notification
+        Map<String, Object> shipping = new LinkedHashMap<>();
+        shipping.put("type", "FIXED");
+        shipping.put("amount", 0);
+        shipping.put("address", shipAddr);
+        body.put("shipping", shipping);
+
+        // redirect_url — para onde o PagBank envia o cliente após o pagamento
         if (redirectUrl != null && !redirectUrl.isBlank()) {
             body.put("redirect_url", redirectUrl);
-            body.put("return_url", redirectUrl);
         }
         if (notificationUrl != null && !notificationUrl.isBlank()) {
             body.put("notification_urls", List.of(notificationUrl));
         }
 
-        // Payment methods config (credit card with installments)
-        body.put("payment_methods_configs", List.of(
-                Map.of("type", "CREDIT_CARD", "config", Map.of("installments_limit", 12))
-        ));
+        // payment_methods — restringe ao método já escolhido pelo usuário
+        String pmType = request.paymentMethod().toUpperCase();
+        body.put("payment_methods", List.of(Map.of("type", pmType)));
 
         try {
             Map<String, Object> response = restClient.post()
@@ -373,10 +378,21 @@ public class PaymentService {
                     .retrieve()
                     .body(MAP_TYPE);
 
-            if (response == null || !response.containsKey("payment_url")) {
-                throw new BusinessException("Resposta inválida do PagSeguro: payment_url não retornado");
+            if (response == null) {
+                throw new BusinessException("Resposta vazia do PagSeguro");
             }
-            return (String) response.get("payment_url");
+
+            // A URL de pagamento está em links[].href onde rel == "PAY"
+            List<Map<String, Object>> links = (List<Map<String, Object>>) response.get("links");
+            if (links == null) {
+                throw new BusinessException("PagSeguro não retornou links. Resposta: " + response);
+            }
+
+            return links.stream()
+                    .filter(l -> "PAY".equals(l.get("rel")))
+                    .map(l -> (String) l.get("href"))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("PagSeguro não retornou URL de pagamento. Links: " + links));
 
         } catch (BusinessException e) {
             throw e;

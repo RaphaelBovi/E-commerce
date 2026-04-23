@@ -158,6 +158,22 @@
   letter-spacing: 0.01em;
 }
 
+.auth-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-forgot-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+
+.auth-forgot-link:hover { opacity: 0.75; }
+
 .auth-field input,
 .auth-field select {
   width: 100%;

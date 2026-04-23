@@ -65,6 +65,21 @@ public class AuthController {
         return authService.login(request);
     }
 
+    // ── POST /api/auth/forgot-password ────────────────────────────
+    // Always responds 202 regardless of whether email exists (prevents enumeration).
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+    }
+
+    // ── POST /api/auth/reset-password ─────────────────────────────
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+    }
+
     // ── GET /api/auth/me ──────────────────────────────────────────
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getProfile() {

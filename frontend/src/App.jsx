@@ -32,6 +32,7 @@ import { fetchProducts } from './services/productsApi';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import MinhaConta from './pages/MinhaConta';
+import RecuperarSenha from './pages/RecuperarSenha';
 
 // Redirects unauthenticated users to /login, preserving the intended destination
 function ProtectedRoute({ children }) {
@@ -235,6 +236,8 @@ function App() {
           } />
           {/* Página de login e cadastro */}
           <Route path="/login" element={<Login />} />
+          {/* Recuperação de senha */}
+          <Route path="/recuperar-senha" element={<RecuperarSenha />} />
           {/* Painel do usuário */}
           <Route path="/minha-conta" element={<MinhaConta />} />
         </Routes>

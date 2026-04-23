@@ -1,9 +1,11 @@
 package com.ecommerce.Auth.Service;
 
 import com.ecommerce.Auth.Entity.Dto.*;
+import com.ecommerce.Auth.Entity.PasswordResetToken;
 import com.ecommerce.Auth.Entity.PendingRegistration;
 import com.ecommerce.Auth.Entity.Role;
 import com.ecommerce.Auth.Entity.User;
+import com.ecommerce.Auth.Repository.PasswordResetTokenRepository;
 import com.ecommerce.Auth.Repository.PendingRegistrationRepository;
 import com.ecommerce.Auth.Repository.UserRepository;
 import com.ecommerce.Product.Exception.BusinessException;
@@ -36,6 +38,7 @@ public class AuthService {
 
     @Autowired private UserRepository userRepository;
     @Autowired private PendingRegistrationRepository pendingRepo;
+    @Autowired private PasswordResetTokenRepository resetTokenRepo;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private AuthenticationManager authenticationManager;
     @Autowired private JwtUtil jwtUtil;
@@ -297,6 +300,76 @@ public class AuthService {
         log.info("Login bem-sucedido: {}", request.email());
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getEmail(), user.getRole().name());
+    }
+
+    // ── FORGOT PASSWORD ───────────────────────────────────────────
+    // Always returns silently even when email is not found (prevents enumeration).
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String email = request.email().trim().toLowerCase();
+
+        // Silently ignore unknown emails — don't reveal whether email is registered
+        if (!userRepository.existsByEmail(email)) {
+            log.info("Solicitação de reset para e-mail não cadastrado: {}", email);
+            return;
+        }
+
+        // Replace any existing token for this email
+        resetTokenRepo.deleteById(email);
+
+        String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+
+        var token = PasswordResetToken.builder()
+                .email(email)
+                .tokenHash(passwordEncoder.encode(otp))
+                .expiresAt(Instant.now().plusSeconds(900)) // 15 minutes
+                .attempts(0)
+                .build();
+
+        resetTokenRepo.save(token);
+        emailService.sendPasswordResetCode(email, otp);
+        log.info("Código de redefinição enviado para: {}", email);
+    }
+
+    // ── RESET PASSWORD ────────────────────────────────────────────
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = request.email().trim().toLowerCase();
+
+        var tokenEntry = resetTokenRepo.findById(email)
+                .orElseThrow(() -> new BusinessException(
+                        "Nenhuma solicitação de redefinição ativa para este e-mail. Solicite novamente."));
+
+        if (Instant.now().isAfter(tokenEntry.getExpiresAt())) {
+            resetTokenRepo.delete(tokenEntry);
+            throw new BusinessException("Código expirado. Solicite a redefinição novamente.");
+        }
+
+        if (tokenEntry.getAttempts() >= 5) {
+            resetTokenRepo.delete(tokenEntry);
+            throw new BusinessException("Muitas tentativas incorretas. Solicite a redefinição novamente.");
+        }
+
+        if (!passwordEncoder.matches(request.token(), tokenEntry.getTokenHash())) {
+            tokenEntry.setAttempts(tokenEntry.getAttempts() + 1);
+            resetTokenRepo.save(tokenEntry);
+            int remaining = 5 - tokenEntry.getAttempts();
+            throw new BusinessException("Código incorreto. " + remaining + " tentativa(s) restante(s).");
+        }
+
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        resetTokenRepo.delete(tokenEntry);
+
+        log.info("Senha redefinida com sucesso para: {}", email);
+
+        // Fire-and-forget: failure here must not roll back the password change
+        try {
+            emailService.sendPasswordChangedNotification(email, user.getFullName());
+        } catch (Exception e) {
+            log.error("Falha ao enviar notificação de senha alterada para {}: {}", email, e.getMessage());
+        }
     }
 
     // ── HELPERS ───────────────────────────────────────────────────

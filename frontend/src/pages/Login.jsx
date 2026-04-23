@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   FaStore, FaEye, FaEyeSlash, FaCheckCircle, FaShieldAlt,
 } from "react-icons/fa";
@@ -287,7 +287,10 @@ export default function Login() {
                   />
                 </div>
                 <div className="auth-field">
-                  <label htmlFor="l-pwd">Senha</label>
+                  <div className="auth-field-label-row">
+                    <label htmlFor="l-pwd">Senha</label>
+                    <Link to="/recuperar-senha" className="auth-forgot-link">Esqueceu a senha?</Link>
+                  </div>
                   <PasswordInput
                     id="l-pwd" value={loginPwd}
                     onChange={(e) => setLoginPwd(e.target.value)}

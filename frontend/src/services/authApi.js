@@ -181,6 +181,31 @@ export async function confirmRegistration(email, code) {
   return response.json();
 }
 
+// ─── requestPasswordReset ────────────────────────────────────────
+// Sends a password reset code to the given email.
+// POST /auth/forgot-password — always returns 202 (no body).
+// Does NOT reveal whether the email is registered.
+export async function requestPasswordReset(email) {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+}
+
+// ─── confirmPasswordReset ────────────────────────────────────────
+// Verifies the OTP and sets the new password.
+// POST /auth/reset-password — returns 204 No Content on success.
+export async function confirmPasswordReset(email, token, newPassword) {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, token, newPassword }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+}
+
 // ─── googleLoginRequest ──────────────────────────────────────────
 // Sends Google ID token to backend for verification. Returns { token, email, role }.
 export async function googleLoginRequest(idToken) {

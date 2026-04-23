@@ -1,0 +1,33 @@
+/* ─── Ícone do header no step 1 (azul primário) ── */
+.rp-icon-primary {
+  background: var(--primary) !important;
+}
+
+/* ─── Info box abaixo do e-mail ──────────────────── */
+.rp-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-soft-border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.rp-info-icon {
+  color: var(--primary);
+  font-size: 0.95rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* ─── Success button (link styled as button) ─────── */
+.rp-success-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}

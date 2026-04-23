@@ -385,11 +385,15 @@ public class PaymentService {
             log.error("PagSeguro 4xx ao criar checkout [{}]: {}", e.getStatusCode(), responseBody);
             throw new BusinessException("PagSeguro recusou a requisição (" + e.getStatusCode() + "): " + responseBody);
         } catch (HttpServerErrorException e) {
-            log.error("PagSeguro 5xx ao criar checkout: {}", e.getStatusCode());
-            throw new BusinessException("Serviço PagSeguro indisponível (" + e.getStatusCode() + "). Tente novamente.");
+            String responseBody = e.getResponseBodyAsString();
+            log.error("PagSeguro 5xx ao criar checkout [{}]: {}", e.getStatusCode(), responseBody);
+            throw new BusinessException("Serviço PagSeguro indisponível (" + e.getStatusCode() + "): " + responseBody);
         } catch (RestClientException e) {
             log.error("Falha de conexão com PagSeguro ao criar checkout", e);
             throw new BusinessException("Não foi possível conectar ao PagSeguro: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Erro inesperado ao criar checkout PagSeguro", e);
+            throw new BusinessException("Erro ao processar checkout: " + e.getClass().getSimpleName() + " — " + e.getMessage());
         }
     }
 

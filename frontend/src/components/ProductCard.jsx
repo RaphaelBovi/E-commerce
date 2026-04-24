@@ -1,67 +1,118 @@
-// ─────────────────────────────────────────────────────────────────
-// ProductCard.jsx — Card de exibição de produto
-//
-// Renderiza as informações de um único produto em formato de card,
-// utilizado nas grades do catálogo, carrossel, home e páginas de
-// lançamentos/promoções.
-//
-// Props:
-//  - product    (object, obrigatório): dados do produto
-//                { id, name, ref, image, price, category }
-//  - onAddToCart (function, obrigatório): callback chamado ao clicar
-//                em "Adicionar ao Carrinho"
-//  - variant    (string): 'default' | 'launch' | 'promo'
-//                Controla classes CSS de variante visual
-//  - badgeText  (string): texto do badge (ex.: "Novo", "Oferta")
-//                Se vazio, o badge não é renderizado
-//  - oldPrice   (number|null): preço antigo para exibir risco (promoções)
-//  - layout     (string): 'grid' | 'list'
-//                Alterna entre layout em grade e em lista
-//
-// Para adicionar mais informações (ex.: avaliações), inclua-as
-// dentro da div.product-info abaixo.
-// ─────────────────────────────────────────────────────────────────
-
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { FaHeart } from 'react-icons/fa';
+import { useAuth } from '../context/useAuth';
+import { toggleFavorite } from '../services/favoritesApi';
 import './ProductCard.css';
 
-// Props recebidas pelo componente (com valores padrão)
 export default function ProductCard({
   product,
   onAddToCart,
-  variant = 'default',      // Variante visual: 'default', 'launch' ou 'promo'
-  badgeText = '',           // Texto do badge; sem texto = sem badge
-  oldPrice = null,          // Preço antigo (null = não exibe preço riscado)
-  layout = 'grid',          // Modo de layout: 'grid' (padrão) ou 'list'
+  layout = 'grid',
+  initialFavorited = false,
 }) {
-  // Formata o preço no padrão brasileiro com símbolo de moeda (R$)
-  const formattedPrice = product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const { isAuthenticated } = useAuth();
 
-  // Calcula o valor de cada parcela em 6x sem juros e formata
-  const installmentPrice = (product.price / 6).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const allImages = product.images?.length > 0
+    ? product.images
+    : (product.image ? [product.image] : []);
 
-  // Formata o preço antigo (riscado) apenas se fornecido
-  const formattedOldPrice = oldPrice
-    ? oldPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const [imgIdx, setImgIdx]       = useState(0);
+  const [fading, setFading]       = useState(false);
+  const [favorited, setFavorited] = useState(initialFavorited);
+  const [favLoading, setFavLoading] = useState(false);
+
+  useEffect(() => { setFavorited(initialFavorited); }, [initialFavorited]);
+
+  // Auto-cycle images every 2.5 seconds
+  useEffect(() => {
+    if (allImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setFading(true);
+      setTimeout(() => {
+        setImgIdx((i) => (i + 1) % allImages.length);
+        setFading(false);
+      }, 200);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [allImages.length]);
+
+  useEffect(() => { setImgIdx(0); }, [product.id]);
+
+  const currentImage = allImages[imgIdx] || '';
+
+  const isPromo    = Boolean(product.isPromo);
+  const showPrice  = isPromo ? product.promotionalPrice : product.price;
+  const formattedPrice = Number(showPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formattedOldPrice = isPromo
+    ? Number(product.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
     : null;
+  const installmentPrice = (Number(showPrice || 0) / 6).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const discountPct = isPromo && product.price > 0
+    ? Math.round((1 - product.promotionalPrice / product.price) * 100)
+    : 0;
 
-  // Classe CSS extra para o layout em lista; vazio para grid
   const layoutClass = layout === 'list' ? 'product-card--layout-list' : '';
 
-  return (
-    // Container principal: combina classes de variante e layout
-    <div
-      className={`product-card ${variant !== 'default' ? `product-card-${variant}` : ''} ${layoutClass}`.trim()}
-    >
-      {/* Badge de destaque (ex.: "Novo", "Oferta") — só exibido se badgeText não estiver vazio */}
-      {badgeText ? <span className="product-badge">{badgeText}</span> : null}
+  const handleToggleFavorite = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated || favLoading) return;
+    setFavLoading(true);
+    try {
+      const res = await toggleFavorite(product.id);
+      setFavorited(res.favorited);
+    } catch {
+      // silently fail
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
-      {/* Link da imagem: leva à página de detalhes do produto */}
+  return (
+    <div className={`product-card ${layoutClass}`.trim()}>
+
+      {isPromo && (
+        <span className="product-badge product-badge--promo">
+          -{discountPct}% OFF
+        </span>
+      )}
+
+      {isAuthenticated && (
+        <button
+          type="button"
+          className={`pc-fav-btn${favorited ? ' pc-fav-btn--active' : ''}`}
+          onClick={handleToggleFavorite}
+          disabled={favLoading}
+          aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+        >
+          <FaHeart />
+        </button>
+      )}
+
       <Link to={`/produto/${product.id}`} className="product-link">
         <div className="image-container">
-          <img src={product.image} alt={product.name} className="product-image" />
-          {/* Overlay de adição rápida — aparece no hover pelo CSS */}
+          {currentImage ? (
+            <img
+              key={imgIdx}
+              src={currentImage}
+              alt={product.name}
+              className={`product-image${fading ? ' product-image--fading' : ''}`}
+            />
+          ) : (
+            <div className="product-image-placeholder" aria-hidden />
+          )}
+
+          {allImages.length > 1 && (
+            <div className="product-img-dots" aria-hidden>
+              {allImages.map((_, i) => (
+                <span
+                  key={i}
+                  className={`product-img-dot${i === imgIdx ? ' product-img-dot--active' : ''}`}
+                />
+              ))}
+            </div>
+          )}
+
           {layout !== 'list' && (
             <div className="product-card-overlay">
               <button
@@ -77,26 +128,27 @@ export default function ProductCard({
         </div>
       </Link>
 
-      {/* Área de informações textuais do produto */}
       <div className="product-info">
-        {/* Nome e referência do produto — clicável, leva à página de detalhes */}
         <Link to={`/produto/${product.id}`} className="product-link">
           <p className="product-ref">{product.ref}: {product.name}</p>
         </Link>
 
-        {/* Indicador de condição de pagamento à vista */}
-        <p className="payment-method">À vista com desconto</p>
+        <p className="payment-method">
+          {isPromo ? 'Oferta especial' : 'À vista com desconto'}
+        </p>
 
-        {/* Preço antigo riscado — só exibido quando oldPrice é informado (modo promoção) */}
-        {formattedOldPrice ? <p className="product-old-price">{formattedOldPrice}</p> : null}
+        {formattedOldPrice && (
+          <p className="product-old-price">{formattedOldPrice}</p>
+        )}
 
-        {/* Preço atual em destaque */}
-        <p className="product-price">{formattedPrice}</p>
+        <p className={`product-price${isPromo ? ' product-price--promo' : ''}`}>
+          {formattedPrice}
+        </p>
 
-        {/* Parcelamento: calculado como price / 6 sem juros */}
-        <p className="product-installments">Em até 6x de {installmentPrice} sem juros</p>
+        <p className="product-installments">
+          Em até 6x de {installmentPrice} sem juros
+        </p>
 
-        {/* Botão de adicionar ao carrinho: chama o callback do pai com o produto completo */}
         <button className="btn-gold" onClick={() => onAddToCart(product)}>
           Adicionar ao Carrinho
         </button>

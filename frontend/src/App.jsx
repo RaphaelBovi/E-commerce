@@ -33,6 +33,7 @@ import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import MinhaConta from './pages/MinhaConta';
 import RecuperarSenha from './pages/RecuperarSenha';
+import Favoritos from './pages/Favoritos';
 
 // Redirects unauthenticated users to /login, preserving the intended destination
 function ProtectedRoute({ children }) {
@@ -240,6 +241,12 @@ function App() {
           <Route path="/recuperar-senha" element={<RecuperarSenha />} />
           {/* Painel do usuário */}
           <Route path="/minha-conta" element={<MinhaConta />} />
+          {/* Favoritos — protegido */}
+          <Route path="/favoritos" element={
+            <ProtectedRoute>
+              <Favoritos onAddToCart={handleAddToCart} />
+            </ProtectedRoute>
+          } />
         </Routes>
 
         {/* Rodapé exibido em todas as páginas */}

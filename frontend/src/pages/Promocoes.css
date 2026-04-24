@@ -1,0 +1,202 @@
+/* ─── Page ───────────────────────────────────────── */
+.promo-page {
+  flex: 1;
+  background: var(--page-bg);
+  padding: 1.75rem 0 4rem;
+}
+
+/* ─── Hero ───────────────────────────────────────── */
+.promo-hero {
+  background: linear-gradient(135deg, #0C0C0E 0%, #1e293b 55%, #7f1d1d 100%);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.promo-hero::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -30px;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(220,38,38,0.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.promo-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: rgba(220,38,38,0.15);
+  border: 1px solid rgba(220,38,38,0.3);
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.promo-hero-title {
+  font-size: clamp(1.7rem, 3.5vw, 2.5rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.04em;
+  margin: 0 0 0.75rem;
+  line-height: 1.1;
+  position: relative;
+  z-index: 1;
+}
+
+.promo-hero-accent {
+  color: var(--danger);
+}
+
+.promo-hero-sub {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 42rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Toolbar ────────────────────────────────────── */
+.promo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.promo-count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--danger);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.promo-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.promo-sort select {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.promo-sort select:focus {
+  outline: none;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+}
+
+/* ─── Grid ───────────────────────────────────────── */
+.promo-grid {
+  display: grid;
+  gap: 1.1rem;
+}
+
+/* ─── Skeleton ───────────────────────────────────── */
+.promo-skeleton {
+  background: var(--surface);
+  border-radius: var(--radius);
+  height: 320px;
+  border: 1px solid var(--border);
+  animation: promo-shimmer 1.4s infinite linear;
+  background-size: 200% 100%;
+  background-image: linear-gradient(
+    90deg,
+    var(--surface) 0%,
+    var(--surface-2) 50%,
+    var(--surface) 100%
+  );
+}
+
+@keyframes promo-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Empty state ────────────────────────────────── */
+.promo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-secondary);
+}
+
+.promo-empty-icon {
+  font-size: 3.5rem;
+  color: var(--border-strong);
+  margin-bottom: 1.25rem;
+}
+
+.promo-empty h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+}
+
+.promo-empty p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ─── Error ──────────────────────────────────────── */
+.promo-error {
+  background: var(--danger-soft);
+  border: 1px solid #FECACA;
+  color: var(--danger);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+/* ─── Responsive ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .promo-hero {
+    padding: 2.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .promo-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .promo-hero {
+    padding: 1.75rem 1.1rem;
+    border-radius: var(--radius);
+  }
+}

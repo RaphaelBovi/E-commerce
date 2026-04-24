@@ -669,3 +669,405 @@
   .mc-stats-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
   .mc-stat-value { font-size: 1.25rem; }
 }
+
+/* ─── Favoritos (FavoritesSection) ──────────────── */
+.mc-fav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.mc-fav-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow var(--transition);
+}
+
+.mc-fav-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.mc-fav-remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.mc-fav-remove:hover {
+  background: var(--danger-soft);
+  transform: scale(1.1);
+}
+
+.mc-fav-img {
+  background: var(--surface-2);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.mc-fav-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8%;
+  box-sizing: border-box;
+}
+
+.mc-fav-img-placeholder {
+  width: 50%;
+  height: 50%;
+  background: var(--border);
+  border-radius: var(--radius-sm);
+  opacity: 0.4;
+}
+
+.mc-fav-info {
+  padding: 0.75rem;
+}
+
+.mc-fav-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 0.4rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.mc-fav-price {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 0.6rem;
+}
+
+.mc-fav-price--promo { color: var(--danger); }
+
+.mc-fav-add-btn {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.5rem;
+}
+
+/* ─── Suporte (SupportSection) ───────────────────── */
+.mc-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  margin-bottom: 1.25rem;
+  transition: color var(--transition-fast);
+}
+
+.mc-back-link:hover { color: var(--primary); }
+
+.mc-ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.mc-ticket-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.mc-ticket-item:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.mc-ticket-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mc-ticket-number {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: monospace;
+}
+
+.mc-ticket-subject {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mc-ticket-cat-pill {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.mc-ticket-item-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.mc-ticket-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ─── Status badges ──────────────────────────────── */
+.mc-status-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.mc-status-badge.status-info    { background: var(--primary-soft); color: var(--primary); }
+.mc-status-badge.status-blue    { background: #EFF6FF; color: #1D4ED8; }
+.mc-status-badge.status-warning { background: var(--warning-soft); color: var(--warning); }
+.mc-status-badge.status-success { background: var(--success-soft); color: var(--success); }
+
+/* ─── Ticket detail ──────────────────────────────── */
+.mc-ticket-detail-header {
+  margin-bottom: 1.5rem;
+}
+
+.mc-ticket-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.mc-ticket-cat {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mc-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.mc-msg {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.mc-msg--support { flex-direction: row-reverse; }
+
+.mc-msg-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mc-msg--support .mc-msg-avatar {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.mc-msg-body {
+  flex: 1;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  max-width: 80%;
+}
+
+.mc-msg--support .mc-msg-body {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft-border);
+}
+
+.mc-msg-author {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.mc-msg-author strong {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.mc-msg-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.mc-msg-content {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* ─── Reply & ticket forms ───────────────────────── */
+.mc-reply-form,
+.mc-ticket-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.mc-reply-textarea,
+.mc-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--surface);
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast);
+}
+
+.mc-reply-textarea:focus,
+.mc-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.mc-select {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.mc-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.mc-char-count {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.mc-ticket-closed-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.mc-ticket-detail-header .mc-title {
+  margin-bottom: 0;
+}
+
+.mc-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  white-space: nowrap;
+}
+
+.mc-action-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.mc-form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.mc-label      { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+
+@media (max-width: 640px) {
+  .mc-fav-grid          { grid-template-columns: repeat(2, 1fr); }
+  .mc-ticket-item       { flex-direction: column; align-items: flex-start; }
+  .mc-ticket-item-side  { align-items: flex-start; }
+  .mc-msg-body          { max-width: 100%; }
+}

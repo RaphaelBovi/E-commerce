@@ -19,7 +19,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaBars, FaTimes, FaStore, FaChartBar, FaBoxOpen,
-  FaClipboardList, FaFileInvoice, FaUsers, FaSignOutAlt,
+  FaClipboardList, FaFileInvoice, FaUsers, FaSignOutAlt, FaHeadset,
 } from "react-icons/fa";
 import "./AdminNavbar.css";
 
@@ -43,6 +43,7 @@ const NAV_ITEMS = [
   { to: "/pedidos",  icon: <FaClipboardList />,  label: "Pedidos" },
   { to: "/produtos", icon: <FaBoxOpen />,         label: "Produtos" },
   { to: "/notas",    icon: <FaFileInvoice />,     label: "Notas Fiscais" },
+  { to: "/tickets",  icon: <FaHeadset />,         label: "Suporte" },
 ];
 
 // Itens do menu de administração — visíveis apenas para usuários com role "MASTER".

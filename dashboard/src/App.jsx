@@ -31,6 +31,7 @@ import UsuariosAdmin from "./pages/UsuariosAdmin";
 import GestaoPedidos from "./pages/GestaoPedidos";
 import GestaoProdutos from "./pages/GestaoProdutos";
 import NotasFiscais from "./pages/NotasFiscais";
+import TicketsAdmin from "./pages/TicketsAdmin";
 
 // Lê e valida a sessão administrativa salva no sessionStorage.
 // Retorna o objeto { token, email, role } se válido, ou null caso contrário.
@@ -130,6 +131,12 @@ export default function App() {
         <Route
           path="/notas"
           element={<ProtectedRoute><NotasFiscais /></ProtectedRoute>}
+        />
+
+        {/* Rota protegida — Tickets de suporte */}
+        <Route
+          path="/tickets"
+          element={<ProtectedRoute><TicketsAdmin /></ProtectedRoute>}
         />
 
         {/* Rota protegida e exclusiva para MASTER — Gestão de admins */}

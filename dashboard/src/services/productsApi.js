@@ -19,23 +19,28 @@ import { apiFetch } from "./apiClient.js";
 // Evita erros com campos null/undefined — sempre retorna valores padrão seguros
 const normalizeProduct = (p) => ({
   ...p,
-  price:    Number(p.price ?? 0),      // garante que price é número
-  qnt:      Number(p.qnt ?? 0),        // garante que qnt é número
-  marca:    p.marca || "",             // evita null
-  category: p.category || "geral",    // categoria padrão se não definida
-  image:    p.image || "",             // sem imagem = string vazia
+  price:            Number(p.price ?? 0),
+  promotionalPrice: p.promotionalPrice != null ? Number(p.promotionalPrice) : null,
+  isPromo:          Boolean(p.isPromo),
+  qnt:              Number(p.qnt ?? 0),
+  marca:            p.marca    || "",
+  category:         p.category || "geral",
+  image:            p.image    || "",
+  images:           Array.isArray(p.images) ? p.images : [],
 });
 
 // Converte os campos do formulário para o formato que o backend espera
 // Faz trim() nas strings e converte preço/quantidade para número
 const toPayload = (p) => ({
-  name:     String(p.name    || "").trim(),
-  ref:      String(p.ref     || "").trim(),
-  price:    Number(p.price),
-  qnt:      Number(p.qnt),
-  marca:    String(p.marca   || "").trim(),
-  category: String(p.category || "geral").trim(),
-  image:    p.image ? String(p.image).trim() : null, // null se sem imagem
+  name:             String(p.name     || "").trim(),
+  ref:              String(p.ref      || "").trim(),
+  price:            Number(p.price),
+  promotionalPrice: p.promotionalPrice != null && p.promotionalPrice !== "" ? Number(p.promotionalPrice) : null,
+  qnt:              Number(p.qnt),
+  marca:            String(p.marca    || "").trim(),
+  category:         String(p.category || "geral").trim(),
+  image:            p.image ? String(p.image).trim() : null,
+  images:           Array.isArray(p.images) ? p.images : [],
 });
 
 // Busca todos os produtos cadastrados

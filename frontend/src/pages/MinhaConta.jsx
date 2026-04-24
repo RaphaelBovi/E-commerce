@@ -1,14 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
-  FaUser, FaBoxOpen, FaMapMarkerAlt, FaHeart, FaTicketAlt,
+  FaUser, FaBoxOpen, FaMapMarkerAlt, FaHeart, FaHeadset,
   FaBell, FaCog, FaSignOutAlt, FaChevronRight, FaArrowLeft,
   FaShoppingBag, FaCheckCircle, FaTruck, FaTimesCircle, FaClock,
   FaCreditCard, FaLock, FaEdit, FaSave, FaTimes, FaWrench,
+  FaPlus, FaComments, FaChevronDown, FaPaperPlane, FaTag,
 } from 'react-icons/fa';
 import { useAuth } from '../context/useAuth';
 import { getMyOrders, cancelMyOrder } from '../services/ordersApi';
 import { getUserProfile, updateProfile, changePassword } from '../services/authApi';
+import { fetchFavorites, toggleFavorite } from '../services/favoritesApi';
+import {
+  fetchMyTickets, fetchMyTicket, createTicket, replyTicket,
+  TICKET_STATUS_LABELS, TICKET_CATEGORIES,
+} from '../services/ticketsApi';
 import './MinhaConta.css';
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -184,14 +190,14 @@ export default function MinhaConta() {
     { id: 'profile',       Icon: FaUser,           label: 'Dados Pessoais' },
     { id: 'address',       Icon: FaMapMarkerAlt,   label: 'Endereços' },
     { id: 'security',      Icon: FaLock,           label: 'Segurança' },
-    { id: 'payment',       Icon: FaCreditCard,     label: 'Pagamentos',    soon: true },
-    { id: 'favorites',     Icon: FaHeart,          label: 'Favoritos',     soon: true },
-    { id: 'coupons',       Icon: FaTicketAlt,      label: 'Cupons',        soon: true },
-    { id: 'notifications', Icon: FaBell,           label: 'Notificações',  soon: true },
-    { id: 'settings',      Icon: FaCog,            label: 'Configurações', soon: true },
+    { id: 'payment',       Icon: FaCreditCard,  label: 'Pagamentos',    soon: true },
+    { id: 'favorites',     Icon: FaHeart,       label: 'Favoritos' },
+    { id: 'support',       Icon: FaHeadset,     label: 'Suporte' },
+    { id: 'notifications', Icon: FaBell,        label: 'Notificações',  soon: true },
+    { id: 'settings',      Icon: FaCog,         label: 'Configurações', soon: true },
   ];
 
-  const SOON_SECTIONS = ['payment', 'favorites', 'coupons', 'notifications', 'settings'];
+  const SOON_SECTIONS = ['payment', 'notifications', 'settings'];
   if (!isAuthenticated) return null;
 
   // ── Section renderers ─────────────────────────────────────────
@@ -390,8 +396,16 @@ export default function MinhaConta() {
     );
   }
 
+  function renderFavorites() {
+    return <FavoritesSection onAddToCart={() => {}} />;
+  }
+
+  function renderSupport() {
+    return <SupportSection />;
+  }
+
   function renderComingSoon() {
-    const labels = { payment: 'Métodos de Pagamento', favorites: 'Favoritos', coupons: 'Cupons', notifications: 'Notificações', settings: 'Configurações' };
+    const labels = { payment: 'Métodos de Pagamento', notifications: 'Notificações', settings: 'Configurações' };
     return (
       <div className="mc-section">
         <h1 className="mc-title">{labels[section]}</h1>
@@ -446,6 +460,8 @@ export default function MinhaConta() {
           {section === 'profile'                && renderProfile()}
           {section === 'address'                && renderAddress()}
           {section === 'security'               && renderSecurity()}
+          {section === 'favorites'              && renderFavorites()}
+          {section === 'support'                && renderSupport()}
           {SOON_SECTIONS.includes(section)      && renderComingSoon()}
         </main>
       </div>
@@ -820,3 +836,357 @@ function ProfileField({ label, value, note }) {
     </div>
   );
 }
+
+// ─── FavoritesSection ─────────────────────────────────────────────
+
+function FavoritesSection({ onAddToCart }) {
+  const [favorites, setFavorites] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchFavorites()
+      .then(setFavorites)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleRemoveFav = async (productId) => {
+    try {
+      await toggleFavorite(productId);
+      setFavorites((prev) => prev.filter((p) => p.id !== productId));
+    } catch {}
+  };
+
+  if (loading) return (
+    <div className="mc-section">
+      <div className="mc-loading">Carregando favoritos…</div>
+    </div>
+  );
+
+  return (
+    <div className="mc-section">
+      <div className="mc-section-head">
+        <div>
+          <h1 className="mc-title">Meus Favoritos</h1>
+          <p className="mc-subtitle">
+            {favorites.length === 0
+              ? 'Nenhum produto salvo'
+              : `${favorites.length} ${favorites.length === 1 ? 'produto salvo' : 'produtos salvos'}`}
+          </p>
+        </div>
+        <Link to="/catalogo" className="mc-action-btn">Explorar catálogo</Link>
+      </div>
+
+      {favorites.length === 0 ? (
+        <div className="mc-empty-state">
+          <FaHeart className="mc-empty-icon" />
+          <p>Você ainda não favoritou nenhum produto.</p>
+          <p>Clique no coração <FaHeart style={{ color: 'var(--danger)' }} /> nos produtos para salvá-los aqui.</p>
+        </div>
+      ) : (
+        <div className="mc-fav-grid">
+          {favorites.map((product) => {
+            const isPromo = Boolean(product.isPromo);
+            const price   = isPromo ? product.promotionalPrice : product.price;
+            const img     = product.images?.[0] || product.image;
+            return (
+              <div key={product.id} className="mc-fav-card">
+                <button
+                  className="mc-fav-remove"
+                  onClick={() => handleRemoveFav(product.id)}
+                  title="Remover dos favoritos"
+                >
+                  <FaHeart />
+                </button>
+                <div
+                  className="mc-fav-img"
+                  onClick={() => navigate(`/produto/${product.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {img
+                    ? <img src={img} alt={product.name} />
+                    : <div className="mc-fav-img-placeholder" />}
+                </div>
+                <div className="mc-fav-info">
+                  <p className="mc-fav-name"
+                     onClick={() => navigate(`/produto/${product.id}`)}
+                     style={{ cursor: 'pointer' }}>
+                    {product.name}
+                  </p>
+                  <p className={`mc-fav-price${isPromo ? ' mc-fav-price--promo' : ''}`}>
+                    {Number(price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                  <button className="btn-gold mc-fav-add-btn" onClick={() => onAddToCart(product)}>
+                    Adicionar ao carrinho
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SupportSection ───────────────────────────────────────────────
+
+const STATUS_COLORS = {
+  OPEN:              'status-info',
+  IN_PROGRESS:       'status-blue',
+  AWAITING_RESPONSE: 'status-warning',
+  CLOSED:            'status-success',
+};
+
+function SupportSection() {
+  const [view, setView]           = useState('list'); // 'list' | 'new' | 'detail'
+  const [tickets, setTickets]     = useState([]);
+  const [selected, setSelected]   = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [sending, setSending]     = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [form, setForm]           = useState({ subject: '', category: '', message: '' });
+  const [formErr, setFormErr]     = useState('');
+
+  useEffect(() => {
+    fetchMyTickets()
+      .then(setTickets)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function openTicket(ticket) {
+    const full = await fetchMyTicket(ticket.id).catch(() => ticket);
+    setSelected(full);
+    setView('detail');
+    setReplyText('');
+  }
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!form.subject.trim() || !form.category || !form.message.trim()) {
+      setFormErr('Preencha todos os campos.');
+      return;
+    }
+    setSending(true);
+    setFormErr('');
+    try {
+      const created = await createTicket(form);
+      setTickets((prev) => [created, ...prev]);
+      setSelected(created);
+      setView('detail');
+      setForm({ subject: '', category: '', message: '' });
+    } catch (err) {
+      setFormErr(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleReply(e) {
+    e.preventDefault();
+    if (!replyText.trim()) return;
+    setSending(true);
+    try {
+      const updated = await replyTicket(selected.id, replyText);
+      setSelected(updated);
+      setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setReplyText('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function formatDate(d) {
+    return new Date(d).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  if (loading) return (
+    <div className="mc-section">
+      <div className="mc-loading">Carregando tickets…</div>
+    </div>
+  );
+
+  // ── Detail view ──────────────────────────────────────────────────
+  if (view === 'detail' && selected) {
+    return (
+      <div className="mc-section">
+        <button className="mc-back-link" onClick={() => setView('list')}>
+          <FaArrowLeft /> Voltar para suporte
+        </button>
+        <div className="mc-ticket-detail-header">
+          <div>
+            <h1 className="mc-title">{selected.subject}</h1>
+            <div className="mc-ticket-meta">
+              <span className="mc-ticket-number">{selected.ticketNumber}</span>
+              <span className={`mc-status-badge ${STATUS_COLORS[selected.status]}`}>
+                {TICKET_STATUS_LABELS[selected.status]}
+              </span>
+              <span className="mc-ticket-cat">{selected.category}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mc-conversation">
+          {selected.messages?.map((msg) => (
+            <div
+              key={msg.id}
+              className={`mc-msg${msg.authorRole === 'SUPPORT' ? ' mc-msg--support' : ' mc-msg--customer'}`}
+            >
+              <div className="mc-msg-avatar">
+                {msg.authorRole === 'SUPPORT' ? <FaHeadset /> : msg.authorName?.charAt(0).toUpperCase()}
+              </div>
+              <div className="mc-msg-body">
+                <div className="mc-msg-author">
+                  <strong>{msg.authorRole === 'SUPPORT' ? 'Equipe de Suporte' : msg.authorName}</strong>
+                  <span className="mc-msg-time">{formatDate(msg.createdAt)}</span>
+                </div>
+                <p className="mc-msg-content">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {selected.status !== 'CLOSED' && (
+          <form className="mc-reply-form" onSubmit={handleReply}>
+            <textarea
+              className="mc-reply-textarea"
+              rows={3}
+              placeholder="Escreva sua resposta…"
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              disabled={sending}
+            />
+            <button type="submit" className="mc-save-btn" disabled={sending || !replyText.trim()}>
+              <FaPaperPlane /> {sending ? 'Enviando…' : 'Enviar resposta'}
+            </button>
+          </form>
+        )}
+        {selected.status === 'CLOSED' && (
+          <p className="mc-ticket-closed-note">Este ticket foi encerrado. Abra um novo para continuar.</p>
+        )}
+      </div>
+    );
+  }
+
+  // ── New ticket form ──────────────────────────────────────────────
+  if (view === 'new') {
+    return (
+      <div className="mc-section">
+        <button className="mc-back-link" onClick={() => setView('list')}>
+          <FaArrowLeft /> Voltar
+        </button>
+        <h1 className="mc-title">Abrir Ticket de Suporte</h1>
+        <p className="mc-subtitle">Descreva seu problema e nossa equipe entrará em contato.</p>
+        <form className="mc-ticket-form" onSubmit={handleCreate}>
+          <div className="mc-form-group">
+            <label className="mc-label">Categoria *</label>
+            <select
+              className="mc-select"
+              value={form.category}
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              disabled={sending}
+            >
+              <option value="">Selecione uma categoria</option>
+              {TICKET_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mc-form-group">
+            <label className="mc-label">Assunto *</label>
+            <input
+              className="mc-input"
+              type="text"
+              placeholder="Ex: Pedido não chegou no prazo"
+              maxLength={120}
+              value={form.subject}
+              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              disabled={sending}
+            />
+            <small className="mc-char-count">{form.subject.length}/120</small>
+          </div>
+          <div className="mc-form-group">
+            <label className="mc-label">Descrição *</label>
+            <textarea
+              className="mc-textarea"
+              rows={5}
+              placeholder="Descreva seu problema com o máximo de detalhes possível…"
+              maxLength={4000}
+              value={form.message}
+              onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+              disabled={sending}
+            />
+            <small className="mc-char-count">{form.message.length}/4000</small>
+          </div>
+          {formErr && <p className="mc-form-error">{formErr}</p>}
+          <div className="mc-form-actions">
+            <button type="button" className="mc-cancel-btn" onClick={() => setView('list')}>
+              Cancelar
+            </button>
+            <button type="submit" className="mc-save-btn" disabled={sending}>
+              <FaPaperPlane /> {sending ? 'Abrindo…' : 'Abrir ticket'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ── Ticket list ──────────────────────────────────────────────────
+  return (
+    <div className="mc-section">
+      <div className="mc-section-head">
+        <div>
+          <h1 className="mc-title">Suporte</h1>
+          <p className="mc-subtitle">Acompanhe seus chamados de atendimento</p>
+        </div>
+        <button className="mc-action-btn" onClick={() => setView('new')}>
+          <FaPlus /> Novo ticket
+        </button>
+      </div>
+
+      {tickets.length === 0 ? (
+        <div className="mc-empty-state">
+          <FaHeadset className="mc-empty-icon" />
+          <p>Você não possui tickets abertos.</p>
+          <button className="mc-action-btn" onClick={() => setView('new')}>
+            <FaPlus /> Abrir meu primeiro ticket
+          </button>
+        </div>
+      ) : (
+        <div className="mc-ticket-list">
+          {tickets.map((t) => (
+            <button key={t.id} className="mc-ticket-item" onClick={() => openTicket(t)}>
+              <div className="mc-ticket-item-main">
+                <span className="mc-ticket-number">{t.ticketNumber}</span>
+                <p className="mc-ticket-subject">{t.subject}</p>
+                <span className="mc-ticket-cat-pill">{t.category}</span>
+              </div>
+              <div className="mc-ticket-item-side">
+                <span className={`mc-status-badge ${STATUS_COLORS[t.status]}`}>
+                  {TICKET_STATUS_LABELS[t.status]}
+                </span>
+                <span className="mc-ticket-date">{formatDate(t.updatedAt)}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  function formatDate(d) {
+    return new Date(d).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+}
+

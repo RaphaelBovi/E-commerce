@@ -90,7 +90,9 @@ public class ProductService {
                 request.getQnt(),
                 request.getMarca(),
                 request.getCategory(),
-                request.getImage()
+                request.getImage(),
+                request.getPromotionalPrice(),
+                request.getImages()
         );
 
         // Persiste as alterações e retorna o DTO com os dados atualizados

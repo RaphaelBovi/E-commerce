@@ -20,8 +20,12 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:808
 // Isso evita erros de formatação de moeda e comparações de preço.
 const normalizeProduct = (product) => ({
   ...product,
-  price: Number(product.price),
-  qnt: Number(product.qnt),
+  price:            Number(product.price),
+  promotionalPrice: product.promotionalPrice != null ? Number(product.promotionalPrice) : null,
+  isPromo:          Boolean(product.isPromo),
+  qnt:              Number(product.qnt),
+  images:           Array.isArray(product.images) ? product.images : [],
+  image:            product.image || "",
 });
 
 // ─── fetchProducts ───────────────────────────────────────────────

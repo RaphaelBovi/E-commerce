@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   FaTruck, FaClipboardList, FaShieldAlt, FaUndo, FaStar,
-  FaChevronLeft, FaBoxOpen,
+  FaChevronLeft, FaBoxOpen, FaHeart,
 } from 'react-icons/fa';
 import AutoCarousel from '../components/AutoCarousel';
+import { useAuth } from '../context/useAuth';
+import { toggleFavorite, checkFavorites } from '../services/favoritesApi';
 import './ProductDetails.css';
 
 // ─── Skeleton de loading ──────────────────────────────────────────
@@ -29,8 +31,12 @@ function SkeletonDetails() {
 
 // ─── ProductDetailsContent ────────────────────────────────────────
 function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity]     = useState(1);
+  const [activeImg, setActiveImg]   = useState(0);
+  const [favorited, setFavorited]   = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const product = products?.find((p) => String(p.id) === String(productId));
   const relatedProducts = products?.filter(
@@ -41,12 +47,31 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated || !product) return;
+    checkFavorites([product.id])
+      .then((map) => setFavorited(Boolean(map[product.id])))
+      .catch(() => {});
+  }, [isAuthenticated, product?.id]);
+
   const handleComprarAgora = () => {
     onAddToCart(product, quantity);
     navigate('/checkout');
   };
 
-  // Estado: produto não encontrado
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated || favLoading) return;
+    setFavLoading(true);
+    try {
+      const res = await toggleFavorite(product.id);
+      setFavorited(res.favorited);
+    } catch {
+      // silently fail
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
   if (!product) {
     return (
       <div className="container details-page">
@@ -60,7 +85,19 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
     );
   }
 
-  const formattedPrice = product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const allImages = product.images?.length > 0
+    ? product.images
+    : (product.image ? [product.image] : []);
+
+  const isPromo = Boolean(product.isPromo);
+  const displayPrice = isPromo ? product.promotionalPrice : product.price;
+  const formattedPrice = Number(displayPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formattedOriginalPrice = isPromo
+    ? Number(product.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    : null;
+  const discountPct = isPromo && product.price > 0
+    ? Math.round((1 - product.promotionalPrice / product.price) * 100)
+    : 0;
 
   return (
     <main className="container details-page">
@@ -79,14 +116,52 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
       {/* ── Layout principal ── */}
       <div className="product-layout">
 
-        {/* ── Imagem ── */}
+        {/* ── Galeria de imagens ── */}
         <div className="product-image-container">
-          <img src={product.image} alt={product.name} className="product-main-image" />
+          {isPromo && (
+            <span className="pd-promo-badge">-{discountPct}% OFF</span>
+          )}
+          <img
+            src={allImages[activeImg] || product.image}
+            alt={product.name}
+            className="product-main-image"
+            key={activeImg}
+          />
+          {allImages.length > 1 && (
+            <div className="pd-thumbnails">
+              {allImages.map((src, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`pd-thumb${i === activeImg ? ' pd-thumb--active' : ''}`}
+                  onClick={() => setActiveImg(i)}
+                  aria-label={`Imagem ${i + 1}`}
+                >
+                  <img src={src} alt="" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Informações ── */}
         <div className="product-info-container">
-          <h1 className="details-title">{product.name}</h1>
+          <div className="pd-title-row">
+            <h1 className="details-title">{product.name}</h1>
+            {isAuthenticated && (
+              <button
+                type="button"
+                className={`pd-fav-btn${favorited ? ' pd-fav-btn--active' : ''}`}
+                onClick={handleToggleFavorite}
+                disabled={favLoading}
+                aria-label={favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+              >
+                <FaHeart aria-hidden />
+                <span>{favorited ? 'Favoritado' : 'Favoritar'}</span>
+              </button>
+            )}
+          </div>
+
           <p className="details-ref">
             Código / ref.: <span className="highlight-text">{product.ref}</span>
           </p>
@@ -94,8 +169,20 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
 
           {/* ── Preço ── */}
           <div className="price-box">
-            <p className="details-price">{formattedPrice}</p>
-            <p className="details-pix">À vista no boleto ou PIX com condição promocional.</p>
+            {formattedOriginalPrice && (
+              <p className="details-original-price">{formattedOriginalPrice}</p>
+            )}
+            <p className={`details-price${isPromo ? ' details-price--promo' : ''}`}>
+              {formattedPrice}
+            </p>
+            {isPromo && (
+              <p className="details-promo-tag">
+                Economia de {formattedOriginalPrice} → {formattedPrice} ({discountPct}% de desconto)
+              </p>
+            )}
+            <p className="details-pix">
+              {isPromo ? 'Preço promocional — oferta por tempo limitado.' : 'À vista no boleto ou PIX com condição promocional.'}
+            </p>
             <p className="details-installments">Parcelamento conforme política da loja</p>
           </div>
 

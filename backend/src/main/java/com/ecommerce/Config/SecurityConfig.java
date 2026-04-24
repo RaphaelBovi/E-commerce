@@ -105,6 +105,15 @@ public class SecurityConfig {
                         // Pedidos admin — somente ADMIN ou MASTER
                         .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "MASTER")
 
+                        // Favoritos — usuário autenticado
+                        .requestMatchers("/api/favorites/**").authenticated()
+
+                        // Tickets — usuário autenticado (endpoints /api/admin/tickets tratados abaixo)
+                        .requestMatchers("/api/tickets/**").authenticated()
+
+                        // Tickets admin — ADMIN ou MASTER
+                        .requestMatchers("/api/admin/tickets/**").hasAnyRole("ADMIN", "MASTER")
+
                         // Gerenciamento de usuários — somente MASTER
                         // Para permitir que ADMIN também crie usuários: troque por hasAnyRole("ADMIN", "MASTER")
                         .requestMatchers("/api/admin/**").hasRole("MASTER")

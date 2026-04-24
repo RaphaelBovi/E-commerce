@@ -1,30 +1,5 @@
-// ─────────────────────────────────────────────────────────────────
-// GestaoProdutos.jsx — Página de gestão do catálogo de produtos
-//
-// Funcionalidades:
-//   - Listar todos os produtos com imagem, referência, nome, marca,
-//     categoria, preço, estoque e status
-//   - Filtrar por texto (nome, ref, marca), categoria e disponibilidade
-//   - Criar novo produto via modal com formulário validado
-//   - Editar produto existente (a referência não pode ser alterada)
-//   - Excluir produto com confirmação
-//   - Upload de imagem local (base64) ou URL externa
-//   - Badge de status automático baseado em estoque, categoria e preço
-//
-// A comunicação com a API é feita pelos serviços em productsApi.js.
-//
-// Para adicionar uma nova categoria:
-//   1. Inclua a string no array CATEGORIES
-//   2. Ela aparecerá automaticamente nos filtros e no formulário
-//
-// Para adicionar um novo campo ao produto:
-//   1. Inclua o campo em EMPTY_FORM
-//   2. Adicione o campo no formulário do modal
-//   3. Inclua o campo no objeto payload enviado à API
-// ─────────────────────────────────────────────────────────────────
-
 import { useEffect, useMemo, useState, useRef } from "react";
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes, FaTag, FaImages, FaUpload } from "react-icons/fa";
 import {
   fetchProducts,
   createProduct,
@@ -33,75 +8,86 @@ import {
 } from "../services/productsApi.js";
 import "./GestaoProdutos.css";
 
-// Categorias disponíveis no sistema.
-// Para adicionar uma nova categoria, inclua a string aqui.
 const CATEGORIES = ["mais-vendidos", "novidades", "geral"];
+const MAX_IMAGES  = 5;
+const MAX_DIM     = 1200;   // max width/height in px after resize
+const MAX_BYTES   = 1024 * 1024; // 1 MB target per image (base64 ~1.37x raw)
 
-// Formulário vazio usado como estado inicial ao abrir o modal de criação.
-// Também usado para limpar o formulário após criar/cancelar.
-const EMPTY_FORM = { name: "", ref: "", price: "", qnt: "", marca: "", category: "geral", image: "" };
+const EMPTY_FORM = {
+  name: "", ref: "", price: "", promotionalPrice: "",
+  qnt: "", marca: "", category: "geral",
+  image: "", images: [],
+};
 
-// Componente de badge de status para cada produto.
-// A lógica de prioridade é: sem estoque > lançamento > promoção > ativo.
-// Para alterar as regras de classificação, edite os if/else abaixo.
+// ─── Image compression via Canvas ────────────────────────────────
+async function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        // Scale down maintaining aspect ratio
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width >= height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width  = MAX_DIM;
+          } else {
+            width  = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width  = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+        // Reduce quality until under target size
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL("image/jpeg", quality);
+        while (dataUrl.length > MAX_BYTES * 1.4 && quality > 0.3) {
+          quality -= 0.08;
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        }
+        resolve(dataUrl);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── Status badge ─────────────────────────────────────────────────
 function StatusBadge({ product }) {
-  if (product.qnt === 0) return <span className="badge badge-cancelled">Sem Estoque</span>;
+  if (product.qnt === 0)     return <span className="badge badge-cancelled">Sem Estoque</span>;
+  if (product.isPromo)       return <span className="badge badge-pending">Promoção</span>;
   if (product.category === "novidades") return <span className="badge badge-shipped">Lançamento</span>;
-  if (Number(product.price) <= 2000) return <span className="badge badge-pending">Promoção</span>;
   return <span className="badge badge-paid">Ativo</span>;
 }
 
-// Formata um número como moeda brasileira (R$).
-// Exemplo: 1500 → "R$ 1.500,00"
 function formatBRL(v) {
   return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export default function GestaoProdutos() {
-  // Lista completa de produtos carregados da API
   const [products, setProducts]   = useState([]);
-
-  // Indica se a lista está sendo carregada (exibe spinner)
   const [loading, setLoading]     = useState(true);
-
-  // Mensagem de erro geral da página (ex: falha ao carregar ou excluir)
   const [error, setError]         = useState("");
-
-  // Mensagem de sucesso temporária (desaparece após 3 segundos)
   const [success, setSuccess]     = useState("");
-
-  // Texto digitado na barra de busca (filtra por nome, ref ou marca)
   const [search, setSearch]       = useState("");
-
-  // Filtro de categoria selecionado ("all" = todas as categorias)
   const [catFilter, setCat]       = useState("all");
-
-  // Filtro de estoque: "all" = todos, "in" = em estoque, "out" = sem estoque
   const [stockFilter, setStock]   = useState("all");
-
-  // Controla a visibilidade do modal de criação/edição
+  const [promoFilter, setPromo]   = useState("all"); // 'all' | 'yes' | 'no'
   const [showModal, setShowModal] = useState(false);
-
-  // Referência do produto em edição (null = criando novo; string = ref do produto editado)
   const [editRef, setEditRef]     = useState(null);
-
-  // Dados do formulário do modal (campos do produto)
   const [form, setForm]           = useState(EMPTY_FORM);
-
-  // Mensagem de erro exibida dentro do modal (validações ou erros da API)
   const [formError, setFormError] = useState("");
-
-  // Indica se o formulário está sendo enviado para a API (desabilita botões)
   const [saving, setSaving]       = useState(false);
-
-  // Referência do produto sendo excluído (null = nenhum; string = ref em exclusão)
   const [deleting, setDeleting]   = useState(null);
+  const [compressing, setCompressing] = useState(false);
 
-  // Referência ao input de arquivo (para acesso programático se necessário)
-  const fileRef                   = useRef(null);
-
-  // Busca todos os produtos da API e atualiza o estado.
-  // Chamada na montagem do componente e também pelo botão "Atualizar".
   const load = () => {
     setLoading(true);
     fetchProducts()
@@ -110,30 +96,22 @@ export default function GestaoProdutos() {
       .finally(() => setLoading(false));
   };
 
-  // Executa load() uma única vez ao montar o componente (array de deps vazio).
   useEffect(() => { load(); }, []);
 
-  // Lista de produtos filtrada com base nos três filtros ativos.
-  // useMemo evita recalcular a cada renderização desnecessária.
-  // Recalcula apenas quando products, search, catFilter ou stockFilter mudam.
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const q = search.toLowerCase();
-      // Verifica se o produto corresponde ao texto de busca
       const matchSearch = !q ||
         p.name?.toLowerCase().includes(q) ||
         p.ref?.toLowerCase().includes(q) ||
         p.marca?.toLowerCase().includes(q);
-      // Verifica se a categoria do produto corresponde ao filtro
-      const matchCat   = catFilter === "all" || p.category === catFilter;
-      // Verifica disponibilidade de estoque conforme o filtro
-      const matchStock = stockFilter === "all" || (stockFilter === "in" ? p.qnt > 0 : p.qnt === 0);
-      return matchSearch && matchCat && matchStock;
+      const matchCat    = catFilter   === "all" || p.category === catFilter;
+      const matchStock  = stockFilter === "all" || (stockFilter === "in" ? p.qnt > 0 : p.qnt === 0);
+      const matchPromo  = promoFilter === "all" || (promoFilter === "yes" ? p.isPromo : !p.isPromo);
+      return matchSearch && matchCat && matchStock && matchPromo;
     });
-  }, [products, search, catFilter, stockFilter]);
+  }, [products, search, catFilter, stockFilter, promoFilter]);
 
-  // Abre o modal para criação de novo produto.
-  // Limpa o formulário e define editRef como null (modo criação).
   const openCreate = () => {
     setForm(EMPTY_FORM);
     setEditRef(null);
@@ -141,105 +119,125 @@ export default function GestaoProdutos() {
     setShowModal(true);
   };
 
-  // Abre o modal pré-preenchido com os dados do produto selecionado para edição.
-  // Define editRef com a referência do produto (usada no submit para chamar updateProductByRef).
   const openEdit = (p) => {
-    setForm({ name: p.name, ref: p.ref, price: String(p.price), qnt: String(p.qnt), marca: p.marca, category: p.category, image: p.image || "" });
+    setForm({
+      name:  p.name,
+      ref:   p.ref,
+      price: String(p.price),
+      promotionalPrice: p.promotionalPrice != null ? String(p.promotionalPrice) : "",
+      qnt:   String(p.qnt),
+      marca: p.marca,
+      category: p.category,
+      image: "",       // legacy field not shown in edit
+      images: p.images || [],
+    });
     setEditRef(p.ref);
     setFormError("");
     setShowModal(true);
   };
 
-  // Fecha o modal e limpa os erros do formulário.
   const closeModal = () => { setShowModal(false); setFormError(""); };
 
-  // Lida com o upload de imagem local:
-  //   - Valida o tipo do arquivo (apenas JPG, PNG, WebP)
-  //   - Converte para base64 via FileReader
-  //   - Valida o tamanho máximo (2MB)
-  //   - Atualiza o campo "image" no estado do formulário
-  const handleImageFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setFormError("Apenas JPG, PNG ou WebP são aceitos.");
+  // ── Upload + compress image files ──────────────────────────────
+  const handleImageFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const remaining = MAX_IMAGES - form.images.length;
+    if (remaining <= 0) {
+      setFormError(`Máximo de ${MAX_IMAGES} imagens por produto.`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = ev.target.result;
-      // Verifica se a imagem não ultrapassa 2MB em base64
-      if (base64.length > 2048 * 1024) {
-        setFormError("Imagem muito grande. Use uma URL externa ou uma imagem menor.");
-        return;
-      }
-      // Salva a imagem em base64 no estado do formulário
-      setForm((f) => ({ ...f, image: base64 }));
-    };
-    reader.readAsDataURL(file);
+
+    const toProcess = files.slice(0, remaining);
+    setCompressing(true);
+    setFormError("");
+
+    try {
+      const compressed = await Promise.all(toProcess.map((f) => {
+        if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+          throw new Error("Apenas JPG, PNG ou WebP são aceitos.");
+        }
+        return compressImage(f);
+      }));
+      setForm((prev) => ({ ...prev, images: [...prev.images, ...compressed] }));
+    } catch (err) {
+      setFormError(err.message || "Erro ao processar imagem.");
+    } finally {
+      setCompressing(false);
+      e.target.value = ""; // reset input
+    }
   };
 
-  // Valida e envia o formulário para criar ou atualizar um produto.
-  // Em modo edição (editRef !== null): chama updateProductByRef.
-  // Em modo criação (editRef === null): chama createProduct.
-  // Atualiza a lista local de produtos sem recarregar da API (otimismo).
+  const removeImage = (idx) => {
+    setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }));
+  };
+
+  const moveImage = (from, to) => {
+    setForm((prev) => {
+      const imgs = [...prev.images];
+      const [item] = imgs.splice(from, 1);
+      imgs.splice(to, 0, item);
+      return { ...prev, images: imgs };
+    });
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
 
     const price = Number(form.price);
     const qnt   = Number(form.qnt);
+    const promoPrice = form.promotionalPrice.trim() === "" ? null : Number(form.promotionalPrice);
 
-    // Validações do formulário antes de enviar à API
-    if (!form.name.trim())   { setFormError("Nome é obrigatório."); return; }
-    if (!form.ref.trim())    { setFormError("Referência é obrigatória."); return; }
-    if (!form.marca.trim())  { setFormError("Marca é obrigatória."); return; }
+    if (!form.name.trim())  { setFormError("Nome é obrigatório."); return; }
+    if (!form.ref.trim())   { setFormError("Referência é obrigatória."); return; }
+    if (!form.marca.trim()) { setFormError("Marca é obrigatória."); return; }
     if (isNaN(price) || price <= 0) { setFormError("Preço deve ser maior que zero."); return; }
-    if (isNaN(qnt) || qnt < 0)      { setFormError("Quantidade não pode ser negativa."); return; }
+    if (isNaN(qnt) || qnt < 0)     { setFormError("Quantidade não pode ser negativa."); return; }
+    if (promoPrice !== null) {
+      if (isNaN(promoPrice) || promoPrice <= 0) { setFormError("Preço promocional deve ser maior que zero."); return; }
+      if (promoPrice >= price) { setFormError("Preço promocional deve ser menor que o preço original."); return; }
+    }
 
-    // Monta o payload limpo para enviar à API
     const payload = {
       name: form.name.trim(),
-      ref: form.ref.trim().toUpperCase(), // Referência sempre em maiúsculas
+      ref:  form.ref.trim().toUpperCase(),
       price,
+      promotionalPrice: promoPrice,
       qnt,
-      marca: form.marca.trim(),
+      marca:    form.marca.trim(),
       category: form.category,
-      image: form.image || null,          // null se nenhuma imagem foi informada
+      image:    null,
+      images:   form.images,
     };
 
     setSaving(true);
     try {
       if (editRef) {
-        // Modo edição: atualiza o produto existente e substitui na lista local
         const updated = await updateProductByRef(editRef, payload);
         setProducts((prev) => prev.map((p) => (p.ref === editRef ? updated : p)));
         setSuccess("Produto atualizado com sucesso.");
       } else {
-        // Modo criação: cria o produto e o adiciona no início da lista local
         const created = await createProduct(payload);
         setProducts((prev) => [created, ...prev]);
         setSuccess("Produto criado com sucesso.");
       }
       closeModal();
-      // A mensagem de sucesso desaparece após 3 segundos
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      // Exibe erro da API dentro do modal (ex: referência duplicada)
       setFormError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  // Exibe uma confirmação antes de excluir e chama a API de exclusão.
-  // Remove o produto da lista local sem recarregar (atualização otimista).
   const handleDelete = async (ref) => {
     if (!window.confirm(`Excluir produto "${ref}"? Esta ação não pode ser desfeita.`)) return;
     setDeleting(ref);
     try {
       await deleteProductByRef(ref);
-      // Remove o produto da lista local pelo campo "ref"
       setProducts((prev) => prev.filter((p) => p.ref !== ref));
       setSuccess("Produto excluído.");
       setTimeout(() => setSuccess(""), 3000);
@@ -250,36 +248,34 @@ export default function GestaoProdutos() {
     }
   };
 
+  const promoCount = products.filter((p) => p.isPromo).length;
+
   return (
     <div>
-      {/* Cabeçalho da página com título, contador e botões de ação */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Gestão de Produtos</h1>
-          {/* Contador total de produtos cadastrados */}
-          <p className="page-subtitle">{products.length} produtos cadastrados</p>
+          <p className="page-subtitle">
+            {products.length} produtos cadastrados
+            {promoCount > 0 && <> · <span style={{ color: "var(--danger)" }}><FaTag style={{ marginRight: 4 }} />{promoCount} em promoção</span></>}
+          </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          {/* Botão para recarregar a lista da API */}
           <button className="btn btn-outline btn-sm" onClick={load} disabled={loading}>
             <FaSyncAlt /> Atualizar
           </button>
-          {/* Botão para abrir o modal de criação de novo produto */}
           <button className="btn btn-primary" onClick={openCreate}>
             <FaPlus /> Novo Produto
           </button>
         </div>
       </div>
 
-      {/* Alertas de erro e sucesso — aparecem abaixo do cabeçalho */}
       {error   && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
       <div className="card">
-        {/* Barra de ferramentas: busca por texto + filtros de categoria e estoque */}
         <div className="produtos-toolbar">
-          {/* Campo de busca com ícone e botão de limpar */}
-          <div className="pedidos-search" style={{ maxWidth: 320 }}>
+          <div className="pedidos-search" style={{ maxWidth: 300 }}>
             <FaSearch className="search-icon" />
             <input
               type="text"
@@ -287,35 +283,32 @@ export default function GestaoProdutos() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            {/* Botão "X" para limpar a busca — aparece apenas quando há texto */}
             {search && <button className="search-clear" onClick={() => setSearch("")}><FaTimes /></button>}
           </div>
 
-          {/* Filtros de categoria e estoque lado a lado */}
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {/* Dropdown de categoria — "Todas categorias" = sem filtro */}
             <select className="filter-select" value={catFilter} onChange={(e) => setCat(e.target.value)}>
               <option value="all">Todas categorias</option>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            {/* Dropdown de disponibilidade em estoque */}
             <select className="filter-select" value={stockFilter} onChange={(e) => setStock(e.target.value)}>
               <option value="all">Todo estoque</option>
               <option value="in">Em estoque</option>
               <option value="out">Sem estoque</option>
             </select>
+            <select className="filter-select" value={promoFilter} onChange={(e) => setPromo(e.target.value)}>
+              <option value="all">Todas promoções</option>
+              <option value="yes">Em promoção</option>
+              <option value="no">Sem promoção</option>
+            </select>
           </div>
         </div>
 
-        {/* Conteúdo principal: spinner, estado vazio ou tabela de produtos */}
         {loading ? (
-          // Indicador de carregamento
           <div className="spinner">Carregando produtos…</div>
         ) : filtered.length === 0 ? (
-          // Nenhum produto encontrado com os filtros atuais
           <p style={{ color: "var(--text-secondary)", padding: "2rem 0", textAlign: "center" }}>Nenhum produto encontrado.</p>
         ) : (
-          // Tabela responsiva com scroll horizontal em telas pequenas
           <div className="table-wrapper">
             <table className="admin-table">
               <thead>
@@ -326,109 +319,134 @@ export default function GestaoProdutos() {
                   <th>Marca</th>
                   <th>Categoria</th>
                   <th>Preço</th>
+                  <th>Promoção</th>
                   <th>Estoque</th>
                   <th>Status</th>
-                  <th></th> {/* Coluna dos botões de ação */}
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => (
-                  <tr key={p.ref || p.id}>
-                    {/* Miniatura da imagem do produto ou placeholder cinza */}
-                    <td>
-                      {p.image ? (
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)" }}
-                          onError={(e) => { e.target.style.display = "none"; }} // Oculta se a URL for inválida
-                        />
-                      ) : (
-                        // Placeholder quando não há imagem
-                        <div style={{ width: 40, height: 40, background: "var(--surface-2)", borderRadius: 6, border: "1px solid var(--border)" }} />
-                      )}
-                    </td>
-                    <td style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{p.ref}</td>
-                    <td style={{ maxWidth: 180, fontSize: "0.875rem" }}>{p.name}</td>
-                    <td style={{ fontSize: "0.85rem" }}>{p.marca}</td>
-                    <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{p.category}</td>
-                    <td style={{ fontWeight: 600 }}>{formatBRL(p.price)}</td>
-                    <td style={{ textAlign: "center" }}>{p.qnt}</td>
-                    {/* Badge calculado dinamicamente com base nas propriedades do produto */}
-                    <td><StatusBadge product={p} /></td>
-                    {/* Botões de editar e excluir por produto */}
-                    <td>
-                      <div style={{ display: "flex", gap: "0.35rem" }}>
-                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(p)} title="Editar">
-                          <FaEdit />
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(p.ref)}
-                          disabled={deleting === p.ref} // Desabilita apenas o botão do item sendo excluído
-                          title="Excluir"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((p) => {
+                  const thumb = p.images?.[0] || p.image;
+                  return (
+                    <tr key={p.ref || p.id}>
+                      <td>
+                        <div style={{ position: "relative", display: "inline-block" }}>
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={p.name}
+                              style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)" }}
+                              onError={(e) => { e.target.style.display = "none"; }}
+                            />
+                          ) : (
+                            <div style={{ width: 40, height: 40, background: "var(--surface-2)", borderRadius: 6, border: "1px solid var(--border)" }} />
+                          )}
+                          {p.images?.length > 1 && (
+                            <span className="gp-img-count">{p.images.length}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{p.ref}</td>
+                      <td style={{ maxWidth: 180, fontSize: "0.875rem" }}>{p.name}</td>
+                      <td style={{ fontSize: "0.85rem" }}>{p.marca}</td>
+                      <td style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>{p.category}</td>
+                      <td style={{ fontWeight: 600 }}>{formatBRL(p.price)}</td>
+                      <td>
+                        {p.isPromo ? (
+                          <span style={{ color: "var(--danger)", fontWeight: 700, fontSize: "0.88rem" }}>
+                            {formatBRL(p.promotionalPrice)}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: "center" }}>{p.qnt}</td>
+                      <td><StatusBadge product={p} /></td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.35rem" }}>
+                          <button className="btn btn-outline btn-sm" onClick={() => openEdit(p)} title="Editar">
+                            <FaEdit />
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDelete(p.ref)}
+                            disabled={deleting === p.ref}
+                            title="Excluir"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Modal de criação/edição de produto.
-          O título muda dinamicamente: "Novo Produto" ou "Editar Produto".
-          Clicando no overlay (fundo escuro) o modal fecha. */}
+      {/* ── Modal ── */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
-          {/* stopPropagation evita que clicar dentro do modal feche ele */}
           <div className="modal-box modal-box--wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">{editRef ? "Editar Produto" : "Novo Produto"}</h2>
               <button className="modal-close" onClick={closeModal}><FaTimes /></button>
             </div>
 
-            {/* Erro de validação ou da API exibido dentro do modal */}
             {formError && <div className="alert alert-error">{formError}</div>}
 
             <form onSubmit={handleSubmit}>
-              {/* Grid de 2 colunas para os campos do formulário */}
               <div className="grid-2">
-                {/* Nome do produto — ocupa 2 colunas */}
+                {/* Nome */}
                 <div className="input-group col-span-2">
                   <label>Nome do produto *</label>
                   <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
                 </div>
 
-                {/* Referência — bloqueada para edição (identificador único do produto) */}
+                {/* Ref + Marca */}
                 <div className="input-group">
                   <label>Referência (REF) *</label>
                   <input value={form.ref} onChange={(e) => setForm((f) => ({ ...f, ref: e.target.value }))} required disabled={!!editRef} />
                 </div>
-
-                {/* Marca do produto */}
                 <div className="input-group">
                   <label>Marca *</label>
                   <input value={form.marca} onChange={(e) => setForm((f) => ({ ...f, marca: e.target.value }))} required />
                 </div>
 
-                {/* Preço — aceita decimais, mínimo R$ 0,01 */}
+                {/* Preço + Preço Promocional */}
                 <div className="input-group">
-                  <label>Preço (R$) *</label>
+                  <label>Preço original (R$) *</label>
                   <input type="number" min="0.01" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} required />
                 </div>
+                <div className="input-group">
+                  <label>
+                    Preço promocional (R$)
+                    <span className="gp-promo-hint"> — deixe vazio para remover</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="Menor que o preço original"
+                    value={form.promotionalPrice}
+                    onChange={(e) => setForm((f) => ({ ...f, promotionalPrice: e.target.value }))}
+                    className={form.promotionalPrice ? "gp-promo-input" : ""}
+                  />
+                  {form.promotionalPrice && Number(form.price) > 0 && Number(form.promotionalPrice) > 0 && (
+                    <p className="gp-discount-preview">
+                      Desconto: {Math.round((1 - Number(form.promotionalPrice) / Number(form.price)) * 100)}%
+                    </p>
+                  )}
+                </div>
 
-                {/* Quantidade em estoque — inteiro, mínimo 0 */}
+                {/* Qtd + Categoria */}
                 <div className="input-group">
                   <label>Quantidade em estoque *</label>
                   <input type="number" min="0" step="1" value={form.qnt} onChange={(e) => setForm((f) => ({ ...f, qnt: e.target.value }))} required />
                 </div>
-
-                {/* Seletor de categoria */}
                 <div className="input-group">
                   <label>Categoria</label>
                   <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
@@ -436,42 +454,56 @@ export default function GestaoProdutos() {
                   </select>
                 </div>
 
-                {/* Campo de URL da imagem — fica vazio se foi feito upload local */}
-                <div className="input-group">
-                  <label>URL da imagem ou upload</label>
-                  <input
-                    type="text"
-                    placeholder="https://... ou selecione um arquivo abaixo"
-                    // Não exibe a string base64 no campo de texto (apenas URLs externas)
-                    value={form.image.startsWith("data:") ? "" : form.image}
-                    onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
-                  />
-                </div>
-
-                {/* Upload de arquivo de imagem local — convertido para base64 */}
+                {/* Multi-image upload */}
                 <div className="input-group col-span-2">
-                  <label>Upload de imagem (JPG / PNG / WebP — máx. 2MB)</label>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" ref={fileRef} onChange={handleImageFile} />
-                </div>
+                  <label>
+                    <FaImages style={{ marginRight: 6 }} />
+                    Imagens do produto (máx. {MAX_IMAGES} · JPG/PNG/WebP · compressão automática para 1MB)
+                  </label>
 
-                {/* Preview da imagem selecionada (URL ou base64) */}
-                {form.image && (
-                  <div className="col-span-2">
-                    <img
-                      src={form.image}
-                      alt="preview"
-                      style={{ height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }}
-                      onError={(e) => { e.target.style.display = "none"; }} // Oculta se URL inválida
+                  {/* Upload area */}
+                  <label className="gp-upload-area" style={{ pointerEvents: form.images.length >= MAX_IMAGES ? "none" : "auto", opacity: form.images.length >= MAX_IMAGES ? 0.5 : 1 }}>
+                    <FaUpload />
+                    <span>{compressing ? "Comprimindo…" : "Clique para adicionar imagens"}</span>
+                    <span className="gp-upload-sub">{form.images.length}/{MAX_IMAGES} imagens</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      onChange={handleImageFiles}
+                      style={{ display: "none" }}
+                      disabled={compressing || form.images.length >= MAX_IMAGES}
                     />
-                  </div>
-                )}
+                  </label>
+
+                  {/* Image previews */}
+                  {form.images.length > 0 && (
+                    <div className="gp-img-previews">
+                      {form.images.map((src, i) => (
+                        <div key={i} className="gp-img-preview-item">
+                          <img src={src} alt={`img ${i + 1}`} />
+                          <div className="gp-img-preview-order">
+                            {i > 0 && (
+                              <button type="button" className="gp-img-btn" onClick={() => moveImage(i, i - 1)} title="Mover para esquerda">←</button>
+                            )}
+                            {i < form.images.length - 1 && (
+                              <button type="button" className="gp-img-btn" onClick={() => moveImage(i, i + 1)} title="Mover para direita">→</button>
+                            )}
+                          </div>
+                          <button type="button" className="gp-img-remove" onClick={() => removeImage(i)} title="Remover">
+                            <FaTimes />
+                          </button>
+                          {i === 0 && <span className="gp-img-main-badge">Principal</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Botões de ação do modal: Cancelar e Salvar/Criar */}
               <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
                 <button type="button" className="btn btn-outline" onClick={closeModal}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {/* Texto do botão muda conforme o estado: salvando, editando ou criando */}
+                <button type="submit" className="btn btn-primary" disabled={saving || compressing}>
                   {saving ? "Salvando…" : editRef ? "Atualizar" : "Criar Produto"}
                 </button>
               </div>

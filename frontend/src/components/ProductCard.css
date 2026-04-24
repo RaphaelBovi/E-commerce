@@ -149,6 +149,94 @@
   flex-direction: column;
 }
 
+/* ─── Placeholder when no image ──────────────── */
+.product-image-placeholder {
+  width: 60%;
+  height: 60%;
+  background: var(--border);
+  border-radius: var(--radius-sm);
+  opacity: 0.4;
+}
+
+/* ─── Carousel fade transition ───────────────── */
+@keyframes pc-fade-in {
+  from { opacity: 0; transform: scale(1.03); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+.product-image {
+  animation: pc-fade-in 0.35s ease;
+}
+
+.product-image--fading {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* ─── Dot indicators ─────────────────────────── */
+.product-img-dots {
+  position: absolute;
+  bottom: 0.45rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  z-index: 3;
+}
+
+.product-img-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.product-img-dot--active {
+  background: #fff;
+  transform: scale(1.35);
+}
+
+/* ─── Favorite button ────────────────────────── */
+.pc-fav-btn {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.92);
+  color: var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+              transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  font-size: 0.85rem;
+}
+
+.pc-fav-btn:hover {
+  background: #fff;
+  color: var(--danger);
+  transform: scale(1.12);
+  box-shadow: 0 2px 8px rgba(220,38,38,0.2);
+}
+
+.pc-fav-btn--active {
+  color: var(--danger) !important;
+  background: #fff !important;
+}
+
+.pc-fav-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
 /* ─── Badge ──────────────────────────────────── */
 .product-badge {
   position: absolute;
@@ -156,30 +244,34 @@
   left: 0.6rem;
   background: var(--accent);
   color: #fff;
-  padding: 0.18rem 0.5rem;
+  padding: 0.18rem 0.55rem;
   border-radius: var(--radius-xs);
   font-size: 0.65rem;
-  font-weight: 700;
-  z-index: 2;
+  font-weight: 800;
+  z-index: 4;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
 }
 
-/* ─── Variants ───────────────────────────────── */
+/* Promotional badge: bold red */
+.product-badge--promo {
+  background: var(--danger);
+  box-shadow: 0 1px 6px rgba(220,38,38,0.35);
+}
+
+/* ─── Promo price highlight ──────────────────── */
+.product-price--promo {
+  color: var(--danger) !important;
+}
+
+/* ─── Variants (kept for backward compat) ────── */
 .product-card-launch .image-container {
   aspect-ratio: 3 / 2;
 }
 
 .product-card-launch .product-price {
   font-size: 1.45rem;
-}
-
-.product-card-promo .product-badge {
-  background: var(--danger);
-}
-
-.product-card-promo .product-old-price {
-  display: block;
 }
 
 /* ─── Desktop grid: overlay replaces static button ─────────────── */

@@ -65,6 +65,15 @@ public class AuthController {
         return authService.login(request);
     }
 
+    // ── POST /api/auth/admin/login ────────────────────────────────
+    // Endpoint exclusivo do dashboard administrativo — sem reCAPTCHA.
+    // O CAPTCHA protege o login público da loja contra bots.
+    // O dashboard já é uma área restrita não exposta a usuários comuns.
+    @PostMapping("/admin/login")
+    public AuthResponse adminLogin(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
+    }
+
     // ── POST /api/auth/forgot-password ────────────────────────────
     // Always responds 202 regardless of whether email exists (prevents enumeration).
     @PostMapping("/forgot-password")

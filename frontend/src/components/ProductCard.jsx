@@ -40,6 +40,7 @@ export default function ProductCard({
 
   const currentImage = allImages[imgIdx] || '';
 
+  const isOutOfStock = product.qnt === 0;
   const isPromo    = Boolean(product.isPromo);
   const showPrice  = isPromo ? product.promotionalPrice : product.price;
   const formattedPrice = Number(showPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -69,11 +70,11 @@ export default function ProductCard({
   return (
     <div className={`product-card ${layoutClass}`.trim()}>
 
-      {isPromo && (
-        <span className="product-badge product-badge--promo">
-          -{discountPct}% OFF
-        </span>
-      )}
+      {isOutOfStock ? (
+        <span className="product-badge product-badge--esgotado">Esgotado</span>
+      ) : isPromo ? (
+        <span className="product-badge product-badge--promo">-{discountPct}% OFF</span>
+      ) : null}
 
       {isAuthenticated && (
         <button
@@ -116,10 +117,11 @@ export default function ProductCard({
               <button
                 type="button"
                 className="btn-quick-add"
-                onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
-                aria-label={`Adicionar ${product.name} ao carrinho`}
+                onClick={(e) => { e.preventDefault(); if (!isOutOfStock) onAddToCart(product); }}
+                disabled={isOutOfStock}
+                aria-label={isOutOfStock ? 'Produto esgotado' : `Adicionar ${product.name} ao carrinho`}
               >
-                + Adicionar ao Carrinho
+                {isOutOfStock ? 'Esgotado' : '+ Adicionar ao Carrinho'}
               </button>
             </div>
           )}
@@ -147,8 +149,12 @@ export default function ProductCard({
           Em até 6x de {installmentPrice} sem juros
         </p>
 
-        <button className="btn-gold" onClick={() => onAddToCart(product)}>
-          Adicionar ao Carrinho
+        <button
+          className="btn-gold"
+          onClick={() => !isOutOfStock && onAddToCart(product)}
+          disabled={isOutOfStock}
+        >
+          {isOutOfStock ? 'Esgotado' : 'Adicionar ao Carrinho'}
         </button>
       </div>
     </div>

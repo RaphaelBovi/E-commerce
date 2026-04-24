@@ -19,9 +19,11 @@ import com.ecommerce.Order.Entity.OrderStatus;
 import com.ecommerce.Order.Repository.OrderRepository;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
+import com.ecommerce.Product.Repository.ProductCategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,6 +37,9 @@ public class OrderService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ProductCategoryRepository productCategoryRepository;
 
     // ── UTILITÁRIO INTERNO ────────────────────────────────────────
     // Recupera o usuário autenticado a partir do contexto de segurança do Spring
@@ -139,12 +144,31 @@ public class OrderService {
 
     // ── ADMIN: ATUALIZAR STATUS ───────────────────────────────────
     // Altera o status de um pedido (ex: PAID → PREPARING → SHIPPED → DELIVERED)
-    // Para adicionar validações de transição de status, implemente aqui
+    // Restaura estoque automaticamente ao cancelar pedidos já pagos ou em preparo
+    @Transactional
     public OrderResponse updateOrderStatus(UUID id, UpdateOrderStatusRequest request) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+
+        OrderStatus previousStatus = order.getStatus();
         order.setStatus(request.status());
+
+        if (request.status() == OrderStatus.CANCELLED
+                && (previousStatus == OrderStatus.PAID || previousStatus == OrderStatus.PREPARING)) {
+            restoreOrderStock(order.getItems());
+        }
+
         return toResponse(orderRepository.save(order));
+    }
+
+    private void restoreOrderStock(List<OrderItem> items) {
+        for (OrderItem item : items) {
+            if (item.getProductId() == null) continue;
+            productCategoryRepository.findById(item.getProductId()).ifPresent(product -> {
+                product.incrementStock(item.getQuantity());
+                productCategoryRepository.save(product);
+            });
+        }
     }
 
     // ── MAPEAMENTO ────────────────────────────────────────────────

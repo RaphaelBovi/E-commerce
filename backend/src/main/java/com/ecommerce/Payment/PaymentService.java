@@ -8,8 +8,10 @@ import com.ecommerce.Payment.Dto.CheckoutRequest;
 import com.ecommerce.Payment.Dto.CheckoutResponse;
 import com.ecommerce.Payment.Dto.CreateCheckoutSessionRequest;
 import com.ecommerce.Payment.Dto.CheckoutSessionResponse;
+import com.ecommerce.Product.Entity.ProductCategory;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
+import com.ecommerce.Product.Repository.ProductCategoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +49,9 @@ public class PaymentService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ProductCategoryRepository productCategoryRepository;
 
     private final RestClient restClient = RestClient.create();
 
@@ -91,6 +96,9 @@ public class PaymentService {
     public CheckoutResponse processCheckout(CheckoutRequest request) {
         User user = getCurrentUser();
 
+        // 0. Valida estoque antes de criar o pedido (early check para UX)
+        validateStock(request.items());
+
         // 1. Monta e persiste o pedido com status PENDING_PAYMENT
         Order order = Order.builder()
                 .user(user)
@@ -127,6 +135,7 @@ public class PaymentService {
             case "PAID", "AUTHORIZED" -> {
                 savedOrder.setStatus(OrderStatus.PAID);
                 savedOrder.setPagseguroChargeId(charge.chargeId());
+                decrementOrderStock(savedOrder.getItems());
                 orderRepository.save(savedOrder);
                 yield new CheckoutResponse(savedOrder.getId(), charge.chargeId(), charge.status(),
                         total, true, "Pagamento aprovado! Seu pedido está sendo preparado.");
@@ -242,6 +251,8 @@ public class PaymentService {
     @Transactional
     public CheckoutSessionResponse createCheckoutSession(CreateCheckoutSessionRequest request) {
         User user = getCurrentUser();
+
+        validateStock(request.items());
 
         PaymentMethod method = switch (request.paymentMethod().toUpperCase()) {
             case "PIX"    -> PaymentMethod.PIX;
@@ -440,6 +451,11 @@ public class PaymentService {
             orderRepository.findById(orderId).ifPresent(order -> {
                 if (chargeId != null) order.setPagseguroChargeId(chargeId);
                 if ("PAID".equals(status) || "AUTHORIZED".equals(status)) {
+                    // Decrementa estoque apenas na primeira vez que o pedido é confirmado
+                    // (evita duplo-decremento se o webhook for disparado mais de uma vez)
+                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+                        decrementOrderStock(order.getItems());
+                    }
                     order.setStatus(OrderStatus.PAID);
                 } else if ("DECLINED".equals(status) && order.getStatus() == OrderStatus.PENDING_PAYMENT) {
                     order.setStatus(OrderStatus.CANCELLED);
@@ -449,6 +465,32 @@ public class PaymentService {
             });
         } catch (IllegalArgumentException e) {
             log.warn("reference_id inválido no webhook PagSeguro: {}", referenceId);
+        }
+    }
+
+    // ── CONTROLE DE ESTOQUE ───────────────────────────────────────
+    // Valida estoque antes de criar o pedido — lança BusinessException se insuficiente
+    private void validateStock(List<com.ecommerce.Order.Entity.Dto.OrderItemRequest> items) {
+        for (var item : items) {
+            if (item.productId() == null) continue;
+            productCategoryRepository.findById(item.productId()).ifPresent(product -> {
+                if (product.getQnt() < item.quantity()) {
+                    throw new BusinessException(
+                        "Estoque insuficiente para \"" + product.getName() + "\". " +
+                        "Disponível: " + product.getQnt() + ", solicitado: " + item.quantity());
+                }
+            });
+        }
+    }
+
+    // Decrementa estoque dos produtos do pedido — chamado após pagamento confirmado
+    private void decrementOrderStock(List<com.ecommerce.Order.Entity.OrderItem> items) {
+        for (var item : items) {
+            if (item.getProductId() == null) continue;
+            productCategoryRepository.findById(item.getProductId()).ifPresent(product -> {
+                product.decrementStock(item.getQuantity());
+                productCategoryRepository.save(product);
+            });
         }
     }
 

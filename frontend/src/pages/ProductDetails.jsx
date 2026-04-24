@@ -54,7 +54,16 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
       .catch(() => {});
   }, [isAuthenticated, product?.id]);
 
+  const isOutOfStock = product.qnt === 0;
+  const isLowStock   = product.qnt > 0 && product.qnt <= 3;
+
+  // Clamp quantity when stock decreases below current selection
+  useEffect(() => {
+    if (product.qnt > 0 && quantity > product.qnt) setQuantity(product.qnt);
+  }, [product.qnt]);
+
   const handleComprarAgora = () => {
+    if (isOutOfStock) return;
     onAddToCart(product, quantity);
     navigate('/checkout');
   };
@@ -198,6 +207,14 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
             </div>
           </div>
 
+          {/* ── Indicadores de estoque ── */}
+          {isOutOfStock && (
+            <p className="pd-out-of-stock">Produto esgotado — indisponível no momento</p>
+          )}
+          {isLowStock && (
+            <p className="pd-low-stock">Restam apenas {product.qnt} {product.qnt === 1 ? 'unidade' : 'unidades'}!</p>
+          )}
+
           {/* ── Quantidade ── */}
           <div className="quantity-selector-container">
             <span className="quantity-label">Quantidade</span>
@@ -206,15 +223,16 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 aria-label="Diminuir quantidade"
-                disabled={quantity <= 1}
+                disabled={quantity <= 1 || isOutOfStock}
               >
                 −
               </button>
               <span className="quantity-display">{quantity}</span>
               <button
                 type="button"
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={() => setQuantity((q) => Math.min(product.qnt, q + 1))}
                 aria-label="Aumentar quantidade"
+                disabled={isOutOfStock || quantity >= product.qnt}
               >
                 +
               </button>
@@ -223,15 +241,21 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
 
           {/* ── Botões de ação ── */}
           <div className="action-buttons">
-            <button type="button" className="btn-gold btn-large" onClick={handleComprarAgora}>
-              Comprar agora
+            <button
+              type="button"
+              className="btn-gold btn-large"
+              onClick={handleComprarAgora}
+              disabled={isOutOfStock}
+            >
+              {isOutOfStock ? 'Produto esgotado' : 'Comprar agora'}
             </button>
             <button
               type="button"
               className="btn-outline btn-large"
-              onClick={() => onAddToCart(product, quantity)}
+              onClick={() => !isOutOfStock && onAddToCart(product, quantity)}
+              disabled={isOutOfStock}
             >
-              Adicionar ao carrinho
+              {isOutOfStock ? 'Indisponível' : 'Adicionar ao carrinho'}
             </button>
           </div>
 

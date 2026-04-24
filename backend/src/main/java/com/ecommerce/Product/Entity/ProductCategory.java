@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.ecommerce.Product.Exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -94,6 +95,18 @@ public class ProductCategory {
 
     @Column(nullable = false)
     private Instant updatedAt;
+
+    public void decrementStock(int qty) {
+        if (this.qnt < qty) {
+            throw new BusinessException(
+                "Estoque insuficiente para \"" + this.name + "\". Disponível: " + this.qnt + ", solicitado: " + qty);
+        }
+        this.qnt -= qty;
+    }
+
+    public void incrementStock(int qty) {
+        this.qnt += qty;
+    }
 
     @PrePersist
     public void prePersist() {

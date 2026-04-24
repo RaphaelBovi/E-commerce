@@ -466,6 +466,29 @@
   background: var(--primary-hover);
 }
 
+/* ─── Stock indicators ───────────────────────── */
+.pd-out-of-stock {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.pd-low-stock {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
 /* ─── Quantity ───────────────────────────────── */
 .quantity-selector-container {
   display: flex;

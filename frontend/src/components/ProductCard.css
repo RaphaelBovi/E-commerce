@@ -260,6 +260,12 @@
   box-shadow: 0 1px 6px rgba(220,38,38,0.35);
 }
 
+/* Out of stock badge: muted gray */
+.product-badge--esgotado {
+  background: var(--text-muted);
+  box-shadow: none;
+}
+
 /* ─── Promo price highlight ──────────────────── */
 .product-price--promo {
   color: var(--danger) !important;

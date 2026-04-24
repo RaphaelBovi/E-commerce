@@ -6,11 +6,9 @@ export default function Lancamentos(props) {
     <Catalog
       {...props}
       pageTitle="Novidades"
-      pageSubtitle="Itens recentes no catálogo — personalize filtros e categorias no template"
+      pageSubtitle="Os produtos adicionados mais recentemente ao catálogo"
       pageVariant="launch"
-      showFilters={false}
-      forcedFilters={{ category: 'novidades' }}
-      initialFilters={{ category: 'novidades', sortBy: 'name-asc' }}
+      initialFilters={{ sortBy: 'newest' }}
     />
   );
 }

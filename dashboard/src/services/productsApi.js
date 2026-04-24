@@ -21,7 +21,9 @@ const normalizeProduct = (p) => ({
   ...p,
   price:            Number(p.price ?? 0),
   promotionalPrice: p.promotionalPrice != null ? Number(p.promotionalPrice) : null,
-  isPromo:          Boolean(p.isPromo),
+  isPromo:          p.isPromo != null
+                      ? Boolean(p.isPromo)
+                      : (p.promotionalPrice != null && Number(p.promotionalPrice) < Number(p.price)),
   qnt:              Number(p.qnt ?? 0),
   marca:            p.marca    || "",
   category:         p.category || "geral",

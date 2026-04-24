@@ -17,6 +17,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useAuth } from './context/useAuth';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import AuthProvider from './context/AuthProvider';
+import FavoritesProvider from './context/FavoritesProvider';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
@@ -150,6 +151,7 @@ function App() {
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
     <BrowserRouter>
       <AuthProvider>
+      <FavoritesProvider>
       <div className="app">
         {/* Navbar fixa no topo; recebe contagem do carrinho e callback para abrir o drawer */}
         <Navbar
@@ -254,6 +256,7 @@ function App() {
         {/* Botão flutuante de WhatsApp fixo no canto inferior direito */}
         <WhatsAppButton />
       </div>
+      </FavoritesProvider>
       </AuthProvider>
     </BrowserRouter>
     </GoogleOAuthProvider>

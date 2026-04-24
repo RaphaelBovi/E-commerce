@@ -1,10 +1,12 @@
 package com.ecommerce.Product.Entity.Dtos;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,6 +27,9 @@ public class ProductCategoryResponse {
 
     // True when promotionalPrice is set and lower than the regular price.
     // Computed here so frontend does not need to repeat the logic.
+    // @JsonProperty forces the key to "isPromo" — without it, Lombok's isPromo() getter
+    // causes Jackson to strip the "is" prefix and emit "promo" instead.
+    @JsonProperty("isPromo")
     private boolean isPromo;
 
     private Integer qnt;
@@ -36,6 +41,8 @@ public class ProductCategoryResponse {
 
     // All product images in display order (max 5).
     private List<String> images;
+
+    private Instant createdAt;
 
     public static ProductCategoryResponse from(ProductCategory p) {
         ProductCategoryResponse r = new ProductCategoryResponse();
@@ -59,6 +66,8 @@ public class ProductCategoryResponse {
 
         // Primary image: first in list or legacy field
         r.image = imgs.isEmpty() ? p.getImage() : imgs.get(0);
+
+        r.createdAt = p.getCreatedAt();
 
         return r;
     }

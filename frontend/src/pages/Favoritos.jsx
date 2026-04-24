@@ -79,7 +79,6 @@ export default function Favoritos({ onAddToCart }) {
                 key={product.id}
                 product={product}
                 onAddToCart={onAddToCart}
-                initialFavorited={true}
               />
             ))}
           </div>

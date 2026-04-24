@@ -60,6 +60,7 @@ public class TicketService {
     }
 
     // ── User: list own tickets ──────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<TicketResponse> getMyTickets() {
         User user = getCurrentUser();
         return ticketRepo.findByUserIdOrderByUpdatedAtDesc(user.getId())
@@ -67,6 +68,7 @@ public class TicketService {
     }
 
     // ── User: get own ticket by id ──────────────────────────────────
+    @Transactional(readOnly = true)
     public TicketResponse getMyTicket(UUID ticketId) {
         User user = getCurrentUser();
         Ticket ticket = ticketRepo.findById(ticketId)
@@ -102,12 +104,14 @@ public class TicketService {
     }
 
     // ── Admin: list all tickets ─────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<TicketResponse> getAllTickets() {
         return ticketRepo.findAllByOrderByUpdatedAtDesc()
                 .stream().map(TicketResponse::from).toList();
     }
 
     // ── Admin: get ticket by id ─────────────────────────────────────
+    @Transactional(readOnly = true)
     public TicketResponse getTicket(UUID ticketId) {
         return TicketResponse.from(ticketRepo.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket não encontrado")));

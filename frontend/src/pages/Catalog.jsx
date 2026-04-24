@@ -91,6 +91,7 @@ export default function Catalog({
     if (effectiveFilters.sortBy === 'price-asc')  return [...results].sort((a, b) => a.price - b.price);
     if (effectiveFilters.sortBy === 'price-desc') return [...results].sort((a, b) => b.price - a.price);
     if (effectiveFilters.sortBy === 'name-asc')   return [...results].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    if (effectiveFilters.sortBy === 'newest')     return [...results].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     return results;
   }, [products, effectiveFilters]);
 
@@ -242,6 +243,7 @@ export default function Catalog({
                 <label htmlFor="sort-select">Ordenar por</label>
                 <select name="sort" id="sort-select" defaultValue={effectiveFilters.sortBy}>
                   <option value="relevance">Relevância</option>
+                  <option value="newest">Mais recentes</option>
                   <option value="price-asc">Menor preço</option>
                   <option value="price-desc">Maior preço</option>
                   <option value="name-asc">Nome (A-Z)</option>

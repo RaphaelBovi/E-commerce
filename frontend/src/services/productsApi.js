@@ -22,10 +22,13 @@ const normalizeProduct = (product) => ({
   ...product,
   price:            Number(product.price),
   promotionalPrice: product.promotionalPrice != null ? Number(product.promotionalPrice) : null,
-  isPromo:          Boolean(product.isPromo),
+  isPromo:          product.isPromo != null
+                      ? Boolean(product.isPromo)
+                      : (product.promotionalPrice != null && Number(product.promotionalPrice) < Number(product.price)),
   qnt:              Number(product.qnt),
   images:           Array.isArray(product.images) ? product.images : [],
   image:            product.image || "",
+  createdAt:        product.createdAt || null,
 });
 
 // ─── fetchProducts ───────────────────────────────────────────────

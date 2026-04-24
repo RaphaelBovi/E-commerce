@@ -2,27 +2,26 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaHeart } from 'react-icons/fa';
 import { useAuth } from '../context/useAuth';
-import { toggleFavorite } from '../services/favoritesApi';
+import { useFavorites } from '../context/FavoritesProvider';
 import './ProductCard.css';
 
 export default function ProductCard({
   product,
   onAddToCart,
   layout = 'grid',
-  initialFavorited = false,
 }) {
   const { isAuthenticated } = useAuth();
+  const { isFavorited, toggleFav } = useFavorites();
 
   const allImages = product.images?.length > 0
     ? product.images
     : (product.image ? [product.image] : []);
 
-  const [imgIdx, setImgIdx]       = useState(0);
-  const [fading, setFading]       = useState(false);
-  const [favorited, setFavorited] = useState(initialFavorited);
+  const [imgIdx, setImgIdx] = useState(0);
+  const [fading, setFading] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
 
-  useEffect(() => { setFavorited(initialFavorited); }, [initialFavorited]);
+  const favorited = isAuthenticated && isFavorited(product.id);
 
   // Auto-cycle images every 2.5 seconds
   useEffect(() => {
@@ -59,8 +58,7 @@ export default function ProductCard({
     if (!isAuthenticated || favLoading) return;
     setFavLoading(true);
     try {
-      const res = await toggleFavorite(product.id);
-      setFavorited(res.favorited);
+      await toggleFav(product.id);
     } catch {
       // silently fail
     } finally {

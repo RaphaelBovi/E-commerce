@@ -119,6 +119,10 @@ public class ProductCategory {
         this.qnt += qty;
     }
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("name ASC")
+    private List<ProductVariant> variants = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         Instant now = Instant.now();

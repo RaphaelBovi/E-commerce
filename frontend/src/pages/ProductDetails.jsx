@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  FaTruck, FaClipboardList, FaShieldAlt, FaUndo, FaStar,
+  FaClipboardList, FaShieldAlt, FaUndo, FaStar,
   FaChevronLeft, FaBoxOpen, FaHeart,
 } from 'react-icons/fa';
 import AutoCarousel from '../components/AutoCarousel';
@@ -321,18 +321,6 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
               {isPromo ? 'Preço promocional — oferta por tempo limitado.' : 'À vista no boleto ou PIX com condição promocional.'}
             </p>
             <p className="details-installments">Parcelamento conforme política da loja</p>
-          </div>
-
-          {/* ── Frete ── */}
-          <div className="shipping-calc">
-            <p className="shipping-calc-title">
-              <FaTruck aria-hidden />
-              Simule frete e prazo
-            </p>
-            <div className="cep-input">
-              <input type="text" placeholder="Digite seu CEP" aria-label="CEP para cálculo de frete" maxLength={9} />
-              <button type="button">Calcular</button>
-            </div>
           </div>
 
           {/* ── Indicadores de estoque ── */}

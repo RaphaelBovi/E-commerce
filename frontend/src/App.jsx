@@ -160,9 +160,18 @@ function App() {
   // Se o produto já existe no carrinho, incrementa a quantidade;
   // caso contrário, adiciona um novo item.
   // Também abre o drawer automaticamente após adicionar.
-  const handleAddToCart = (product, quantity = 1) => {
-    const maxQty = product.qnt ?? Infinity;
-    const existing = cartItems.find(item => item.id === product.id);
+  // Derives a unique cart key that distinguishes the same product in different variants
+  const getItemKey = (item) => item._key || String(item.id);
+
+  const handleAddToCart = (product, quantity = 1, variantOpts = null) => {
+    const variantId   = variantOpts?.variantId   ?? null;
+    const variantName = variantOpts?.variantName ?? null;
+    const variantQnt  = variantOpts?.variantQnt  ?? null;
+
+    const itemKey = variantId ? `${product.id}::${variantId}` : String(product.id);
+    const maxQty  = variantQnt != null ? variantQnt : (product.qnt ?? Infinity);
+
+    const existing   = cartItems.find(item => getItemKey(item) === itemKey);
     const currentQty = existing ? existing.quantity : 0;
 
     if (currentQty + quantity > maxQty) {
@@ -176,15 +185,26 @@ function App() {
     }
 
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
+      const existingItem = prevItems.find(item => getItemKey(item) === itemKey);
       if (existingItem) {
         return prevItems.map(item =>
-          item.id === product.id
+          getItemKey(item) === itemKey
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prevItems, { ...product, quantity }];
+      const effectivePrice = variantOpts?.variantPrice != null
+        ? Number(variantOpts.variantPrice)
+        : (product.isPromo && product.promotionalPrice ? Number(product.promotionalPrice) : Number(product.price));
+      return [...prevItems, {
+        ...product,
+        price: effectivePrice,
+        quantity,
+        variantId,
+        variantName,
+        variantQnt,
+        _key: itemKey,
+      }];
     });
 
     toast.success('Adicionado ao carrinho!', { duration: 2000, position: 'top-right' });
@@ -192,23 +212,22 @@ function App() {
   };
 
   // ─── Atualizar quantidade de um item ────────────────────────────
-  const handleUpdateQuantity = (productId, newQuantity) => {
+  const handleUpdateQuantity = (itemKey, newQuantity) => {
     if (newQuantity < 1) return;
 
     setCartItems(prevItems => {
-      const item = prevItems.find(i => i.id === productId);
+      const item = prevItems.find(i => getItemKey(i) === itemKey);
       if (!item) return prevItems;
-      const maxQty = item.qnt ?? Infinity;
+      const maxQty = item.variantQnt != null ? item.variantQnt : (item.qnt ?? Infinity);
       const clamped = Math.min(newQuantity, maxQty);
       if (clamped === item.quantity) return prevItems;
-      return prevItems.map(i => i.id === productId ? { ...i, quantity: clamped } : i);
+      return prevItems.map(i => getItemKey(i) === itemKey ? { ...i, quantity: clamped } : i);
     });
   };
 
   // ─── Remover item do carrinho ────────────────────────────────────
-  // Filtra o item com o id informado, removendo-o da lista.
-  const handleRemoveItem = (productId) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+  const handleRemoveItem = (itemKey) => {
+    setCartItems(prevItems => prevItems.filter(item => getItemKey(item) !== itemKey));
   };
 
   // Soma total de unidades no carrinho (exibida no badge da Navbar)

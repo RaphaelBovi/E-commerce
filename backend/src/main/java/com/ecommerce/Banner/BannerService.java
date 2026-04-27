@@ -1,5 +1,6 @@
 package com.ecommerce.Banner;
 
+import com.ecommerce.Config.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -10,6 +11,7 @@ import java.util.UUID;
 public class BannerService {
 
     @Autowired private BannerRepository repository;
+    @Autowired private CloudinaryService cloudinaryService;
 
     public List<BannerDto> getActiveByPosition(BannerPosition position) {
         return repository.findByPositionAndActiveTrueOrderByDisplayOrderAsc(position)
@@ -48,7 +50,7 @@ public class BannerService {
     private void apply(Banner banner, BannerRequest req) {
         banner.setTitle(req.title());
         banner.setSubtitle(req.subtitle());
-        banner.setImageUrl(req.imageUrl());
+        banner.setImageUrl(cloudinaryService.uploadIfBase64(req.imageUrl(), "banners"));
         banner.setLinkUrl(req.linkUrl());
         banner.setPosition(req.position());
         banner.setActive(req.active());

@@ -39,5 +39,11 @@ public record OrderItemRequest(
         @NotNull BigDecimal unitPrice,
 
         // Quantidade solicitada — mínimo 1 (não faz sentido pedir 0 unidades)
-        @Min(1) int quantity
+        @Min(1) int quantity,
+
+        // Variante selecionada (cor, tamanho, etc.) — null para produtos sem variantes
+        UUID variantId,
+
+        // Nome da variante no momento da compra — copiado para preservar histórico
+        String variantName
 ) {}

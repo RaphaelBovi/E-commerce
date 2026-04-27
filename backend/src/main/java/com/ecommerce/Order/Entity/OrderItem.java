@@ -76,4 +76,10 @@ public class OrderItem {
     // Quantidade do produto solicitada neste item — mínimo 1 (validado em OrderItemRequest)
     @Column(nullable = false)
     private int quantity;
+
+    // Referência à variante selecionada (cor, tamanho, etc.) — null se o produto não tem variantes
+    private UUID variantId;
+
+    // Nome da variante no momento da compra (ex.: "M / Azul") — preservado no histórico
+    private String variantName;
 }

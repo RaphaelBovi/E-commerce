@@ -243,7 +243,12 @@ export default function Checkout({ cartItems, onClearCart }) {
       setSelectedFreight(null);
       try {
         const items = cartItems.map((it) => ({ productId: it.id, quantity: it.quantity }));
-        const options = await calculateFreight({ zipCode: digits, items });
+        const all = await calculateFreight({ zipCode: digits, items });
+        const sedex = all.filter(o =>
+          o.carrier?.toLowerCase().includes('correios') &&
+          o.service?.toLowerCase().includes('sedex')
+        );
+        const options = sedex.length > 0 ? sedex : all.slice(0, 1);
         setFreightOptions(options);
         if (options.length > 0) setSelectedFreight(options[0]);
       } catch {

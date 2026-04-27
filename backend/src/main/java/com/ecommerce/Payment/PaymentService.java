@@ -14,6 +14,7 @@ import com.ecommerce.Product.Entity.ProductCategory;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import com.ecommerce.Product.Repository.ProductCategoryRepository;
+import com.ecommerce.Product.Repository.ProductVariantRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,6 +73,9 @@ public class PaymentService {
 
     @Autowired
     private MercadoPagoService mercadoPagoService;
+
+    @Autowired
+    private ProductVariantRepository productVariantRepository;
 
     private final RestClient restClient = RestClient.create();
 
@@ -135,6 +139,8 @@ public class PaymentService {
                 .productImage(i.productImage())
                 .unitPrice(i.unitPrice())
                 .quantity(i.quantity())
+                .variantId(i.variantId())
+                .variantName(i.variantName())
                 .build()
         ).toList();
 
@@ -315,6 +321,8 @@ public class PaymentService {
                 .productImage(i.productImage())
                 .unitPrice(i.unitPrice())
                 .quantity(i.quantity())
+                .variantId(i.variantId())
+                .variantName(i.variantName())
                 .build()
         ).toList();
 
@@ -560,13 +568,23 @@ public class PaymentService {
     private void validateStock(List<com.ecommerce.Order.Entity.Dto.OrderItemRequest> items) {
         for (var item : items) {
             if (item.productId() == null) continue;
-            productCategoryRepository.findById(item.productId()).ifPresent(product -> {
-                if (product.getQnt() < item.quantity()) {
-                    throw new BusinessException(
-                        "Estoque insuficiente para \"" + product.getName() + "\". " +
-                        "Disponível: " + product.getQnt() + ", solicitado: " + item.quantity());
-                }
-            });
+            if (item.variantId() != null) {
+                productVariantRepository.findById(item.variantId()).ifPresent(variant -> {
+                    if (variant.getQnt() < item.quantity()) {
+                        throw new BusinessException(
+                            "Estoque insuficiente para \"" + variant.getName() + "\". " +
+                            "Disponível: " + variant.getQnt() + ", solicitado: " + item.quantity());
+                    }
+                });
+            } else {
+                productCategoryRepository.findById(item.productId()).ifPresent(product -> {
+                    if (product.getQnt() < item.quantity()) {
+                        throw new BusinessException(
+                            "Estoque insuficiente para \"" + product.getName() + "\". " +
+                            "Disponível: " + product.getQnt() + ", solicitado: " + item.quantity());
+                    }
+                });
+            }
         }
     }
 
@@ -574,10 +592,17 @@ public class PaymentService {
     private void decrementOrderStock(List<com.ecommerce.Order.Entity.OrderItem> items) {
         for (var item : items) {
             if (item.getProductId() == null) continue;
-            productCategoryRepository.findById(item.getProductId()).ifPresent(product -> {
-                product.decrementStock(item.getQuantity());
-                productCategoryRepository.save(product);
-            });
+            if (item.getVariantId() != null) {
+                productVariantRepository.findById(item.getVariantId()).ifPresent(variant -> {
+                    variant.decrementStock(item.getQuantity());
+                    productVariantRepository.save(variant);
+                });
+            } else {
+                productCategoryRepository.findById(item.getProductId()).ifPresent(product -> {
+                    product.decrementStock(item.getQuantity());
+                    productCategoryRepository.save(product);
+                });
+            }
         }
     }
 

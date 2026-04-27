@@ -54,6 +54,9 @@ public class ProductCategoryResponse {
     private Integer heightCm;
     private Integer lengthCm;
 
+    // Product variants (sizes, colors, etc.)
+    private List<ProductVariantDto> variants;
+
     public static ProductCategoryResponse from(ProductCategory p) {
         ProductCategoryResponse r = new ProductCategoryResponse();
         r.id    = p.getId();
@@ -83,6 +86,8 @@ public class ProductCategoryResponse {
         r.widthCm  = p.getWidthCm();
         r.heightCm = p.getHeightCm();
         r.lengthCm = p.getLengthCm();
+
+        r.variants = p.getVariants().stream().map(ProductVariantDto::from).toList();
 
         return r;
     }

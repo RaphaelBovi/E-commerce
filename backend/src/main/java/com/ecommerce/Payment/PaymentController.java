@@ -22,8 +22,7 @@ public class PaymentController {
     @Autowired
     private PaymentService paymentService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping("/api/payments/public-key")
     public ResponseEntity<Map<String, String>> getPublicKey() {

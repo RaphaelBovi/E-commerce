@@ -32,5 +32,8 @@ public record CreateCheckoutSessionRequest(
         String couponCode,
 
         // Convidado: e-mail informado manualmente (nulo quando o usuário está autenticado)
-        String guestEmail
+        String guestEmail,
+
+        // Gateway: "pagseguro" (padrão) | "mercadopago"
+        String gateway
 ) {}

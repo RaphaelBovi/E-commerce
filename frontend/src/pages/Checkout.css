@@ -483,6 +483,28 @@
 
 .chk-method-card.selected .chk-method-radio::after { opacity: 1; }
 
+/* ─── Gateway selector ────────────────────────────── */
+.chk-gateway-section { margin-bottom: 1.25rem; }
+
+.chk-gateway-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.5rem;
+}
+
+.chk-gateway-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+@media (max-width: 480px) {
+  .chk-gateway-options { grid-template-columns: 1fr; }
+}
+
 /* ─── CAPTCHA wrapper ─────────────────────────────── */
 .chk-captcha {
   display: flex;

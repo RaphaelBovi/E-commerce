@@ -68,4 +68,35 @@ public class PaymentController {
 
         return ResponseEntity.ok().build();
     }
+
+    // POST /api/payments/webhook/mercadopago
+    // O Mercado Pago envia notificações IPN com type=payment e data.id=<paymentId>.
+    // Também suporta o formato legacy com query params ?type=payment&data.id=<id>.
+    @PostMapping("/api/payments/webhook/mercadopago")
+    public ResponseEntity<Void> handleMercadoPagoWebhook(
+            @RequestParam(value = "type", required = false) String typeParam,
+            @RequestParam(value = "data.id", required = false) String dataIdParam,
+            @RequestBody String rawBody) {
+
+        try {
+            String paymentId = dataIdParam;
+            String type = typeParam;
+
+            if (paymentId == null || type == null) {
+                Map<String, Object> payload = objectMapper.readValue(rawBody, new TypeReference<>() {});
+                type = (String) payload.getOrDefault("type", "");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) payload.get("data");
+                if (data != null) paymentId = String.valueOf(data.get("id"));
+            }
+
+            if ("payment".equals(type) && paymentId != null) {
+                paymentService.handleMercadoPagoWebhook(paymentId);
+            }
+        } catch (Exception e) {
+            log.error("Erro ao processar webhook Mercado Pago", e);
+        }
+
+        return ResponseEntity.ok().build();
+    }
 }

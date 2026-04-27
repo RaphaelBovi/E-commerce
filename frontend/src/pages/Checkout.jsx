@@ -29,6 +29,11 @@ const formatCpf = (v) => {
 
 const RECAPTCHA_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 
+const GATEWAYS = [
+  { id: 'pagseguro',   label: 'PagBank',       desc: 'Cartão, Pix, Boleto' },
+  { id: 'mercadopago', label: 'Mercado Pago',  desc: 'Pix, Cartão e mais'  },
+];
+
 const PAYMENT_METHODS = [
   {
     id: 'CREDIT_CARD',
@@ -186,6 +191,7 @@ export default function Checkout({ cartItems, onClearCart }) {
 
   // Step 3 — payment
   const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD');
+  const [gateway,       setGateway]       = useState('pagseguro');
   const [isProcessing,  setIsProcessing]  = useState(false);
 
   const subtotal       = cartItems.reduce((s, it) => s + it.price * it.quantity, 0);
@@ -318,6 +324,7 @@ export default function Checkout({ cartItems, onClearCart }) {
     try {
       const result = await createCheckoutSession({
         paymentMethod,
+        gateway,
         recipientName:  address.recipientName,
         recipientCpf:   address.recipientCpf.replace(/\D/g, '') || null,
         recipientPhone:  address.recipientPhone  || null,
@@ -371,7 +378,8 @@ export default function Checkout({ cartItems, onClearCart }) {
               </div>
               <h2>Redirecionando para o pagamento…</h2>
               <p>
-                Você será enviado para a página segura do <strong>PagBank</strong> em instantes.
+                Você será enviado para a página segura do{' '}
+                <strong>{gateway === 'mercadopago' ? 'Mercado Pago' : 'PagBank'}</strong> em instantes.
                 Não feche esta aba.
               </p>
             </div>
@@ -690,11 +698,35 @@ export default function Checkout({ cartItems, onClearCart }) {
                     <div className="chk-section-header">
                       <div className="chk-section-icon"><FaLock /></div>
                       <span className="chk-section-title">Forma de pagamento</span>
-                      <span className="chk-section-badge">via PagBank</span>
+                      <span className="chk-section-badge">
+                        {gateway === 'mercadopago' ? 'via Mercado Pago' : 'via PagBank'}
+                      </span>
+                    </div>
+
+                    {/* ── Seletor de gateway ── */}
+                    <div className="chk-gateway-section">
+                      <p className="chk-gateway-label">Processador de pagamento</p>
+                      <div className="chk-gateway-options">
+                        {GATEWAYS.map(({ id, label, desc }) => (
+                          <button
+                            key={id}
+                            type="button"
+                            className={`chk-method-card ${gateway === id ? 'selected' : ''}`}
+                            onClick={() => setGateway(id)}
+                          >
+                            <div className="chk-method-info">
+                              <span className="chk-method-label">{label}</span>
+                              <span className="chk-method-desc">{desc}</span>
+                            </div>
+                            <div className="chk-method-radio" />
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <p className="chk-payment-hint">
-                      Você será redirecionado para a página segura do PagBank para concluir o pagamento.
+                      Você será redirecionado para a página segura do{' '}
+                      {gateway === 'mercadopago' ? 'Mercado Pago' : 'PagBank'} para concluir o pagamento.
                     </p>
 
                     <div className="chk-payment-methods">
@@ -716,7 +748,8 @@ export default function Checkout({ cartItems, onClearCart }) {
                     </div>
 
                     <div className="chk-security-seal">
-                      <FaShieldAlt /> Ambiente 100% seguro — seus dados são protegidos pelo PagBank
+                      <FaShieldAlt /> Ambiente 100% seguro — seus dados são protegidos pelo{' '}
+                      {gateway === 'mercadopago' ? 'Mercado Pago' : 'PagBank'}
                     </div>
 
                     {/* CAPTCHA */}

@@ -70,6 +70,9 @@ public class PaymentService {
     @Autowired
     private CouponService couponService;
 
+    @Autowired
+    private MercadoPagoService mercadoPagoService;
+
     private final RestClient restClient = RestClient.create();
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
@@ -329,7 +332,10 @@ public class PaymentService {
         order.getItems().addAll(items);
         Order savedOrder = orderRepository.save(order);
 
-        String paymentUrl = callPagseguroCheckout(savedOrder, customerEmail, total, request);
+        boolean isMercadoPago = "mercadopago".equalsIgnoreCase(request.gateway());
+        String paymentUrl = isMercadoPago
+                ? mercadoPagoService.createPreference(savedOrder, customerEmail)
+                : callPagseguroCheckout(savedOrder, customerEmail, total, request);
         return new CheckoutSessionResponse(savedOrder.getId(), paymentUrl);
     }
 
@@ -572,6 +578,41 @@ public class PaymentService {
                 product.decrementStock(item.getQuantity());
                 productCategoryRepository.save(product);
             });
+        }
+    }
+
+    // ── WEBHOOK MERCADO PAGO ──────────────────────────────────────
+    @Transactional
+    public void handleMercadoPagoWebhook(String paymentId) {
+        MercadoPagoService.MpPaymentDetails details = mercadoPagoService.getPaymentDetails(paymentId);
+        if (details == null || details.externalReference() == null) return;
+
+        try {
+            UUID orderId = UUID.fromString(details.externalReference());
+            orderRepository.findById(orderId).ifPresent(order -> {
+                boolean wasFirstConfirmation = false;
+                String status = details.status();
+                if ("approved".equals(status)) {
+                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+                        decrementOrderStock(order.getItems());
+                        wasFirstConfirmation = true;
+                    }
+                    order.setStatus(OrderStatus.PAID);
+                } else if ("rejected".equals(status) || "cancelled".equals(status)) {
+                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+                        order.setStatus(OrderStatus.CANCELLED);
+                    }
+                }
+                Order saved = orderRepository.save(order);
+                log.info("Webhook Mercado Pago: pedido {} → {}", orderId, order.getStatus());
+                if (wasFirstConfirmation) {
+                    try { emailService.sendOrderConfirmation(saved); } catch (Exception e) {
+                        log.warn("Falha ao enviar e-mail de confirmação via webhook MP: {}", e.getMessage());
+                    }
+                }
+            });
+        } catch (IllegalArgumentException e) {
+            log.warn("externalReference inválido no webhook MP: {}", details.externalReference());
         }
     }
 

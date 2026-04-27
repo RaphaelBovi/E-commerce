@@ -322,6 +322,16 @@ export default function Checkout({ cartItems, onClearCart }) {
 
     setIsProcessing(true);
     try {
+      const freightItem = selectedFreight && Number(selectedFreight.price) > 0
+        ? [{
+            productId:    null,
+            productName:  `Frete — ${selectedFreight.carrier} ${selectedFreight.service}`,
+            productImage: null,
+            unitPrice:    Number(selectedFreight.price),
+            quantity:     1,
+          }]
+        : [];
+
       const result = await createCheckoutSession({
         paymentMethod,
         gateway,
@@ -336,13 +346,16 @@ export default function Checkout({ cartItems, onClearCart }) {
         city:  address.cidade,
         state: address.estado,
         zipCode: address.cep.replace(/\D/g, ''),
-        items: cartItems.map((item) => ({
-          productId:    item.id,
-          productName:  item.name,
-          productImage: item.image || null,
-          unitPrice:    item.price,
-          quantity:     item.quantity,
-        })),
+        items: [
+          ...cartItems.map((item) => ({
+            productId:    item.id,
+            productName:  item.name,
+            productImage: item.image || null,
+            unitPrice:    item.price,
+            quantity:     item.quantity,
+          })),
+          ...freightItem,
+        ],
         couponCode: couponCode || null,
         guestEmail: isAuthenticated ? null : guestEmail.trim() || null,
       }, captchaToken);

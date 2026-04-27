@@ -25,8 +25,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record OrderItemRequest(
-        // UUID do produto no catálogo — referência para identificação do item
-        @NotNull UUID productId,
+        // UUID do produto no catálogo — null permitido para itens especiais (ex.: frete)
+        UUID productId,
 
         // Nome do produto no momento da compra — copiado para preservar histórico
         @NotBlank String productName,

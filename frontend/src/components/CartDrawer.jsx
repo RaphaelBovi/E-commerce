@@ -68,11 +68,13 @@ export default function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantit
                   <div className="cart-item-actions">
                     {/* Controles de quantidade: diminui / exibe valor / aumenta */}
                     <div className="cart-quantity-controls">
-                      {/* Diminui quantidade em 1 (o App impede ir abaixo de 1) */}
                       <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
                       <span>{item.quantity}</span>
-                      {/* Aumenta quantidade em 1 */}
-                      <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}>+</button>
+                      <button
+                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                        disabled={item.qnt != null && item.quantity >= item.qnt}
+                        title={item.qnt != null && item.quantity >= item.qnt ? 'Estoque máximo atingido' : undefined}
+                      >+</button>
                     </div>
 
                     {/* Botão de remover item completamente do carrinho */}

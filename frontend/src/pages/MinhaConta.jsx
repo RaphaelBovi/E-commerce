@@ -452,12 +452,15 @@ export default function MinhaConta() {
     <div className="mc-page">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      <div className="mc-container container">
+      <div className="container">
         <Breadcrumb items={[
           { label: 'Home', href: '/' },
           { label: 'Minha Conta', href: '/minha-conta' },
           { label: SECTION_LABELS[section] ?? section },
         ]} />
+      </div>
+
+      <div className="mc-container container">
 
         {/* Sidebar */}
         <aside className="mc-sidebar">

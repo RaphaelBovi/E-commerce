@@ -161,6 +161,20 @@ function App() {
   // caso contrário, adiciona um novo item.
   // Também abre o drawer automaticamente após adicionar.
   const handleAddToCart = (product, quantity = 1) => {
+    const maxQty = product.qnt ?? Infinity;
+    const existing = cartItems.find(item => item.id === product.id);
+    const currentQty = existing ? existing.quantity : 0;
+
+    if (currentQty + quantity > maxQty) {
+      toast.error(
+        maxQty === 0
+          ? 'Produto fora de estoque.'
+          : `Estoque insuficiente! Disponível: ${maxQty} unidade${maxQty !== 1 ? 's' : ''}.`,
+        { duration: 2500, position: 'top-right' }
+      );
+      return;
+    }
+
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
       if (existingItem) {
@@ -178,16 +192,17 @@ function App() {
   };
 
   // ─── Atualizar quantidade de um item ────────────────────────────
-  // Recebe o id do produto e a nova quantidade desejada.
-  // Impede quantidade abaixo de 1 (para remover, use handleRemoveItem).
   const handleUpdateQuantity = (productId, newQuantity) => {
     if (newQuantity < 1) return;
 
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId ? { ...item, quantity: newQuantity } : item
-      )
-    );
+    setCartItems(prevItems => {
+      const item = prevItems.find(i => i.id === productId);
+      if (!item) return prevItems;
+      const maxQty = item.qnt ?? Infinity;
+      const clamped = Math.min(newQuantity, maxQty);
+      if (clamped === item.quantity) return prevItems;
+      return prevItems.map(i => i.id === productId ? { ...i, quantity: clamped } : i);
+    });
   };
 
   // ─── Remover item do carrinho ────────────────────────────────────

@@ -28,7 +28,8 @@ import {
 
 // Props:
 //  - children: qualquer elemento React que precisar de autenticação
-export default function AuthProvider({ children }) {
+//  - onLogout: callback opcional chamado após o logout (ex.: limpar carrinho)
+export default function AuthProvider({ children, onLogout }) {
   // Estado do usuário autenticado: { token, email, role } ou null
   // loadStoredSession é passado como função (lazy initializer) para
   // ler o localStorage apenas uma vez na montagem, sem re-executar nos re-renders
@@ -83,12 +84,13 @@ export default function AuthProvider({ children }) {
   }, []);
 
   // ─── Logout ─────────────────────────────────────────────────────
-  // Remove a sessão do localStorage e define o usuário como null,
-  // forçando todos os componentes que consomem o contexto a atualizar.
+  // Remove a sessão do localStorage, limpa o estado e notifica o App
+  // para limpar o carrinho via callback onLogout.
   const logout = useCallback(() => {
     clearSession();
     setUser(null);
-  }, []);
+    onLogout?.();
+  }, [onLogout]);
 
   // ─── Valor do contexto ──────────────────────────────────────────
   // useMemo evita recriar o objeto a cada render; só recria quando

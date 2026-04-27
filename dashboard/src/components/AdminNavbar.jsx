@@ -19,7 +19,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaBars, FaTimes, FaStore, FaChartBar, FaBoxOpen,
-  FaClipboardList, FaFileInvoice, FaUsers, FaSignOutAlt, FaHeadset,
+  FaClipboardList, FaFileInvoice, FaUsers, FaSignOutAlt, FaHeadset, FaTag, FaStar, FaListUl, FaChartLine, FaImage, FaUndoAlt,
 } from "react-icons/fa";
 import "./AdminNavbar.css";
 
@@ -39,17 +39,23 @@ function getSession() {
 // Cada objeto define: rota de destino (to), ícone React Icons (icon) e rótulo (label).
 // Para adicionar uma nova página ao menu, insira um item aqui.
 const NAV_ITEMS = [
-  { to: "/",         icon: <FaChartBar />,      label: "Dashboard" },
-  { to: "/pedidos",  icon: <FaClipboardList />,  label: "Pedidos" },
-  { to: "/produtos", icon: <FaBoxOpen />,         label: "Produtos" },
-  { to: "/notas",    icon: <FaFileInvoice />,     label: "Notas Fiscais" },
-  { to: "/tickets",  icon: <FaHeadset />,         label: "Suporte" },
+  { to: "/",           icon: <FaChartBar />,      label: "Dashboard"    },
+  { to: "/relatorios", icon: <FaChartLine />,     label: "Relatórios"   },
+  { to: "/pedidos",    icon: <FaClipboardList />, label: "Pedidos"      },
+  { to: "/produtos",   icon: <FaBoxOpen />,       label: "Produtos"     },
+  { to: "/notas",      icon: <FaFileInvoice />,   label: "Notas Fiscais" },
+  { to: "/tickets",    icon: <FaHeadset />,       label: "Suporte"      },
+  { to: "/banners",    icon: <FaImage />,         label: "Banners"      },
+  { to: "/devolucoes", icon: <FaUndoAlt />,      label: "Devoluções"   },
 ];
 
 // Itens do menu de administração — visíveis apenas para usuários com role "MASTER".
 // Exibidos em uma seção separada abaixo dos itens principais.
 const ADMIN_ITEMS = [
-  { to: "/usuarios", icon: <FaUsers />, label: "Usuários" },
+  { to: "/usuarios",   icon: <FaUsers />,   label: "Usuários" },
+  { to: "/categorias", icon: <FaListUl />,  label: "Categorias" },
+  { to: "/cupons",     icon: <FaTag />,     label: "Cupons" },
+  { to: "/avaliacoes", icon: <FaStar />,    label: "Avaliações" },
 ];
 
 export default function AdminNavbar() {

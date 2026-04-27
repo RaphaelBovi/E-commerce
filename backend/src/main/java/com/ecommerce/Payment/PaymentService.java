@@ -2,6 +2,8 @@ package com.ecommerce.Payment;
 
 import com.ecommerce.Auth.Entity.User;
 import com.ecommerce.Auth.Repository.UserRepository;
+import com.ecommerce.Auth.Service.EmailService;
+import com.ecommerce.Coupon.CouponService;
 import com.ecommerce.Order.Entity.*;
 import com.ecommerce.Order.Repository.OrderRepository;
 import com.ecommerce.Payment.Dto.CheckoutRequest;
@@ -25,7 +27,13 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 @Slf4j
@@ -34,6 +42,9 @@ public class PaymentService {
 
     @Value("${pagseguro.token:}")
     private String pagseguroToken;
+
+    @Value("${pagseguro.webhook-secret:}")
+    private String webhookSecret;
 
     @Value("${pagseguro.api-url:https://sandbox.api.pagseguro.com}")
     private String pagseguroApiUrl;
@@ -52,6 +63,12 @@ public class PaymentService {
 
     @Autowired
     private ProductCategoryRepository productCategoryRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private CouponService couponService;
 
     private final RestClient restClient = RestClient.create();
 
@@ -136,8 +153,11 @@ public class PaymentService {
                 savedOrder.setStatus(OrderStatus.PAID);
                 savedOrder.setPagseguroChargeId(charge.chargeId());
                 decrementOrderStock(savedOrder.getItems());
-                orderRepository.save(savedOrder);
-                yield new CheckoutResponse(savedOrder.getId(), charge.chargeId(), charge.status(),
+                Order paidOrder = orderRepository.save(savedOrder);
+                try { emailService.sendOrderConfirmation(paidOrder); } catch (Exception e) {
+                    log.warn("Falha ao enviar e-mail de confirmação: {}", e.getMessage());
+                }
+                yield new CheckoutResponse(paidOrder.getId(), charge.chargeId(), charge.status(),
                         total, true, "Pagamento aprovado! Seu pedido está sendo preparado.");
             }
             case "IN_ANALYSIS" -> {
@@ -247,10 +267,26 @@ public class PaymentService {
 
     // ── CHECKOUT REDIRECT ─────────────────────────────────────────
     // Cria o pedido no banco e uma sessão de checkout no PagSeguro.
+    // Suporta usuários autenticados e convidados (guestEmail obrigatório para guests).
     // O frontend redireciona o usuário para o paymentUrl retornado.
     @Transactional
     public CheckoutSessionResponse createCheckoutSession(CreateCheckoutSessionRequest request) {
-        User user = getCurrentUser();
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isGuest = auth == null || !auth.isAuthenticated()
+                || auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken;
+
+        User user = null;
+        String customerEmail;
+
+        if (!isGuest) {
+            user = getCurrentUser();
+            customerEmail = user.getEmail();
+        } else {
+            if (request.guestEmail() == null || request.guestEmail().isBlank()) {
+                throw new BusinessException("E-mail é obrigatório para compras sem cadastro.");
+            }
+            customerEmail = request.guestEmail().trim();
+        }
 
         validateStock(request.items());
 
@@ -262,6 +298,7 @@ public class PaymentService {
 
         Order order = Order.builder()
                 .user(user)
+                .guestEmail(isGuest ? customerEmail : null)
                 .status(OrderStatus.PENDING_PAYMENT)
                 .paymentMethod(method)
                 .totalAmount(BigDecimal.ZERO)
@@ -282,11 +319,17 @@ public class PaymentService {
                 .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // Aplica cupom de desconto se informado
+        if (request.couponCode() != null && !request.couponCode().isBlank()) {
+            java.math.BigDecimal discount = couponService.applyCoupon(request.couponCode(), total);
+            total = total.subtract(discount).max(BigDecimal.ZERO);
+        }
+
         order.setTotalAmount(total);
         order.getItems().addAll(items);
         Order savedOrder = orderRepository.save(order);
 
-        String paymentUrl = callPagseguroCheckout(savedOrder, user.getEmail(), total, request);
+        String paymentUrl = callPagseguroCheckout(savedOrder, customerEmail, total, request);
         return new CheckoutSessionResponse(savedOrder.getId(), paymentUrl);
     }
 
@@ -436,6 +479,39 @@ public class PaymentService {
         return v == null ? "" : v.replaceAll("\\D", "");
     }
 
+    // ── VERIFICAÇÃO DE ASSINATURA DO WEBHOOK ──────────────────────
+    // O PagSeguro envia HMAC-SHA256(raw_body, webhook_secret) em hex no header
+    // x-pagseguro-signature. Retorna false se assinatura ausente ou inválida.
+    // Se webhook-secret não estiver configurado (dev local), aceita sem verificar.
+    public boolean isValidWebhookSignature(String rawBody, String signature) {
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            log.warn("pagseguro.webhook-secret não configurado — verificação de assinatura ignorada");
+            return true;
+        }
+        if (signature == null || signature.isBlank()) {
+            return false;
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hash = mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8));
+            String expected = toHex(hash);
+            // Comparação constant-time para prevenir timing attacks
+            return MessageDigest.isEqual(
+                    expected.getBytes(StandardCharsets.UTF_8),
+                    signature.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            log.error("Erro ao verificar assinatura HMAC do webhook", e);
+            return false;
+        }
+    }
+
+    private static String toHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) sb.append(String.format("%02x", b));
+        return sb.toString();
+    }
+
     // ── WEBHOOK ───────────────────────────────────────────────────
     // Recebe notificações assíncronas do PagSeguro quando o status muda
     @Transactional
@@ -450,18 +526,23 @@ public class PaymentService {
             UUID orderId = UUID.fromString(referenceId);
             orderRepository.findById(orderId).ifPresent(order -> {
                 if (chargeId != null) order.setPagseguroChargeId(chargeId);
+                boolean wasFirstConfirmation = false;
                 if ("PAID".equals(status) || "AUTHORIZED".equals(status)) {
-                    // Decrementa estoque apenas na primeira vez que o pedido é confirmado
-                    // (evita duplo-decremento se o webhook for disparado mais de uma vez)
                     if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
                         decrementOrderStock(order.getItems());
+                        wasFirstConfirmation = true;
                     }
                     order.setStatus(OrderStatus.PAID);
                 } else if ("DECLINED".equals(status) && order.getStatus() == OrderStatus.PENDING_PAYMENT) {
                     order.setStatus(OrderStatus.CANCELLED);
                 }
-                orderRepository.save(order);
+                Order saved = orderRepository.save(order);
                 log.info("Webhook PagSeguro: pedido {} → {}", orderId, order.getStatus());
+                if (wasFirstConfirmation) {
+                    try { emailService.sendOrderConfirmation(saved); } catch (Exception e) {
+                        log.warn("Falha ao enviar e-mail de confirmação via webhook: {}", e.getMessage());
+                    }
+                }
             });
         } catch (IllegalArgumentException e) {
             log.warn("reference_id inválido no webhook PagSeguro: {}", referenceId);

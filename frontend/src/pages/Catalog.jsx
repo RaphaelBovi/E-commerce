@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaListUl, FaTh, FaFilter, FaBoxOpen } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
+import { fetchCategories } from '../services/categoriesApi';
+import { useSEO } from '../hooks/useSEO';
+import Breadcrumb from '../components/Breadcrumb';
 import './Catalog.css';
 
 const itemsPerPage = 12;
@@ -31,6 +34,8 @@ export default function Catalog({
   initialFilters = {},
   forcedFilters = {},
 }) {
+  useSEO({ title: pageTitle, description: pageSubtitle });
+  const [apiCategories, setApiCategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -55,6 +60,10 @@ export default function Catalog({
   const forcedMaxPrice = toNumberOrNull(forcedFilters.maxPrice);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
+
+  useEffect(() => {
+    fetchCategories().then(setApiCategories).catch(() => {});
+  }, []);
 
   useEffect(() => {
     try { sessionStorage.setItem(VIEW_STORAGE_KEY, viewMode); } catch { /* ignore */ }
@@ -149,6 +158,9 @@ export default function Catalog({
   return (
     <main className={`container catalog-page page-${pageVariant}`}>
 
+      {/* ── Breadcrumb ── */}
+      <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: pageTitle }]} />
+
       {/* ── Cabeçalho ── */}
       <header className="catalog-hero">
         <div className="catalog-hero-text">
@@ -208,9 +220,9 @@ export default function Catalog({
                   disabled={Boolean(forcedCategory)}
                 >
                   <option value="">Todas</option>
-                  <option value="mais-vendidos">Mais vendidos</option>
-                  <option value="novidades">Novidades</option>
-                  <option value="geral">Geral</option>
+                  {apiCategories.map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>{cat.name}</option>
+                  ))}
                 </select>
 
                 <div className="price-range">

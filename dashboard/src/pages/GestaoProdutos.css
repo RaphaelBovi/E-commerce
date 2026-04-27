@@ -191,3 +191,27 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+.gp-section-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 1.25rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.25rem 0 0.25rem;
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+}
+
+.gp-page-info {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}

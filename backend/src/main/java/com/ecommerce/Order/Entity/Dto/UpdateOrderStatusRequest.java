@@ -18,8 +18,7 @@ import com.ecommerce.Order.Entity.OrderStatus;
 import jakarta.validation.constraints.NotNull;
 
 public record UpdateOrderStatusRequest(
-        // Novo status a ser atribuído ao pedido — obrigatório
-        // Deve ser um dos valores do enum OrderStatus:
-        // PENDING_PAYMENT, PAID, PREPARING, SHIPPED, DELIVERED, CANCELLED
-        @NotNull OrderStatus status
+        @NotNull OrderStatus status,
+        String trackingCode,
+        String trackingUrl
 ) {}

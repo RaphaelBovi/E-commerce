@@ -44,6 +44,16 @@ public class ProductCategoryResponse {
 
     private Instant createdAt;
 
+    // Review summary — populated by ProductService (not from the entity directly)
+    private Double averageRating;
+    private long reviewCount;
+
+    // Shipping dimensions — nullable, returned to dashboard for editing
+    private BigDecimal weightKg;
+    private Integer widthCm;
+    private Integer heightCm;
+    private Integer lengthCm;
+
     public static ProductCategoryResponse from(ProductCategory p) {
         ProductCategoryResponse r = new ProductCategoryResponse();
         r.id    = p.getId();
@@ -68,6 +78,11 @@ public class ProductCategoryResponse {
         r.image = imgs.isEmpty() ? p.getImage() : imgs.get(0);
 
         r.createdAt = p.getCreatedAt();
+
+        r.weightKg = p.getWeightKg();
+        r.widthCm  = p.getWidthCm();
+        r.heightCm = p.getHeightCm();
+        r.lengthCm = p.getLengthCm();
 
         return r;
     }

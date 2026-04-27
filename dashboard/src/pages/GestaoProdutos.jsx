@@ -1,22 +1,26 @@
-import { useEffect, useMemo, useState, useRef } from "react";
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes, FaTag, FaImages, FaUpload } from "react-icons/fa";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes, FaTag, FaImages, FaUpload, FaChevronLeft, FaChevronRight, FaFileCsv } from "react-icons/fa";
+
+const PAGE_SIZE = 20;
 import {
   fetchProducts,
   createProduct,
   updateProductByRef,
   deleteProductByRef,
+  importProductsCsv,
 } from "../services/productsApi.js";
+import { fetchPublicCategories } from "../services/categoriesApi.js";
 import "./GestaoProdutos.css";
 
-const CATEGORIES = ["mais-vendidos", "novidades", "geral"];
 const MAX_IMAGES  = 5;
 const MAX_DIM     = 1200;   // max width/height in px after resize
 const MAX_BYTES   = 1024 * 1024; // 1 MB target per image (base64 ~1.37x raw)
 
 const EMPTY_FORM = {
   name: "", ref: "", price: "", promotionalPrice: "",
-  qnt: "", marca: "", category: "geral",
+  qnt: "", marca: "", category: "",
   image: "", images: [],
+  weightKg: "", widthCm: "", heightCm: "", lengthCm: "",
 };
 
 // ─── Image compression via Canvas ────────────────────────────────
@@ -87,6 +91,11 @@ export default function GestaoProdutos() {
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState(null);
   const [compressing, setCompressing] = useState(false);
+  const [categories, setCategories]   = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvResult, setCsvResult]       = useState(null);
+  const csvInputRef = useRef(null);
 
   const load = () => {
     setLoading(true);
@@ -97,8 +106,14 @@ export default function GestaoProdutos() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetchPublicCategories()
+      .then((cats) => setCategories(cats.map((c) => c.slug)))
+      .catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
+    setCurrentPage(1);
     return products.filter((p) => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
@@ -111,6 +126,10 @@ export default function GestaoProdutos() {
       return matchSearch && matchCat && matchStock && matchPromo;
     });
   }, [products, search, catFilter, stockFilter, promoFilter]);
+
+  const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage    = Math.min(currentPage, totalPages);
+  const paginated   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -130,6 +149,10 @@ export default function GestaoProdutos() {
       category: p.category,
       image: "",       // legacy field not shown in edit
       images: p.images || [],
+      weightKg: p.weightKg != null ? String(p.weightKg) : "",
+      widthCm:  p.widthCm  != null ? String(p.widthCm)  : "",
+      heightCm: p.heightCm != null ? String(p.heightCm) : "",
+      lengthCm: p.lengthCm != null ? String(p.lengthCm) : "",
     });
     setEditRef(p.ref);
     setFormError("");
@@ -201,6 +224,11 @@ export default function GestaoProdutos() {
       if (promoPrice >= price) { setFormError("Preço promocional deve ser menor que o preço original."); return; }
     }
 
+    const weightKg = form.weightKg.trim() === "" ? null : Number(form.weightKg);
+    const widthCm  = form.widthCm.trim()  === "" ? null : Number(form.widthCm);
+    const heightCm = form.heightCm.trim() === "" ? null : Number(form.heightCm);
+    const lengthCm = form.lengthCm.trim() === "" ? null : Number(form.lengthCm);
+
     const payload = {
       name: form.name.trim(),
       ref:  form.ref.trim().toUpperCase(),
@@ -211,6 +239,10 @@ export default function GestaoProdutos() {
       category: form.category,
       image:    null,
       images:   form.images,
+      weightKg,
+      widthCm,
+      heightCm,
+      lengthCm,
     };
 
     setSaving(true);
@@ -248,6 +280,35 @@ export default function GestaoProdutos() {
     }
   };
 
+  const handleCsvUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setCsvImporting(true);
+    setCsvResult(null);
+    try {
+      const result = await importProductsCsv(file);
+      setCsvResult(result);
+      if (result.imported > 0) load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
+  const downloadCsvTemplate = () => {
+    const header = "name,ref,price,promotionalPrice,qnt,marca,category,weightKg,widthCm,heightCm,lengthCm\n";
+    const sample = "Camiseta Básica,CAM-001,59.90,,10,MinhaМарка,roupas,0.3,30,5,40\n";
+    const blob = new Blob([header + sample], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "template_produtos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const promoCount = products.filter((p) => p.isPromo).length;
 
   return (
@@ -260,10 +321,14 @@ export default function GestaoProdutos() {
             {promoCount > 0 && <> · <span style={{ color: "var(--danger)" }}><FaTag style={{ marginRight: 4 }} />{promoCount} em promoção</span></>}
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button className="btn btn-outline btn-sm" onClick={load} disabled={loading}>
             <FaSyncAlt /> Atualizar
           </button>
+          <button className="btn btn-outline btn-sm" onClick={() => csvInputRef.current?.click()} disabled={csvImporting}>
+            <FaFileCsv /> {csvImporting ? "Importando…" : "Importar CSV"}
+          </button>
+          <input ref={csvInputRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={handleCsvUpload} />
           <button className="btn btn-primary" onClick={openCreate}>
             <FaPlus /> Novo Produto
           </button>
@@ -272,6 +337,32 @@ export default function GestaoProdutos() {
 
       {error   && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
+
+      {csvResult && (
+        <div className={`alert ${csvResult.errors.length > 0 && csvResult.imported === 0 ? "alert-error" : "alert-success"}`}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div>
+              <strong>{csvResult.imported} produto{csvResult.imported !== 1 ? "s" : ""} importado{csvResult.imported !== 1 ? "s" : ""}.</strong>
+              {csvResult.errors.length > 0 && <> · {csvResult.errors.length} linha{csvResult.errors.length !== 1 ? "s" : ""} com erro.</>}
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <button className="btn btn-outline btn-sm" style={{ fontSize: "0.75rem" }} onClick={downloadCsvTemplate}>
+                Baixar template CSV
+              </button>
+              <button className="btn btn-outline btn-sm" style={{ fontSize: "0.75rem" }} onClick={() => setCsvResult(null)}>
+                <FaTimes />
+              </button>
+            </div>
+          </div>
+          {csvResult.errors.length > 0 && (
+            <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.25rem", fontSize: "0.8rem" }}>
+              {csvResult.errors.map((e) => (
+                <li key={e.row}>Linha {e.row}: {e.message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="produtos-toolbar">
@@ -289,7 +380,7 @@ export default function GestaoProdutos() {
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <select className="filter-select" value={catFilter} onChange={(e) => setCat(e.target.value)}>
               <option value="all">Todas categorias</option>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <select className="filter-select" value={stockFilter} onChange={(e) => setStock(e.target.value)}>
               <option value="all">Todo estoque</option>
@@ -326,7 +417,7 @@ export default function GestaoProdutos() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => {
+                {paginated.map((p) => {
                   const thumb = p.images?.[0] || p.image;
                   return (
                     <tr key={p.ref || p.id}>
@@ -383,6 +474,29 @@ export default function GestaoProdutos() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* ── Paginação ── */}
+        {!loading && filtered.length > PAGE_SIZE && (
+          <div className="gp-pagination">
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+            >
+              <FaChevronLeft /> Anterior
+            </button>
+            <span className="gp-page-info">
+              Página {safePage} de {totalPages} · {filtered.length} produtos
+            </span>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+            >
+              Próxima <FaChevronRight />
+            </button>
           </div>
         )}
       </div>
@@ -450,7 +564,8 @@ export default function GestaoProdutos() {
                 <div className="input-group">
                   <label>Categoria</label>
                   <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    <option value="">Selecione…</option>
+                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
 
@@ -498,6 +613,31 @@ export default function GestaoProdutos() {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Shipping dimensions */}
+              <div className="gp-section-label">Dimensões para frete <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span></div>
+              <div className="grid-2">
+                <div className="input-group">
+                  <label>Peso (kg)</label>
+                  <input type="number" min="0.001" step="0.001" placeholder="Ex: 0.5"
+                    value={form.weightKg} onChange={(e) => setForm((f) => ({ ...f, weightKg: e.target.value }))} />
+                </div>
+                <div className="input-group">
+                  <label>Largura (cm)</label>
+                  <input type="number" min="1" step="1" placeholder="Ex: 15"
+                    value={form.widthCm} onChange={(e) => setForm((f) => ({ ...f, widthCm: e.target.value }))} />
+                </div>
+                <div className="input-group">
+                  <label>Altura (cm)</label>
+                  <input type="number" min="1" step="1" placeholder="Ex: 10"
+                    value={form.heightCm} onChange={(e) => setForm((f) => ({ ...f, heightCm: e.target.value }))} />
+                </div>
+                <div className="input-group">
+                  <label>Comprimento (cm)</label>
+                  <input type="number" min="1" step="1" placeholder="Ex: 20"
+                    value={form.lengthCm} onChange={(e) => setForm((f) => ({ ...f, lengthCm: e.target.value }))} />
                 </div>
               </div>
 

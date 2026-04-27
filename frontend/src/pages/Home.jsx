@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaShieldAlt, FaShippingFast, FaStar, FaCreditCard, FaTag, FaArrowRight } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import AutoCarousel from '../components/AutoCarousel';
+import { useSEO } from '../hooks/useSEO';
+import { fetchBanners } from '../services/bannersApi';
+import { getRecentlyViewed } from '../hooks/useRecentlyViewed';
 import './Home.css';
 
 function sortByNewest(list) {
@@ -17,7 +20,16 @@ function SkeletonCard() {
 }
 
 export default function Home({ onAddToCart, products, isLoadingProducts, productsError }) {
+  useSEO({ title: "Início", description: "Produtos de qualidade com entrega rápida para todo o Brasil. Confira nossas ofertas, lançamentos e mais vendidos." });
+  const [heroBanners, setHeroBanners] = useState([]);
+
+  useEffect(() => {
+    fetchBanners('HERO').then(setHeroBanners);
+  }, []);
+
   const heroProduct   = products[0];
+  const activeBanner     = heroBanners[0] ?? null;
+  const recentlyViewed   = getRecentlyViewed(products);
   const maisVendidos  = products.filter(p => p.category === 'mais-vendidos').slice(0, 10);
   const novidades     = sortByNewest(products).slice(0, 15);
   const gerais        = products.filter(p => p.category === 'geral').slice(0, 10);
@@ -32,39 +44,59 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
         )}
 
         {/* ── Hero ── */}
-        <section className="home-hero">
-          <div className="hero-content">
-            <span className="hero-kicker">Bem-vindo à loja</span>
-            <h1>Produtos com qualidade<br />e preço justo</h1>
-            <p className="hero-description">
-              Navegue pelo catálogo, compare opções e monte seu pedido com poucos cliques.
-              Entrega rápida para todo o Brasil.
-            </p>
-            <div className="hero-actions">
-              <Link to="/catalogo" className="hero-cta-primary">
-                Ver catálogo completo
-              </Link>
-              <Link to="/promocoes" className="hero-link-secondary">
-                Ver ofertas
-              </Link>
+        {activeBanner ? (
+          <section
+            className="home-hero home-hero--banner"
+            style={activeBanner.imageUrl ? { backgroundImage: `url(${activeBanner.imageUrl})` } : {}}
+          >
+            <div className="hero-banner-overlay" />
+            <div className="hero-content hero-content--banner">
+              <h1>{activeBanner.title}</h1>
+              {activeBanner.subtitle && <p className="hero-description">{activeBanner.subtitle}</p>}
+              <div className="hero-actions">
+                {activeBanner.linkUrl ? (
+                  <a href={activeBanner.linkUrl} className="hero-cta-primary">Ver agora</a>
+                ) : (
+                  <Link to="/catalogo" className="hero-cta-primary">Ver catálogo</Link>
+                )}
+              </div>
             </div>
-          </div>
-
-          {heroProduct && (
-            <div className="hero-highlight-card">
-              <span className="hero-highlight-tag">Destaque</span>
-              <img src={heroProduct.image} alt={heroProduct.name} className="hero-highlight-image" />
-              <h3>{heroProduct.name}</h3>
-              <p className="hero-highlight-ref">Ref. {heroProduct.ref}</p>
-              <p className="hero-highlight-price">
-                {heroProduct.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </section>
+        ) : (
+          <section className="home-hero">
+            <div className="hero-content">
+              <span className="hero-kicker">Bem-vindo à loja</span>
+              <h1>Produtos com qualidade<br />e preço justo</h1>
+              <p className="hero-description">
+                Navegue pelo catálogo, compare opções e monte seu pedido com poucos cliques.
+                Entrega rápida para todo o Brasil.
               </p>
-              <button type="button" className="btn-gold" onClick={() => onAddToCart(heroProduct)}>
-                Adicionar ao carrinho
-              </button>
+              <div className="hero-actions">
+                <Link to="/catalogo" className="hero-cta-primary">
+                  Ver catálogo completo
+                </Link>
+                <Link to="/promocoes" className="hero-link-secondary">
+                  Ver ofertas
+                </Link>
+              </div>
             </div>
-          )}
-        </section>
+
+            {heroProduct && (
+              <div className="hero-highlight-card">
+                <span className="hero-highlight-tag">Destaque</span>
+                <img src={heroProduct.image} alt={heroProduct.name} className="hero-highlight-image" />
+                <h3>{heroProduct.name}</h3>
+                <p className="hero-highlight-ref">Ref. {heroProduct.ref}</p>
+                <p className="hero-highlight-price">
+                  {heroProduct.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+                <button type="button" className="btn-gold" onClick={() => onAddToCart(heroProduct)}>
+                  Adicionar ao carrinho
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ── Trust bar ── */}
         <div className="home-trust-bar">
@@ -184,6 +216,21 @@ export default function Home({ onAddToCart, products, isLoadingProducts, product
             <div className="view-all-container">
               <Link to="/catalogo" className="btn-view-all">Ver catálogo completo</Link>
             </div>
+          </section>
+        )}
+
+        {/* ── Vistos recentemente ── */}
+        {!isLoadingProducts && recentlyViewed.length > 0 && (
+          <section className="product-section">
+            <div className="section-header">
+              <div className="section-header-left">
+                <div>
+                  <h2>Vistos recentemente</h2>
+                  <p className="section-subtitle">Continue de onde parou</p>
+                </div>
+              </div>
+            </div>
+            <AutoCarousel products={recentlyViewed} onAddToCart={onAddToCart} />
           </section>
         )}
 

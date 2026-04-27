@@ -107,4 +107,11 @@ public class AuthController {
         authService.changePassword(request);
         return ResponseEntity.noContent().build();
     }
+
+    // ── DELETE /api/auth/me ───────────────────────────────────────
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteAccount() {
+        authService.deleteAccount();
+        return ResponseEntity.noContent().build();
+    }
 }

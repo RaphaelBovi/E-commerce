@@ -720,3 +720,141 @@
   .chk-field-row { flex-direction: column; }
   .chk-field--sm, .chk-field--xs { width: 100%; }
 }
+
+/* ─── Coupon ──────────────────────────────────────── */
+.chk-coupon-section { padding: 0 1.5rem 1.25rem; }
+.chk-coupon-row { display: flex; gap: 0.5rem; }
+.chk-coupon-input {
+  flex: 1;
+  padding: 0.6rem 0.875rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.chk-coupon-input:focus { border-color: var(--primary); }
+.chk-coupon-btn {
+  padding: 0.6rem 1.1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+.chk-coupon-btn:hover:not(:disabled) { background: var(--primary-hover); }
+.chk-coupon-btn:disabled { opacity: 0.6; cursor: default; }
+.chk-coupon-error { margin: 0.4rem 0 0; font-size: 0.82rem; color: var(--danger); }
+.chk-coupon-applied {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--success);
+}
+.chk-coupon-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--success);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+.chk-coupon-discount { color: var(--success) !important; }
+.chk-summary-row.chk-coupon-discount span { color: var(--success); }
+}
+
+/* ─── Freight ─────────────────────────────────── */
+.chk-freight-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
+}
+.chk-freight-error {
+  font-size: 0.82rem;
+  color: var(--warning);
+  padding: 0.5rem 0;
+}
+.chk-freight-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.chk-freight-opt {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.chk-freight-opt:hover { border-color: var(--primary); background: var(--primary-soft); }
+.chk-freight-opt.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.chk-freight-opt-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.1rem;
+}
+.chk-freight-carrier {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.chk-freight-service {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.chk-freight-days {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.chk-freight-price {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ─── Guest section ──────────────────────────────── */
+.chk-guest-section {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.chk-guest-hint {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.chk-guest-login-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+.chk-guest-login-link:hover {
+  text-decoration: underline;
+}

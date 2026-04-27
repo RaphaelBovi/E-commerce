@@ -41,10 +41,8 @@ public record OrderResponse(
         // Valor total do pedido (soma de unitPrice × quantity de todos os itens)
         BigDecimal totalAmount,
 
-        // Código de rastreio da entrega — null até o pedido ser enviado (status SHIPPED)
         String trackingCode,
-
-        // Endereço de entrega registrado no momento da criação do pedido
+        String trackingUrl,
         String deliveryAddress,
 
         // Lista de itens do pedido com nome, imagem, preço e quantidade de cada produto

@@ -32,6 +32,12 @@ import GestaoPedidos from "./pages/GestaoPedidos";
 import GestaoProdutos from "./pages/GestaoProdutos";
 import NotasFiscais from "./pages/NotasFiscais";
 import TicketsAdmin from "./pages/TicketsAdmin";
+import CuponsAdmin from "./pages/CuponsAdmin";
+import ReviewsAdmin from "./pages/ReviewsAdmin";
+import CategoriasAdmin from "./pages/CategoriasAdmin";
+import RelatoriosAdmin from "./pages/RelatoriosAdmin";
+import BannersAdmin from "./pages/BannersAdmin";
+import DevolucoesAdmin from "./pages/DevolucoesAdmin";
 
 // Lê e valida a sessão administrativa salva no sessionStorage.
 // Retorna o objeto { token, email, role } se válido, ou null caso contrário.
@@ -115,6 +121,12 @@ export default function App() {
           element={<ProtectedRoute><DashboardHome /></ProtectedRoute>}
         />
 
+        {/* Rota protegida — Relatórios gerenciais */}
+        <Route
+          path="/relatorios"
+          element={<ProtectedRoute><RelatoriosAdmin /></ProtectedRoute>}
+        />
+
         {/* Rota protegida — Lista e gerenciamento de pedidos */}
         <Route
           path="/pedidos"
@@ -137,6 +149,36 @@ export default function App() {
         <Route
           path="/tickets"
           element={<ProtectedRoute><TicketsAdmin /></ProtectedRoute>}
+        />
+
+        {/* Rota protegida — Cupons de desconto */}
+        <Route
+          path="/cupons"
+          element={<ProtectedRoute masterOnly><CuponsAdmin /></ProtectedRoute>}
+        />
+
+        {/* Rota protegida — Avaliações de produtos */}
+        <Route
+          path="/avaliacoes"
+          element={<ProtectedRoute masterOnly><ReviewsAdmin /></ProtectedRoute>}
+        />
+
+        {/* Rota protegida — Gestão de categorias */}
+        <Route
+          path="/categorias"
+          element={<ProtectedRoute masterOnly><CategoriasAdmin /></ProtectedRoute>}
+        />
+
+        {/* Rota protegida — Gestão de banners */}
+        <Route
+          path="/banners"
+          element={<ProtectedRoute><BannersAdmin /></ProtectedRoute>}
+        />
+
+        {/* Rota protegida — Solicitações de devolução */}
+        <Route
+          path="/devolucoes"
+          element={<ProtectedRoute><DevolucoesAdmin /></ProtectedRoute>}
         />
 
         {/* Rota protegida e exclusiva para MASTER — Gestão de admins */}

@@ -26,5 +26,11 @@ public record CreateCheckoutSessionRequest(
         @NotBlank @Size(min = 2, max = 2) String state,
         @NotBlank String zipCode,
 
-        @NotEmpty @Valid List<OrderItemRequest> items
+        @NotEmpty @Valid List<OrderItemRequest> items,
+
+        // Opcional: código de cupom de desconto
+        String couponCode,
+
+        // Convidado: e-mail informado manualmente (nulo quando o usuário está autenticado)
+        String guestEmail
 ) {}

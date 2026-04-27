@@ -237,6 +237,47 @@
   transform: none;
 }
 
+/* ─── Compare button ─────────────────────────── */
+.pc-compare-btn {
+  position: absolute;
+  top: 2.7rem;
+  right: 0.55rem;
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.92);
+  color: var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.78rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity var(--transition-fast), transform var(--transition-fast),
+              background var(--transition-fast), color var(--transition-fast);
+}
+
+.product-card:hover .pc-compare-btn,
+.pc-compare-btn--active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pc-compare-btn:hover {
+  background: #fff;
+  color: var(--primary);
+}
+
+.pc-compare-btn--active {
+  color: var(--primary) !important;
+  background: var(--primary-soft) !important;
+  border: 1px solid var(--primary-soft-border);
+}
+
 /* ─── Badge ──────────────────────────────────── */
 .product-badge {
   position: absolute;
@@ -265,6 +306,17 @@
   background: var(--text-muted);
   box-shadow: none;
 }
+
+/* ─── Star rating ────────────────────────────── */
+.pc-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.2rem 0 0.1rem;
+}
+.pc-rating-star { color: var(--accent); font-size: 0.8rem; }
+.pc-rating-avg { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.pc-rating-count { font-size: 0.78rem; color: var(--text-muted); }
 
 /* ─── Promo price highlight ──────────────────── */
 .product-price--promo {

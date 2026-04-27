@@ -18,12 +18,10 @@ package com.ecommerce;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
-// @SpringBootApplication — anotação composta que ativa três comportamentos:
-//   @Configuration      → esta classe pode definir beans Spring
-//   @EnableAutoConfiguration → Spring Boot configura automaticamente os componentes detectados no classpath
-//   @ComponentScan      → escaneia o pacote "com.ecommerce" e subpacotes em busca de componentes Spring
 @SpringBootApplication
+@EnableScheduling
 public class EcommerceApplication {
 
 	// Método main — ponto de entrada da JVM.

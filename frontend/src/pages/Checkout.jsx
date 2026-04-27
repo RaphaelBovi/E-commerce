@@ -6,8 +6,13 @@ import {
   FaShoppingCart, FaChevronRight, FaChevronLeft, FaSpinner,
   FaTimesCircle, FaBarcode, FaQrcode, FaUser, FaStore,
 } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 import { createCheckoutSession } from '../services/checkoutApi';
+import { validateCoupon } from '../services/couponsApi';
 import { getUserProfile } from '../services/authApi';
+import { useAuth } from '../context/useAuth';
+import { calculateFreight } from '../services/freightApi';
+import { useSEO } from '../hooks/useSEO';
 import './Checkout.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -83,8 +88,10 @@ function StepsBar({ current }) {
 }
 
 // ─── Sidebar ────────────────────────────────────────────────────────
-function OrderSummary({ cartItems }) {
+function OrderSummary({ cartItems, couponCode, couponDiscount, freightPrice }) {
   const subtotal = cartItems.reduce((s, it) => s + it.price * it.quantity, 0);
+  const freight  = freightPrice != null ? Number(freightPrice) : 0;
+  const total    = Math.max(0, subtotal + freight - (couponDiscount || 0));
   return (
     <aside className="chk-summary">
       <div className="chk-summary-head">Resumo do pedido</div>
@@ -109,12 +116,23 @@ function OrderSummary({ cartItems }) {
         </div>
         <div className="chk-summary-row">
           <span>Frete</span>
-          <span className="chk-free-shipping">Grátis</span>
+          {freightPrice == null
+            ? <span className="chk-free-shipping">—</span>
+            : freight === 0
+              ? <span className="chk-free-shipping">Grátis</span>
+              : <span>{fmt(freight)}</span>
+          }
         </div>
+        {couponDiscount > 0 && (
+          <div className="chk-summary-row chk-coupon-discount">
+            <span>Cupom {couponCode}</span>
+            <span>-{fmt(couponDiscount)}</span>
+          </div>
+        )}
         <div className="chk-summary-sep" />
         <div className="chk-summary-total">
           <span>Total</span>
-          <span>{fmt(subtotal)}</span>
+          <span>{fmt(total)}</span>
         </div>
       </div>
       <div className="chk-summary-trust">
@@ -127,9 +145,12 @@ function OrderSummary({ cartItems }) {
 
 // ─── Main component ─────────────────────────────────────────────────
 export default function Checkout({ cartItems, onClearCart }) {
+  useSEO({ title: "Finalizar compra", noindex: true });
+  const { isAuthenticated } = useAuth();
   const navigate    = useNavigate();
   const captchaRef  = useRef(null);
   const [step, setStep]               = useState(1);
+  const [guestEmail, setGuestEmail]   = useState('');
   const [error, setError]             = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaError, setCaptchaError] = useState('');
@@ -150,11 +171,26 @@ export default function Checkout({ cartItems, onClearCart }) {
   });
   const [cepLoading, setCepLoading] = useState(false);
 
+  // Freight
+  const [freightOptions,  setFreightOptions]  = useState([]);
+  const [selectedFreight, setSelectedFreight] = useState(null);
+  const [freightLoading,  setFreightLoading]  = useState(false);
+  const [freightError,    setFreightError]    = useState('');
+
+  // Step 1 — coupon
+  const [couponInput,    setCouponInput]    = useState('');
+  const [couponCode,     setCouponCode]     = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLoading,  setCouponLoading]  = useState(false);
+  const [couponError,    setCouponError]    = useState('');
+
   // Step 3 — payment
   const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD');
   const [isProcessing,  setIsProcessing]  = useState(false);
 
-  const total = cartItems.reduce((s, it) => s + it.price * it.quantity, 0);
+  const subtotal       = cartItems.reduce((s, it) => s + it.price * it.quantity, 0);
+  const freightPrice   = selectedFreight != null ? Number(selectedFreight.price ?? 0) : null;
+  const total          = Math.max(0, subtotal + (freightPrice ?? 0) - couponDiscount);
 
   // Pre-fill from user profile
   useEffect(() => {
@@ -179,7 +215,7 @@ export default function Checkout({ cartItems, onClearCart }) {
 
   const clearError = () => setError('');
 
-  // ── CEP auto-fill ───────────────────────────────────────────────
+  // ── CEP auto-fill + freight calculation ────────────────────────
   const handleCepLookup = useCallback(async (raw) => {
     const digits = (raw || address.cep).replace(/\D/g, '');
     if (digits.length !== 8) return;
@@ -193,14 +229,65 @@ export default function Checkout({ cartItems, onClearCart }) {
         cidade: data.localidade || prev.cidade,
         estado: data.uf         || prev.estado,
       }));
+
+      // Calculate freight for the given CEP
+      setFreightLoading(true);
+      setFreightError('');
+      setFreightOptions([]);
+      setSelectedFreight(null);
+      try {
+        const items = cartItems.map((it) => ({ productId: it.id, quantity: it.quantity }));
+        const options = await calculateFreight({ zipCode: digits, items });
+        setFreightOptions(options);
+        if (options.length > 0) setSelectedFreight(options[0]);
+      } catch {
+        setFreightError('Não foi possível calcular o frete. Continue para verificar as opções.');
+      } finally {
+        setFreightLoading(false);
+      }
     } else {
       setError('CEP não encontrado. Preencha o endereço manualmente.');
     }
     setCepLoading(false);
-  }, [address.cep]);
+  }, [address.cep, cartItems]);
+
+  // ── Coupon ──────────────────────────────────────────────────────
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const res = await validateCoupon(couponInput.trim(), subtotal);
+      setCouponCode(res.code);
+      setCouponDiscount(res.discountAmount);
+      toast.success(`Cupom ${res.code} aplicado!`, { duration: 2000 });
+    } catch (err) {
+      setCouponError(err.message);
+      setCouponCode('');
+      setCouponDiscount(0);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponDiscount(0);
+    setCouponInput('');
+    setCouponError('');
+    toast('Cupom removido', { duration: 1800 });
+  };
 
   // ── Step 1 → 2 ─────────────────────────────────────────────────
-  const goToDelivery = () => { clearError(); setStep(2); };
+  const goToDelivery = () => {
+    clearError();
+    if (!isAuthenticated) {
+      const trimmed = guestEmail.trim();
+      if (!trimmed) { setError('Informe seu e-mail para continuar.'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { setError('Informe um e-mail válido.'); return; }
+    }
+    setStep(2);
+  };
 
   // ── Step 2 → 3 ─────────────────────────────────────────────────
   const handleDeliverySubmit = (e) => {
@@ -249,6 +336,8 @@ export default function Checkout({ cartItems, onClearCart }) {
           unitPrice:    item.price,
           quantity:     item.quantity,
         })),
+        couponCode: couponCode || null,
+        guestEmail: isAuthenticated ? null : guestEmail.trim() || null,
       }, captchaToken);
 
       onClearCart();
@@ -332,6 +421,64 @@ export default function Checkout({ cartItems, onClearCart }) {
                       ))}
                     </div>
                   </div>
+                  {/* ── Guest email ── */}
+                  {!isAuthenticated && (
+                    <div className="chk-guest-section">
+                      <div className="chk-section-header">
+                        <div className="chk-section-icon"><FaUser /></div>
+                        <span className="chk-section-title">Comprar sem cadastro</span>
+                      </div>
+                      <div className="chk-field">
+                        <label htmlFor="chk-guest-email">
+                          Seu e-mail <span className="req">*</span>
+                        </label>
+                        <input
+                          id="chk-guest-email"
+                          type="email"
+                          placeholder="seu@email.com"
+                          value={guestEmail}
+                          onChange={(e) => { setGuestEmail(e.target.value); clearError(); }}
+                        />
+                        <span className="chk-guest-hint">
+                          Você receberá a confirmação do pedido neste e-mail.{' '}
+                          <a href="/login" className="chk-guest-login-link">Já tem conta? Entrar</a>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Coupon field ── */}
+                  <div className="chk-coupon-section">
+                    {couponCode ? (
+                      <div className="chk-coupon-applied">
+                        <FaCheck /> Cupom <strong>{couponCode}</strong> aplicado
+                        <button type="button" className="chk-coupon-remove" onClick={handleRemoveCoupon}>
+                          <FaTimesCircle />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="chk-coupon-row">
+                        <input
+                          type="text"
+                          className="chk-coupon-input"
+                          placeholder="Tem um cupom? Insira aqui"
+                          value={couponInput}
+                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyCoupon(); } }}
+                        />
+                        <button
+                          type="button"
+                          className="chk-coupon-btn"
+                          onClick={handleApplyCoupon}
+                          disabled={couponLoading || !couponInput.trim()}
+                        >
+                          {couponLoading ? <FaSpinner className="spin" /> : 'Aplicar'}
+                        </button>
+                      </div>
+                    )}
+                    {couponError && <p className="chk-coupon-error">{couponError}</p>}
+                  </div>
+
                   <div className="chk-actions">
                     <Link to="/catalogo" className="chk-btn-ghost">
                       <FaChevronLeft /> Continuar comprando
@@ -484,6 +631,46 @@ export default function Checkout({ cartItems, onClearCart }) {
                     </div>
                   </div>
 
+                  {/* Freight options */}
+                  {(freightLoading || freightOptions.length > 0 || freightError) && (
+                    <div className="chk-section">
+                      <div className="chk-section-header">
+                        <div className="chk-section-icon"><FaStore /></div>
+                        <span className="chk-section-title">Opções de frete</span>
+                      </div>
+                      {freightLoading && (
+                        <p className="chk-freight-loading"><FaSpinner className="spin" /> Calculando frete…</p>
+                      )}
+                      {freightError && !freightLoading && (
+                        <p className="chk-freight-error">{freightError}</p>
+                      )}
+                      {!freightLoading && freightOptions.length > 0 && (
+                        <div className="chk-freight-options">
+                          {freightOptions.map((opt, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              className={`chk-freight-opt ${selectedFreight === opt ? 'selected' : ''}`}
+                              onClick={() => setSelectedFreight(opt)}
+                            >
+                              <div className="chk-freight-opt-info">
+                                <span className="chk-freight-carrier">{opt.carrier}</span>
+                                <span className="chk-freight-service">{opt.service}</span>
+                                {opt.deliveryDays && (
+                                  <span className="chk-freight-days">{opt.deliveryDays} dia{opt.deliveryDays !== 1 ? 's' : ''} úteis</span>
+                                )}
+                              </div>
+                              <span className="chk-freight-price">
+                                {Number(opt.price) === 0 ? 'Grátis' : fmt(opt.price)}
+                              </span>
+                              <div className="chk-method-radio" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="chk-actions">
                     <button type="button" className="chk-btn-ghost" onClick={() => setStep(1)}>
                       <FaChevronLeft /> Voltar
@@ -578,7 +765,7 @@ export default function Checkout({ cartItems, onClearCart }) {
             </div>
 
             {/* Sidebar */}
-            <OrderSummary cartItems={cartItems} />
+            <OrderSummary cartItems={cartItems} couponCode={couponCode} couponDiscount={couponDiscount} freightPrice={freightPrice} />
           </div>
         )}
       </div>

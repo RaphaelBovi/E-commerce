@@ -30,8 +30,6 @@ public class ProductCategoryRequest {
     @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
     private BigDecimal price;
 
-    // Promotional price is optional. When non-null and < price, the product is on sale.
-    // Send null (or omit the field) to remove an active promotion.
     @DecimalMin(value = "0.01", message = "Preço promocional deve ser maior que zero")
     private BigDecimal promotionalPrice;
 
@@ -47,19 +45,30 @@ public class ProductCategoryRequest {
     @Size(max = 100, message = "Categoria deve ter no máximo 100 caracteres")
     private String category;
 
-    // Legacy single-image field (backward compat).
-    @Size(max = 2048, message = "URL da imagem deve ter no máximo 2048 caracteres")
     private String image;
 
-    // Up to 5 product images (compressed base64 or URLs), ordered by display priority.
     @Size(max = 5, message = "Máximo de 5 imagens por produto")
     private List<String> images;
+
+    // Shipping dimensions — optional, used by FreightService
+    @DecimalMin(value = "0.001", message = "Peso deve ser maior que zero")
+    private BigDecimal weightKg;
+
+    @Min(value = 1, message = "Largura deve ser maior que zero")
+    private Integer widthCm;
+
+    @Min(value = 1, message = "Altura deve ser maior que zero")
+    private Integer heightCm;
+
+    @Min(value = 1, message = "Comprimento deve ser maior que zero")
+    private Integer lengthCm;
 
     public ProductCategory toEntity() {
         return new ProductCategory(
             this.name, this.ref, this.price, this.qnt,
             this.marca, this.category, this.image,
-            this.promotionalPrice, this.images
+            this.promotionalPrice, this.images,
+            this.weightKg, this.widthCm, this.heightCm, this.lengthCm
         );
     }
 }

@@ -81,6 +81,8 @@ public class SecurityConfig {
                         // Público — qualquer pessoa pode acessar (sem token)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/product-category", "/api/product-category/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/freight/calculate").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
 
                         // Produtos — leitura pública; escrita restrita a ADMIN ou MASTER
@@ -92,9 +94,18 @@ public class SecurityConfig {
                         // Webhook do PagSeguro — chamado pelo gateway sem token
                         .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
 
-                        // Checkout e chave pública — requer usuário autenticado
+                        // Avaliações — leitura pública; escrita requer autenticação
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
+
+                        // Cupons — público para permitir guest checkout
+                        .requestMatchers(HttpMethod.POST, "/api/coupons/validate").permitAll()
+
+                        // Checkout redirect — público para permitir compra sem cadastro
+                        .requestMatchers(HttpMethod.POST, "/api/checkout/session").permitAll()
+
+                        // Checkout cartão (requer usuário autenticado) e chave pública
                         .requestMatchers(HttpMethod.POST, "/api/checkout").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/checkout/session").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/payments/public-key").authenticated()
 
                         // Pedidos do cliente — qualquer usuário autenticado
@@ -104,6 +115,17 @@ public class SecurityConfig {
 
                         // Pedidos admin — somente ADMIN ou MASTER
                         .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "MASTER")
+
+                        // Sincronização de carrinho abandonado — usuário autenticado
+                        .requestMatchers("/api/cart/**").authenticated()
+
+                        // Banners — leitura pública; escrita restrita a ADMIN ou MASTER
+                        .requestMatchers(HttpMethod.GET, "/api/banners").permitAll()
+                        .requestMatchers("/api/banners/admin/**").hasAnyRole("ADMIN", "MASTER")
+
+                        // Devoluções — customer endpoints autenticados; admin restrito a ADMIN+MASTER
+                        .requestMatchers("/api/returns/admin/**").hasAnyRole("ADMIN", "MASTER")
+                        .requestMatchers("/api/returns/**").authenticated()
 
                         // Favoritos — usuário autenticado
                         .requestMatchers("/api/favorites/**").authenticated()

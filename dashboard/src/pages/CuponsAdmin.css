@@ -1,0 +1,5 @@
+.coupon-form-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0;
+}

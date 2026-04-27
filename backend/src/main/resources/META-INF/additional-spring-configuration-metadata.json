@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "cloudinary.url",
+      "type": "java.lang.String",
+      "description": "Cloudinary connection URL no formato cloudinary://api_key:api_secret@cloud_name. Sem esta propriedade, imagens são mantidas em base64 (modo dev)."
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+.pp-main {
+  flex: 1;
+  background: var(--page-bg);
+}
+
+.pp-container {
+  padding: 3rem 1.5rem 5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pp-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+}
+
+.pp-updated {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 2.5rem;
+}
+
+.pp-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.pp-section h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--accent);
+}
+
+.pp-section p,
+.pp-section ul {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin: 0 0 0.5rem;
+}
+
+.pp-section ul {
+  padding-left: 1.5rem;
+}
+
+.pp-section a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.pp-section a:hover { color: var(--primary-hover); }
+
+@media (max-width: 768px) {
+  .pp-title { font-size: 1.5rem; }
+  .pp-container { padding: 2rem 1rem 4rem; }
+}

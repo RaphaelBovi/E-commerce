@@ -1,0 +1,41 @@
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.8rem;
+}
+
+.bc-item {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.bc-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.bc-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.bc-current {
+  color: var(--text-muted);
+  font-weight: 500;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bc-sep {
+  margin: 0 0.2rem;
+  color: var(--border-strong);
+  font-size: 0.9rem;
+  user-select: none;
+}

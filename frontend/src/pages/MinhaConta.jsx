@@ -8,13 +8,15 @@ import {
   FaPlus, FaComments, FaChevronDown, FaPaperPlane, FaTag,
 } from 'react-icons/fa';
 import { useAuth } from '../context/useAuth';
-import { getMyOrders, cancelMyOrder } from '../services/ordersApi';
-import { getUserProfile, updateProfile, changePassword } from '../services/authApi';
+import { getMyOrders, cancelMyOrder, getOrderTracking } from '../services/ordersApi';
+import { createReturn } from '../services/returnsApi';
+import { getUserProfile, updateProfile, changePassword, deleteAccount } from '../services/authApi';
 import { fetchFavorites, toggleFavorite } from '../services/favoritesApi';
 import {
   fetchMyTickets, fetchMyTicket, createTicket, replyTicket,
   TICKET_STATUS_LABELS, TICKET_CATEGORIES,
 } from '../services/ticketsApi';
+import Breadcrumb from '../components/Breadcrumb';
 import './MinhaConta.css';
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -137,6 +139,10 @@ export default function MinhaConta() {
   const [ordersError, setOrdersError]       = useState('');
   const [cancellingId, setCancellingId]     = useState(null);
   const [toast, setToast]                   = useState(null);
+  const [returnModal, setReturnModal]       = useState(null); // { orderId }
+  const [returnReason, setReturnReason]     = useState('DEFECTIVE');
+  const [returnNotes, setReturnNotes]       = useState('');
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) navigate('/login', { state: { from: '/minha-conta' } });
@@ -279,9 +285,13 @@ export default function MinhaConta() {
   function renderOrderDetail() {
     const order      = selectedOrder;
     const cfg        = STATUS_CONFIG[order.status] ?? { label: order.status, color: 'status-info', Icon: FaBoxOpen };
-    const isCancelled = order.status === 'CANCELLED';
-    const canCancel   = order.status === 'PENDING_PAYMENT';
-    const stepIndex   = TIMELINE_STEPS.indexOf(order.status);
+    const isCancelled  = order.status === 'CANCELLED';
+    const canCancel    = order.status === 'PENDING_PAYMENT';
+    const stepIndex    = TIMELINE_STEPS.indexOf(order.status);
+    const isDelivered  = order.status === 'DELIVERED';
+    const within30Days = isDelivered && order.updatedAt
+      && (Date.now() - new Date(order.updatedAt).getTime()) < 30 * 24 * 60 * 60 * 1000;
+    const canReturn    = within30Days;
 
     return (
       <div className="mc-section">
@@ -344,7 +354,11 @@ export default function MinhaConta() {
               <div className="mc-info-row"><span>Pagamento</span><strong>{PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</strong></div>
               <div className="mc-info-row"><span>Status</span><strong>{cfg.label}</strong></div>
               {order.trackingCode && (
-                <div className="mc-info-row"><span>Rastreio</span><strong className="mc-tracking">{order.trackingCode}</strong></div>
+                <TrackingSection
+                  orderId={order.id}
+                  trackingCode={order.trackingCode}
+                  trackingUrl={order.trackingUrl}
+                />
               )}
             </div>
             {order.deliveryAddress && (
@@ -356,6 +370,15 @@ export default function MinhaConta() {
             {canCancel && (
               <button className="mc-cancel-btn" onClick={() => handleCancelOrder(order.id)} disabled={cancellingId === order.id}>
                 {cancellingId === order.id ? 'Cancelando…' : 'Cancelar Pedido'}
+              </button>
+            )}
+            {canReturn && (
+              <button
+                className="mc-cancel-btn"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)', borderColor: 'var(--primary-soft-border)', marginTop: '0.5rem' }}
+                onClick={() => { setReturnModal({ orderId: order.id }); setReturnReason('DEFECTIVE'); setReturnNotes(''); }}
+              >
+                Solicitar Devolução
               </button>
             )}
           </div>
@@ -418,11 +441,24 @@ export default function MinhaConta() {
     );
   }
 
+  const SECTION_LABELS = {
+    overview: 'Resumo', orders: 'Meus Pedidos', profile: 'Dados Pessoais',
+    address: 'Endereços', security: 'Segurança', payment: 'Pagamentos',
+    favorites: 'Favoritos', support: 'Suporte', notifications: 'Notificações',
+    settings: 'Configurações',
+  };
+
   return (
     <div className="mc-page">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="mc-container container">
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Minha Conta', href: '/minha-conta' },
+          { label: SECTION_LABELS[section] ?? section },
+        ]} />
+
         {/* Sidebar */}
         <aside className="mc-sidebar">
           <div className="mc-sidebar-user">
@@ -465,6 +501,136 @@ export default function MinhaConta() {
           {SOON_SECTIONS.includes(section)      && renderComingSoon()}
         </main>
       </div>
+
+      {/* ── Return request modal ── */}
+      {returnModal && (
+        <div className="mc-modal-overlay" onClick={() => setReturnModal(null)}>
+          <div className="mc-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="mc-modal-header">
+              <h2>Solicitar Devolução</h2>
+              <button onClick={() => setReturnModal(null)}><FaTimes /></button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmittingReturn(true);
+              try {
+                await createReturn(returnModal.orderId, returnReason, returnNotes || null);
+                setReturnModal(null);
+                showToast('Solicitação de devolução enviada com sucesso!');
+              } catch (err) {
+                showToast(err.message, 'error');
+              } finally {
+                setSubmittingReturn(false);
+              }
+            }}>
+              <div className="mc-modal-field">
+                <label>Motivo da devolução *</label>
+                <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)}>
+                  <option value="DEFECTIVE">Produto com defeito</option>
+                  <option value="WRONG_ITEM">Produto errado</option>
+                  <option value="CHANGED_MIND">Mudei de ideia</option>
+                  <option value="DAMAGED_SHIPPING">Danificado no transporte</option>
+                  <option value="OTHER">Outro</option>
+                </select>
+              </div>
+              <div className="mc-modal-field">
+                <label>Detalhes adicionais</label>
+                <textarea
+                  rows={3}
+                  placeholder="Descreva o problema (opcional)"
+                  value={returnNotes}
+                  onChange={(e) => setReturnNotes(e.target.value)}
+                />
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
+                Prazo de devolução: até 30 dias após a entrega. Nossa equipe analisará a solicitação em até 3 dias úteis.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="mc-btn-outline" onClick={() => setReturnModal(null)}>Cancelar</button>
+                <button type="submit" className="mc-action-btn" disabled={submittingReturn}>
+                  {submittingReturn ? 'Enviando…' : 'Enviar Solicitação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TrackingSection ──────────────────────────────────────────────
+
+function TrackingSection({ orderId, trackingCode, trackingUrl }) {
+  const [events, setEvents]     = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [fetched, setFetched]   = useState(false);
+
+  async function handleToggle() {
+    if (expanded) { setExpanded(false); return; }
+    setExpanded(true);
+    if (fetched) return;
+    setLoading(true);
+    try {
+      const data = await getOrderTracking(orderId);
+      setEvents(Array.isArray(data) ? data : []);
+    } catch { /* fallback silencioso */ }
+    finally { setLoading(false); setFetched(true); }
+  }
+
+  const STATUS_ICON = {
+    posted:           '📬',
+    released:         '📦',
+    in_transit:       '🚚',
+    out_for_delivery: '🏠',
+    delivered:        '✅',
+    failed:           '⚠️',
+  };
+
+  return (
+    <div className="mc-tracking-section">
+      <div className="mc-info-row">
+        <span>Rastreio</span>
+        <div className="mc-tracking-row">
+          {trackingUrl
+            ? <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="mc-tracking mc-tracking-link">{trackingCode}</a>
+            : <strong className="mc-tracking">{trackingCode}</strong>}
+          <button className="mc-tracking-toggle" onClick={handleToggle}>
+            {expanded ? 'Fechar ▲' : 'Ver eventos ▼'}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mc-tracking-events">
+          {loading ? (
+            <>
+              <div className="mc-tev-skeleton" />
+              <div className="mc-tev-skeleton mc-tev-skeleton--short" />
+              <div className="mc-tev-skeleton" />
+            </>
+          ) : events.length === 0 ? (
+            <p className="mc-tev-empty">Nenhum evento disponível ainda. Tente novamente em breve.</p>
+          ) : (
+            <div className="mc-tev-list">
+              {events.map((ev, idx) => (
+                <div key={idx} className={`mc-tev-item ${idx === 0 ? 'mc-tev-item--latest' : ''}`}>
+                  <div className="mc-tev-marker">
+                    <span className="mc-tev-icon">{STATUS_ICON[ev.status] ?? '📍'}</span>
+                    {idx < events.length - 1 && <div className="mc-tev-connector" />}
+                  </div>
+                  <div className="mc-tev-body">
+                    <p className="mc-tev-desc">{ev.description ?? ev.status}</p>
+                    {ev.location && <span className="mc-tev-location">{ev.location}</span>}
+                    {ev.occurredAt && <span className="mc-tev-date">{ev.occurredAt}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -821,7 +987,45 @@ function SecuritySection({ isGoogleAccount, onSaved, onError }) {
           </div>
         </form>
       </div>
+
+      {/* Danger zone */}
+      <div className="mc-danger-zone">
+        <h2 className="mc-danger-title">Zona de perigo</h2>
+        <div className="mc-danger-card">
+          <div className="mc-danger-info">
+            <strong>Excluir conta</strong>
+            <p>Remove permanentemente sua conta e todos os seus dados. Esta ação não pode ser desfeita.</p>
+          </div>
+          <DeleteAccountButton />
+        </div>
+      </div>
     </div>
+  );
+}
+
+function DeleteAccountButton() {
+  const { logout } = useAuth();
+  const navigate   = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  const handleDelete = async () => {
+    if (!window.confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')) return;
+    if (!window.confirm('Confirmação final: todos os seus dados serão excluídos permanentemente.')) return;
+    setBusy(true);
+    try {
+      await deleteAccount();
+      logout();
+      navigate('/');
+    } catch (err) {
+      alert(err.message || 'Não foi possível excluir a conta. Tente novamente.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button className="mc-delete-btn" onClick={handleDelete} disabled={busy}>
+      {busy ? 'Excluindo…' : 'Excluir conta'}
+    </button>
   );
 }
 

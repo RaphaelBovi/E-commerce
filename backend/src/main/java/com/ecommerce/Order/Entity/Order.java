@@ -56,9 +56,14 @@ public class Order {
     // @ManyToOne — muitos pedidos podem pertencer a um único usuário
     // FetchType.LAZY — o usuário só é carregado do banco quando acessado (evita N+1 query)
     // @JoinColumn(name = "user_id") — coluna de FK na tabela orders referenciando a tabela de usuários
+    // nullable = true — pedidos de convidados não possuem usuário registrado
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
+
+    // E-mail do comprador convidado — preenchido apenas quando user é null
+    @Column
+    private String guestEmail;
 
     // Status atual do pedido — armazenado como texto (ex.: "PENDING_PAYMENT", "DELIVERED")
     // @Enumerated(EnumType.STRING) — persiste o nome do enum, não o ordinal, tornando o banco legível
@@ -78,6 +83,9 @@ public class Order {
 
     // Código de rastreio da entrega — opcional, preenchido quando o pedido é enviado (status SHIPPED)
     private String trackingCode;
+
+    // URL de rastreio da transportadora — opcional, exibida como link clicável para o cliente
+    private String trackingUrl;
 
     // Endereço de entrega informado pelo cliente no momento do pedido
     // @Column(columnDefinition = "TEXT") — permite endereços longos

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaHeart } from 'react-icons/fa';
+import { FaHeart, FaStar, FaBalanceScale } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/useAuth';
 import { useFavorites } from '../context/FavoritesProvider';
+import { useCompare } from '../context/CompareContext';
 import './ProductCard.css';
 
 export default function ProductCard({
@@ -12,6 +14,7 @@ export default function ProductCard({
 }) {
   const { isAuthenticated } = useAuth();
   const { isFavorited, toggleFav } = useFavorites();
+  const { addToCompare, isComparing } = useCompare();
 
   const allImages = product.images?.length > 0
     ? product.images
@@ -58,13 +61,23 @@ export default function ProductCard({
     e.preventDefault();
     if (!isAuthenticated || favLoading) return;
     setFavLoading(true);
+    const wasFavorited = favorited;
     try {
       await toggleFav(product.id);
+      toast(wasFavorited ? 'Removido dos favoritos' : '❤️ Adicionado aos favoritos', { duration: 1800 });
     } catch {
       // silently fail
     } finally {
       setFavLoading(false);
     }
+  };
+
+  const handleCompare = (e) => {
+    e.preventDefault();
+    const result = addToCompare(product);
+    if (result === 'added') toast.success('Adicionado à comparação', { duration: 1800 });
+    else if (result === 'max') toast.error('Máximo de 3 produtos para comparar', { duration: 2000 });
+    else if (result === 'exists') toast('Produto já está na comparação', { duration: 1800 });
   };
 
   return (
@@ -88,6 +101,16 @@ export default function ProductCard({
         </button>
       )}
 
+      <button
+        type="button"
+        className={`pc-compare-btn${isComparing(product.id) ? ' pc-compare-btn--active' : ''}`}
+        onClick={handleCompare}
+        aria-label="Comparar produto"
+        title="Comparar"
+      >
+        <FaBalanceScale />
+      </button>
+
       <Link to={`/produto/${product.id}`} className="product-link">
         <div className="image-container">
           {currentImage ? (
@@ -96,6 +119,7 @@ export default function ProductCard({
               src={currentImage}
               alt={product.name}
               className={`product-image${fading ? ' product-image--fading' : ''}`}
+              loading="lazy"
             />
           ) : (
             <div className="product-image-placeholder" aria-hidden />
@@ -144,6 +168,14 @@ export default function ProductCard({
         <p className={`product-price${isPromo ? ' product-price--promo' : ''}`}>
           {formattedPrice}
         </p>
+
+        {product.reviewCount > 0 && (
+          <div className="pc-rating">
+            <FaStar className="pc-rating-star" />
+            <span className="pc-rating-avg">{Number(product.averageRating).toFixed(1)}</span>
+            <span className="pc-rating-count">({product.reviewCount})</span>
+          </div>
+        )}
 
         <p className="product-installments">
           Em até 6x de {installmentPrice} sem juros

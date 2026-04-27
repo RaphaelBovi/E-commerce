@@ -78,9 +78,9 @@ export default function Footer() {
         <div className="container footer-bottom-inner">
           <p>© {new Date().getFullYear()} Sua Loja. Template de e-commerce.</p>
           <div className="footer-bottom-links">
-            <a href="#privacidade">Privacidade</a>
-            <a href="#termos">Termos de uso</a>
-            <a href="#trocas">Trocas e devoluções</a>
+            <Link to="/politica-de-privacidade">Privacidade</Link>
+            <Link to="/termos-de-uso">Termos de uso</Link>
+            <a href="mailto:contato@sualoja.com.br">Trocas e devoluções</a>
           </div>
         </div>
       </div>

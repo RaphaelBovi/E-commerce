@@ -1,57 +1,72 @@
-// ─────────────────────────────────────────────────────────────────
-// Navbar.jsx — Barra de navegação principal da loja
-//
-// Renderiza o cabeçalho fixo no topo da página com:
-//  - Logo e nome da loja (link para home)
-//  - Barra de busca (desktop e mobile)
-//  - Ações do usuário: link de login ou e-mail + botão de logout
-//  - Botão do carrinho com badge de quantidade
-//  - Links de navegação pelas categorias (parte inferior da navbar)
-//
-// Props:
-//  - cartCount  (number): total de itens no carrinho (exibido no badge)
-//  - onOpenCart (function): callback chamado ao clicar no ícone do carrinho
-//
-// Para adicionar novos links de categoria, insira mais <Link> dentro
-// do <nav className="nav-links">.
-// ─────────────────────────────────────────────────────────────────
-
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { FaBars, FaSearch, FaRegUser, FaShoppingCart, FaStore } from 'react-icons/fa';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import './Navbar.css';
 
-// Props recebidas do App.jsx:
-//  - cartCount: número total de unidades no carrinho
-//  - onOpenCart: função para abrir o drawer lateral do carrinho
-export default function Navbar({ cartCount, onOpenCart }) {
-  // Lê o estado de autenticação do contexto global
-  const { user, logout, isAuthenticated } = useAuth();
+const fmt = (v) =>
+  Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Texto digitado na barra de busca; atualizado via onChange
-  const [searchTerm, setSearchTerm] = React.useState('');
+export default function Navbar({ cartCount, onOpenCart, products = [] }) {
+  const { logout, isAuthenticated } = useAuth();
+  const [searchTerm, setSearchTerm]     = useState('');
+  const [suggestions, setSuggestions]   = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const navigate    = useNavigate();
+  const searchRef   = useRef(null);
+  const debounceRef = useRef(null);
 
-  // useNavigate permite redirecionar programaticamente (ex.: ao submeter busca)
-  const navigate = useNavigate();
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  // ─── handleSearch ─────────────────────────────────────────────
-  // Trata o submit do formulário de busca.
-  // Se o campo estiver vazio, vai para /catalogo sem parâmetros.
-  // Caso contrário, vai para /catalogo?q=<termo> para filtrar.
-  const handleSearch = (event) => {
-    event.preventDefault();
-    const trimmedSearch = searchTerm.trim();
-
-    if (!trimmedSearch) {
-      // Sem termo: navega para o catálogo completo
-      navigate('/catalogo');
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    clearTimeout(debounceRef.current);
+    if (!val.trim()) {
+      setSuggestions([]);
+      setShowDropdown(false);
       return;
     }
-
-    // Com termo: navega para o catálogo com query param de busca
-    navigate(`/catalogo?q=${encodeURIComponent(trimmedSearch)}`);
+    debounceRef.current = setTimeout(() => {
+      const q = val.trim().toLowerCase();
+      const results = products
+        .filter((p) =>
+          p.name?.toLowerCase().includes(q) ||
+          String(p.ref || '').toLowerCase().includes(q)
+        )
+        .slice(0, 6);
+      setSuggestions(results);
+      setShowDropdown(results.length > 0);
+    }, 300);
   };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setShowDropdown(false);
+    const q = searchTerm.trim();
+    navigate(q ? `/catalogo?q=${encodeURIComponent(q)}` : '/catalogo');
+    setSearchTerm('');
+    setSuggestions([]);
+  };
+
+  const handleSuggestionClick = (product) => {
+    setShowDropdown(false);
+    setSearchTerm('');
+    setSuggestions([]);
+    navigate(`/produto/${product.id}`);
+  };
+
+  const thumbUrl = (p) => p.images?.[0] || p.image || '';
+  const showPrice = (p) => (p.isPromo ? p.promotionalPrice : p.price);
 
   return (
     <header className="navbar">
@@ -60,18 +75,14 @@ export default function Navbar({ cartCount, onOpenCart }) {
         <span>Frete grátis em compras acima de <strong>R$ 299</strong> · Parcele em até 6x sem juros</span>
       </div>
 
-      {/* ── Linha superior: logo + busca desktop + ações do usuário ── */}
+      {/* ── Linha superior ── */}
       <div className="navbar-top container">
         <div className="navbar-main-row">
 
-          {/* Wrapper do logo com botão de menu mobile */}
           <div className="logo-menu-wrapper">
-            {/* Botão de menu hambúrguer — visível apenas em mobile via CSS */}
             <button type="button" className="mobile-menu-btn" aria-label="Menu">
               <FaBars />
             </button>
-
-            {/* Logo: clique leva à home */}
             <Link to="/" className="logo-container">
               <span className="logo-mark" aria-hidden>
                 <FaStore />
@@ -85,63 +96,90 @@ export default function Navbar({ cartCount, onOpenCart }) {
             </Link>
           </div>
 
-          {/* Formulário de busca — visível apenas em desktop via CSS */}
-          <form className="search-bar desktop-search" onSubmit={handleSearch}>
-            <input
-              type="search"
-              placeholder="Buscar produtos..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              aria-label="Buscar na loja"
-            />
-            <button type="submit" className="btn-search" aria-label="Buscar">
-              <FaSearch />
-            </button>
-          </form>
+          {/* Desktop search + autocomplete */}
+          <div ref={searchRef} className="navbar-search desktop-search">
+            <form className="search-bar" onSubmit={handleSearch}>
+              <input
+                type="search"
+                placeholder="Buscar produtos..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+                aria-label="Buscar na loja"
+                aria-autocomplete="list"
+                aria-expanded={showDropdown}
+              />
+              <button type="submit" className="btn-search" aria-label="Buscar">
+                <FaSearch />
+              </button>
+            </form>
 
-          {/* Área de ações do usuário: login/logout + carrinho */}
+            {showDropdown && (
+              <ul className="search-dropdown" role="listbox" aria-label="Sugestões de busca">
+                {suggestions.map((p) => (
+                  <li
+                    key={p.id}
+                    className="search-suggestion-item"
+                    role="option"
+                    onMouseDown={() => handleSuggestionClick(p)}
+                  >
+                    <div className="search-sugg-img">
+                      {thumbUrl(p)
+                        ? <img src={thumbUrl(p)} alt="" loading="lazy" />
+                        : <FaSearch />}
+                    </div>
+                    <div className="search-sugg-info">
+                      <span className="search-sugg-name">{p.name}</span>
+                      <span className="search-sugg-price">{fmt(showPrice(p))}</span>
+                    </div>
+                  </li>
+                ))}
+                {searchTerm.trim() && (
+                  <li
+                    className="search-suggestion-all"
+                    onMouseDown={() => {
+                      setShowDropdown(false);
+                      navigate(`/catalogo?q=${encodeURIComponent(searchTerm.trim())}`);
+                      setSearchTerm('');
+                    }}
+                  >
+                    Ver todos os resultados para "<strong>{searchTerm.trim()}</strong>"
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+
+          {/* User actions */}
           <div className="user-actions">
             <div className="login-register">
-              {/* Exibe e-mail + botão Sair se autenticado, ou link "Minha conta" se não */}
               {isAuthenticated ? (
                 <div className="user-session">
-                  <span className="icon-user" aria-hidden>
-                    <FaRegUser />
-                  </span>
-                  <Link to="/minha-conta" className="user-email">
-                    Minha conta
-                  </Link>
-                  <button type="button" className="btn-logout-nav" onClick={logout}>
-                    Sair
-                  </button>
+                  <span className="icon-user" aria-hidden><FaRegUser /></span>
+                  <Link to="/minha-conta" className="user-email">Minha conta</Link>
+                  <button type="button" className="btn-logout-nav" onClick={logout}>Sair</button>
                 </div>
               ) : (
-                // Usuário não autenticado: link para a página de login
                 <Link to="/login" className="login-link-nav" aria-label="Entrar na conta">
-                  <span className="icon-user" aria-hidden>
-                    <FaRegUser />
-                  </span>
+                  <span className="icon-user" aria-hidden><FaRegUser /></span>
                   <span className="login-text-nav">Minha conta</span>
                 </Link>
               )}
             </div>
-
-            {/* Botão do carrinho com badge de quantidade */}
             <button type="button" className="cart-btn" onClick={onOpenCart} aria-label="Abrir carrinho">
               <FaShoppingCart />
-              {/* Badge de quantidade: só exibe se houver itens no carrinho */}
-              {cartCount > 0 ? <span className="cart-count">{cartCount}</span> : null}
+              {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
             </button>
           </div>
         </div>
 
-        {/* Formulário de busca para mobile — exibido abaixo da linha principal */}
+        {/* Mobile search (form only, no dropdown) */}
         <form className="search-bar mobile-search" onSubmit={handleSearch}>
           <input
             type="search"
             placeholder="Buscar produtos..."
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={handleSearchChange}
             aria-label="Buscar na loja"
           />
           <button type="submit" className="btn-search" aria-label="Buscar">
@@ -150,7 +188,7 @@ export default function Navbar({ cartCount, onOpenCart }) {
         </form>
       </div>
 
-      {/* ── Linha inferior: links de categorias ── */}
+      {/* ── Bottom nav ── */}
       <div className="navbar-bottom">
         <nav className="container nav-links" aria-label="Categorias principais">
           <NavLink to="/lancamentos" className={({ isActive }) => isActive ? 'nav-active' : ''}>Novidades</NavLink>

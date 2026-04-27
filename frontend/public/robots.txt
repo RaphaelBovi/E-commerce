@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /minha-conta
+Disallow: /favoritos
+Disallow: /login
+Disallow: /recuperar-senha
+
+Sitemap: https://sualoja.com.br/sitemap.xml

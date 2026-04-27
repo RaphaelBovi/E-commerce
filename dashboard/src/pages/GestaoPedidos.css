@@ -52,39 +52,26 @@
 
 .pedidos-filters {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
 }
 
-.filter-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
+.filter-select {
+  height: 38px;
+  padding: 0 0.75rem;
   border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
   background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
+  color: var(--text);
+  font-size: 0.85rem;
   font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
 }
 
-.filter-pill:hover { border-color: var(--primary); color: var(--primary); }
-.filter-pill.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-
-.pill-count {
-  background: rgba(255,255,255,0.25);
-  border-radius: 999px;
-  padding: 0 0.35rem;
-  font-size: 0.72rem;
-}
-
-.filter-pill:not(.active) .pill-count {
-  background: var(--surface-2);
-  color: var(--text-secondary);
+.filter-select:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
 .table-wrapper { overflow-x: auto; }

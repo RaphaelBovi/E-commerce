@@ -18,15 +18,30 @@
 // ─────────────────────────────────────────────────────────────────
 package com.ecommerce.Product.Service;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import com.ecommerce.Config.CloudinaryService;
+import com.ecommerce.Product.Entity.ProductCategory;
+import com.ecommerce.Product.Entity.Dtos.CsvImportResult;
+import com.ecommerce.Product.Entity.Dtos.CsvImportResult.CsvRowError;
 import com.ecommerce.Product.Entity.Dtos.ProductCategoryRequest;
 import com.ecommerce.Product.Entity.Dtos.ProductCategoryResponse;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import com.ecommerce.Product.Repository.ProductCategoryRepository;
+import com.ecommerce.Review.ReviewRepository;
 
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -35,9 +50,14 @@ import java.util.stream.Collectors;
 @Service
 public class ProductService {
 
-    // Repositório JPA para persistência de produtos
     @Autowired
     private ProductCategoryRepository repository;
+
+    @Autowired
+    private ReviewRepository reviewRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     // Cria e persiste um novo produto no banco de dados.
     // Antes de salvar, verifica se já existe um produto com o mesmo código de referência (insensível a maiúsculas).
@@ -48,7 +68,15 @@ public class ProductService {
         if (repository.existsByRefIgnoreCase(request.getRef())) {
             throw new BusinessException("Código de referência já existe");
         }
-        return ProductCategoryResponse.from(repository.save(request.toEntity()));
+        String image        = cloudinaryService.uploadIfBase64(request.getImage(), "products");
+        List<String> images = cloudinaryService.uploadListIfBase64(request.getImages(), "products");
+        var entity = new ProductCategory(
+            request.getName(), request.getRef(), request.getPrice(), request.getQnt(),
+            request.getMarca(), request.getCategory(), image,
+            request.getPromotionalPrice(), images,
+            request.getWeightKg(), request.getWidthCm(), request.getHeightCm(), request.getLengthCm()
+        );
+        return ProductCategoryResponse.from(repository.save(entity));
     }
 
     // Busca um produto pelo código de referência (insensível a maiúsculas).
@@ -66,10 +94,24 @@ public class ProductService {
     // Usa stream e map para converter cada entidade em ProductCategoryResponse.
     // Retorno: lista (possivelmente vazia) de todos os produtos
     public List<ProductCategoryResponse> findProduct() {
-        return repository.findAll()
-                .stream()
-                .map(ProductCategoryResponse::from)
-                .collect(Collectors.toList());
+        // Build a map of productId -> [avgRating, reviewCount] in one query
+        Map<UUID, double[]> ratingMap = new HashMap<>();
+        for (Object[] row : reviewRepository.findRatingSummaryForAllProducts()) {
+            UUID pid   = (UUID) row[0];
+            double avg = row[1] instanceof Number ? ((Number) row[1]).doubleValue() : 0.0;
+            long cnt   = row[2] instanceof Number ? ((Number) row[2]).longValue() : 0L;
+            ratingMap.put(pid, new double[]{ avg, cnt });
+        }
+
+        return repository.findAll().stream().map(p -> {
+            ProductCategoryResponse r = ProductCategoryResponse.from(p);
+            double[] rd = ratingMap.get(p.getId());
+            if (rd != null) {
+                r.setAverageRating(rd[0]);
+                r.setReviewCount((long) rd[1]);
+            }
+            return r;
+        }).collect(Collectors.toList());
     }
 
     // Atualiza os dados de um produto existente identificado pelo código de referência.
@@ -82,7 +124,8 @@ public class ProductService {
         var productCategory = repository.findByRefIgnoreCase(ref)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com ref: " + ref));
 
-        // Atualiza todos os campos editáveis via método update() da entidade
+        String image        = cloudinaryService.uploadIfBase64(request.getImage(), "products");
+        List<String> images = cloudinaryService.uploadListIfBase64(request.getImages(), "products");
         productCategory.update(
                 request.getName(),
                 request.getRef(),
@@ -90,9 +133,13 @@ public class ProductService {
                 request.getQnt(),
                 request.getMarca(),
                 request.getCategory(),
-                request.getImage(),
+                image,
                 request.getPromotionalPrice(),
-                request.getImages()
+                images,
+                request.getWeightKg(),
+                request.getWidthCm(),
+                request.getHeightCm(),
+                request.getLengthCm()
         );
 
         // Persiste as alterações e retorna o DTO com os dados atualizados
@@ -116,5 +163,82 @@ public class ProductService {
         var product = repository.findByRefIgnoreCase(ref)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com ref: " + ref));
         repository.delete(product);
+    }
+
+    // Importa produtos em lote a partir de um arquivo CSV.
+    // Colunas esperadas (com cabeçalho): name, ref, price, promotionalPrice, qnt, marca, category,
+    //   weightKg, widthCm, heightCm, lengthCm  (as últimas 5 são opcionais)
+    // Linhas com erros de validação são puladas e registradas no resultado.
+    public CsvImportResult importFromCsv(MultipartFile file) {
+        List<CsvRowError> errors = new ArrayList<>();
+        int imported = 0;
+        int rowNum = 1;
+
+        try (var reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
+             var parser = CSVFormat.DEFAULT.builder()
+                     .setHeader()
+                     .setSkipHeaderRecord(true)
+                     .setTrim(true)
+                     .setIgnoreEmptyLines(true)
+                     .build()
+                     .parse(reader)) {
+
+            for (CSVRecord record : parser) {
+                rowNum++;
+                try {
+                    String name     = record.get("name");
+                    String ref      = record.get("ref");
+                    String priceStr = record.get("price");
+                    String qntStr   = record.get("qnt");
+                    String marca    = record.get("marca");
+                    String category = record.get("category");
+
+                    if (name.isBlank() || ref.isBlank() || priceStr.isBlank() || qntStr.isBlank()
+                            || marca.isBlank() || category.isBlank()) {
+                        errors.add(new CsvRowError(rowNum, "Campos obrigatórios ausentes (name, ref, price, qnt, marca, category)"));
+                        continue;
+                    }
+
+                    if (repository.existsByRefIgnoreCase(ref)) {
+                        errors.add(new CsvRowError(rowNum, "Referência já cadastrada: " + ref));
+                        continue;
+                    }
+
+                    BigDecimal price = new BigDecimal(priceStr);
+                    int qnt = Integer.parseInt(qntStr);
+
+                    String promoStr = safeGet(record, "promotionalPrice");
+                    BigDecimal promo = (promoStr != null && !promoStr.isBlank())
+                            ? new BigDecimal(promoStr) : null;
+
+                    String wkStr = safeGet(record, "weightKg");
+                    BigDecimal wk = (wkStr != null && !wkStr.isBlank()) ? new BigDecimal(wkStr) : null;
+
+                    String wcStr = safeGet(record, "widthCm");
+                    Integer wc = (wcStr != null && !wcStr.isBlank()) ? Integer.parseInt(wcStr) : null;
+
+                    String hcStr = safeGet(record, "heightCm");
+                    Integer hc = (hcStr != null && !hcStr.isBlank()) ? Integer.parseInt(hcStr) : null;
+
+                    String lcStr = safeGet(record, "lengthCm");
+                    Integer lc = (lcStr != null && !lcStr.isBlank()) ? Integer.parseInt(lcStr) : null;
+
+                    var entity = new ProductCategory(name, ref, price, qnt, marca, category,
+                            null, promo, null, wk, wc, hc, lc);
+                    repository.save(entity);
+                    imported++;
+                } catch (Exception e) {
+                    errors.add(new CsvRowError(rowNum, "Erro ao processar linha: " + e.getMessage()));
+                }
+            }
+        } catch (Exception e) {
+            throw new BusinessException("Erro ao ler o arquivo CSV: " + e.getMessage());
+        }
+
+        return new CsvImportResult(imported, errors);
+    }
+
+    private String safeGet(CSVRecord record, String column) {
+        try { return record.get(column); } catch (Exception e) { return null; }
     }
 }

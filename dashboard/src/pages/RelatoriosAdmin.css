@@ -1,0 +1,325 @@
+/* ─── Page ──────────────────────────────────────── */
+.ra-page {
+  padding: 2rem;
+  max-width: 1100px;
+}
+
+.ra-header {
+  margin-bottom: 1.75rem;
+}
+
+.ra-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 0.25rem;
+}
+
+.ra-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ─── Period bar ─────────────────────────────────── */
+.ra-period-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+
+.ra-period-btn {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ra-period-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.ra-period-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.ra-custom-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.ra-custom-range input[type="date"] {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.825rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.ra-apply-btn {
+  padding: 0.35rem 0.9rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ra-apply-btn:hover { background: var(--primary-hover); }
+
+/* ─── Loading / error ───────────────────────────── */
+.ra-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  padding: 3rem 0;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.ra-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+/* ─── KPI cards ─────────────────────────────────── */
+.ra-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.ra-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.ra-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.ra-kpi-body { min-width: 0; }
+
+.ra-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.ra-kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+.ra-kpi-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+/* ─── Sections ──────────────────────────────────── */
+.ra-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.ra-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 1.25rem;
+}
+
+/* ─── Chart ─────────────────────────────────────── */
+.ra-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ra-chart {
+  width: 100%;
+  height: 160px;
+  display: block;
+}
+
+.ra-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.ra-chart-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.ra-chart-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 3rem 0;
+}
+
+/* ─── Status grid ───────────────────────────────── */
+.ra-status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ra-status-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
+
+.ra-status-count {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.ra-status-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+  text-align: center;
+}
+
+/* ─── Top products table ────────────────────────── */
+.ra-table-wrap {
+  overflow-x: auto;
+}
+
+.ra-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ra-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.ra-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.ra-table tr:last-child td { border-bottom: none; }
+.ra-table tr:hover td { background: var(--surface-2); }
+
+.ra-rank {
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 32px;
+}
+
+.ra-product-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ra-product-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ra-qty {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.ra-revenue {
+  font-weight: 600;
+  color: var(--success);
+}
+
+.ra-empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 2rem 0 0;
+}
+
+/* ─── Responsive ────────────────────────────────── */
+@media (max-width: 768px) {
+  .ra-page { padding: 1rem; }
+  .ra-kpis { grid-template-columns: repeat(2, 1fr); }
+  .ra-kpi-value { font-size: 1.2rem; }
+}
+
+@media (max-width: 480px) {
+  .ra-kpis { grid-template-columns: 1fr 1fr; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.8s linear infinite; }

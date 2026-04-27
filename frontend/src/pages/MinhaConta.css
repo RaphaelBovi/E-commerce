@@ -382,6 +382,62 @@
 .mc-info-row span   { color: var(--text-secondary); }
 .mc-info-row strong { color: var(--text); text-align: right; }
 .mc-tracking { font-family: monospace; letter-spacing: 0.04em; }
+.mc-tracking-link { color: var(--primary); text-decoration: underline; font-family: monospace; letter-spacing: 0.04em; }
+.mc-tracking-link:hover { color: var(--primary-hover); }
+
+/* ── Tracking Section ─────────────────────────────────────────── */
+.mc-tracking-section { width: 100%; }
+.mc-tracking-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.mc-tracking-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-family: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+.mc-tracking-toggle:hover { border-color: var(--primary); color: var(--primary); }
+
+.mc-tracking-events {
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+/* Skeleton loader */
+.mc-tev-skeleton {
+  height: 14px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--surface-3) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+  margin-bottom: 0.6rem;
+}
+.mc-tev-skeleton--short { width: 60%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.mc-tev-empty { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
+
+/* Timeline de eventos */
+.mc-tev-list { display: flex; flex-direction: column; gap: 0; }
+.mc-tev-item { display: flex; gap: 0.75rem; align-items: flex-start; }
+.mc-tev-marker { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.mc-tev-icon { font-size: 1rem; line-height: 1.4; }
+.mc-tev-connector { width: 2px; flex: 1; min-height: 20px; background: var(--border); margin: 4px 0; }
+
+.mc-tev-body { padding-bottom: 0.85rem; flex: 1; }
+.mc-tev-desc { font-size: 0.84rem; font-weight: 600; color: var(--text); margin: 0 0 0.15rem; }
+.mc-tev-location { display: block; font-size: 0.78rem; color: var(--text-secondary); }
+.mc-tev-date { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+.mc-tev-item--latest .mc-tev-desc { color: var(--primary); }
+.mc-tev-item--latest .mc-tev-icon { filter: saturate(1.3); }
+
 .mc-address-text { font-size: 0.87rem; color: var(--text); line-height: 1.6; margin: 0; }
 
 /* ── Address card (display) ───────────────────────────────────── */
@@ -1070,4 +1126,118 @@
   .mc-ticket-item       { flex-direction: column; align-items: flex-start; }
   .mc-ticket-item-side  { align-items: flex-start; }
   .mc-msg-body          { max-width: 100%; }
+}
+
+/* ─── Danger zone ─────────────────────────────────── */
+.mc-danger-zone {
+  margin-top: 2rem;
+}
+.mc-danger-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--danger);
+  margin: 0 0 0.75rem;
+}
+.mc-danger-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--danger-soft);
+  border: 1.5px solid var(--danger);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+.mc-danger-info { flex: 1; min-width: 180px; }
+.mc-danger-info strong { display: block; color: var(--text); margin-bottom: 0.25rem; }
+.mc-danger-info p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+.mc-delete-btn {
+  padding: 0.6rem 1.25rem;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+.mc-delete-btn:hover:not(:disabled) { opacity: 0.85; }
+.mc-delete-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Return modal ────────────────────────────────── */
+.mc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.mc-modal-box {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 480px;
+  padding: 1.75rem;
+}
+
+.mc-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.mc-modal-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.mc-modal-header button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.mc-modal-field {
+  margin-bottom: 1rem;
+}
+
+.mc-modal-field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.mc-modal-field select,
+.mc-modal-field textarea {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.mc-modal-field select:focus,
+.mc-modal-field textarea:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
 }

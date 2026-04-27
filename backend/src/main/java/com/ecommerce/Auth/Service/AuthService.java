@@ -411,6 +411,14 @@ public class AuthService {
         }
     }
 
+    // ── DELETE ACCOUNT ────────────────────────────────────────────
+    public void deleteAccount() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        userRepository.delete(user);
+    }
+
     private static String digitsOnly(String value) {
         if (value == null) return "";
         return value.replaceAll("\\D", "");

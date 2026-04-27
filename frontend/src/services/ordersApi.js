@@ -43,3 +43,10 @@ export async function cancelMyOrder(id) {
   });
   return handleResponse(response);
 }
+
+export async function getOrderTracking(id) {
+  const response = await fetch(`${API_BASE_URL}/orders/my/${id}/tracking`, {
+    headers: { ...getAuthHeader(), Accept: 'application/json' },
+  });
+  return handleResponse(response);
+}

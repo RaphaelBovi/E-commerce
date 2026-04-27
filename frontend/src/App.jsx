@@ -12,12 +12,14 @@
 // Context API ou Zustand.
 // ─────────────────────────────────────────────────────────────────
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from './context/useAuth';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import AuthProvider from './context/AuthProvider';
 import FavoritesProvider from './context/FavoritesProvider';
+import { CompareProvider } from './context/CompareContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
@@ -29,12 +31,42 @@ import Lancamentos from './pages/Lancamentos';
 import Promocoes from './pages/Promocoes';
 import Institucional from './pages/Institucional';
 import { products as fallbackProducts } from './data/mockData';
+import { syncCart, clearCartSync } from './services/cartSyncApi';
 import { fetchProducts } from './services/productsApi';
 import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import MinhaConta from './pages/MinhaConta';
 import RecuperarSenha from './pages/RecuperarSenha';
 import Favoritos from './pages/Favoritos';
+import PoliticaPrivacidade from './pages/PoliticaPrivacidade';
+import TermosDeUso from './pages/TermosDeUso';
+import CookieBanner from './components/CookieBanner';
+import NotFound from './pages/NotFound';
+import Comparar from './pages/Comparar';
+import CompareBar from './components/CompareBar';
+
+// Debounced cart sync — must live inside AuthProvider to access useAuth
+function CartSyncEffect({ cartItems }) {
+  const { isAuthenticated } = useAuth();
+  const timerRef = useRef(null);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (!isAuthenticated) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (cartItems.length > 0) {
+        syncCart(cartItems).catch(() => {});
+      } else {
+        clearCartSync().catch(() => {});
+      }
+    }, 5000);
+    return () => clearTimeout(timerRef.current);
+  }, [cartItems, isAuthenticated]);
+
+  return null;
+}
 
 // Redirects unauthenticated users to /login, preserving the intended destination
 function ProtectedRoute({ children }) {
@@ -46,12 +78,35 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+const CART_KEY = 'ecommerce_cart';
+
 function App() {
-  // Lista de itens atualmente no carrinho; cada item é { ...produto, quantity }
-  const [cartItems, setCartItems] = useState([]);
+  // Inicializa o carrinho a partir do localStorage (persiste entre recarregamentos)
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem(CART_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Controla se o drawer lateral do carrinho está visível
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Persiste o carrinho no localStorage a cada mudança
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
+    } catch { /* ignore quota errors */ }
+  }, [cartItems]);
+
+  // Limpa o carrinho do estado e do localStorage (chamado no logout e no pós-checkout)
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+    try { localStorage.removeItem(CART_KEY); } catch { /* ignore */ }
+    clearCartSync().catch(() => {});
+  }, []);
 
   // Lista de produtos: começa com dados locais (mockData) e é substituída
   // pelos dados da API assim que a requisição termina com sucesso
@@ -108,20 +163,17 @@ function App() {
   const handleAddToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
-
       if (existingItem) {
-        // Produto já no carrinho: soma a quantidade nova à existente
         return prevItems.map(item =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      // Produto novo: adiciona ao final da lista com a quantidade informada
       return [...prevItems, { ...product, quantity }];
     });
 
-    // Abre o drawer do carrinho para feedback visual imediato
+    toast.success('Adicionado ao carrinho!', { duration: 2000, position: 'top-right' });
     setIsCartOpen(true);
   };
 
@@ -150,13 +202,16 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
     <BrowserRouter>
-      <AuthProvider>
+      <AuthProvider onLogout={clearCart}>
       <FavoritesProvider>
+      <CompareProvider>
       <div className="app">
         {/* Navbar fixa no topo; recebe contagem do carrinho e callback para abrir o drawer */}
+        <CartSyncEffect cartItems={cartItems} />
         <Navbar
           cartCount={totalCartItemsCount}
           onOpenCart={() => setIsCartOpen(true)}
+          products={products}
         />
 
         {/* Drawer lateral do carrinho; controlado pelo estado isCartOpen */}
@@ -231,11 +286,9 @@ function App() {
               />
             }
           />
-          {/* Checkout: protegido — redireciona para /login se não autenticado */}
+          {/* Checkout: público — suporta compra como convidado */}
           <Route path="/checkout" element={
-            <ProtectedRoute>
-              <Checkout cartItems={cartItems} onClearCart={() => setCartItems([])} />
-            </ProtectedRoute>
+            <Checkout cartItems={cartItems} onClearCart={clearCart} />
           } />
           {/* Página de login e cadastro */}
           <Route path="/login" element={<Login />} />
@@ -249,13 +302,26 @@ function App() {
               <Favoritos onAddToCart={handleAddToCart} />
             </ProtectedRoute>
           } />
+          {/* LGPD */}
+          <Route path="/politica-de-privacidade" element={<PoliticaPrivacidade />} />
+          <Route path="/termos-de-uso" element={<TermosDeUso />} />
+          {/* Comparação de produtos */}
+          <Route path="/comparar" element={<Comparar onAddToCart={handleAddToCart} />} />
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
 
         {/* Rodapé exibido em todas as páginas */}
         <Footer />
         {/* Botão flutuante de WhatsApp fixo no canto inferior direito */}
         <WhatsAppButton />
+        {/* Banner de consentimento de cookies — LGPD */}
+        <CookieBanner />
+        {/* Barra de comparação de produtos */}
+        <CompareBar />
+        <Toaster toastOptions={{ style: { fontFamily: 'inherit', fontSize: '0.875rem' } }} />
       </div>
+      </CompareProvider>
       </FavoritesProvider>
       </AuthProvider>
     </BrowserRouter>

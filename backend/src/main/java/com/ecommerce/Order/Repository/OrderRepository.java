@@ -16,9 +16,15 @@
 package com.ecommerce.Order.Repository;
 
 import com.ecommerce.Order.Entity.Order;
+import com.ecommerce.Order.Entity.OrderStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,4 +50,61 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     // Parâmetro: userId — UUID do usuário autenticado
     // Retorno: Optional<Order> — vazio se o pedido não existir ou não pertencer ao usuário
     Optional<Order> findByIdAndUserId(UUID id, UUID userId);
+
+    // Paginação para admin — LEFT JOIN para incluir pedidos de convidados (sem user)
+    @Query("""
+        SELECT o FROM Order o LEFT JOIN o.user u
+        WHERE (:status IS NULL OR o.status = :status)
+          AND (:email IS NULL OR (u IS NOT NULL AND LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%'))))
+        ORDER BY o.createdAt DESC
+        """)
+    Page<Order> findAllFiltered(
+            @Param("status") OrderStatus status,
+            @Param("email") String email,
+            Pageable pageable);
+
+    // ── Queries para relatório gerencial (A2) ─────────────────────
+
+    // Receita total, total de pedidos e ticket médio para pedidos confirmados
+    @Query(value = """
+        SELECT COALESCE(SUM(total_amount), 0), COUNT(*), COALESCE(AVG(total_amount), 0)
+        FROM orders
+        WHERE status IN ('PAID','SHIPPED','PREPARING','DELIVERED')
+          AND created_at >= :from AND created_at <= :to
+        """, nativeQuery = true)
+    Object[] findRevenueSummary(@Param("from") Instant from, @Param("to") Instant to);
+
+    // Contagem de pedidos por status no período
+    @Query(value = """
+        SELECT status, COUNT(*)
+        FROM orders
+        WHERE created_at >= :from AND created_at <= :to
+        GROUP BY status
+        """, nativeQuery = true)
+    List<Object[]> countByStatusInRange(@Param("from") Instant from, @Param("to") Instant to);
+
+    // Receita diária (pedidos confirmados) agrupada por dia UTC
+    @Query(value = """
+        SELECT TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), SUM(total_amount)
+        FROM orders
+        WHERE status IN ('PAID','SHIPPED','PREPARING','DELIVERED')
+          AND created_at >= :from AND created_at <= :to
+        GROUP BY TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+        ORDER BY 1
+        """, nativeQuery = true)
+    List<Object[]> findRevenueByDay(@Param("from") Instant from, @Param("to") Instant to);
+
+    // Top 10 produtos mais vendidos (por quantidade) no período
+    @Query(value = """
+        SELECT CAST(oi.product_id AS TEXT), oi.product_name,
+               SUM(oi.quantity), SUM(oi.unit_price * oi.quantity)
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        WHERE o.status IN ('PAID','SHIPPED','PREPARING','DELIVERED')
+          AND o.created_at >= :from AND o.created_at <= :to
+        GROUP BY oi.product_id, oi.product_name
+        ORDER BY SUM(oi.quantity) DESC
+        LIMIT 10
+        """, nativeQuery = true)
+    List<Object[]> findTopProducts(@Param("from") Instant from, @Param("to") Instant to);
 }

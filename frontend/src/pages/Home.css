@@ -41,6 +41,24 @@
   position: relative;
 }
 
+.home-hero--banner {
+  background-size: cover;
+  background-position: center;
+  grid-template-columns: 1fr;
+  min-height: 320px;
+}
+
+.hero-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(12,12,14,0.78) 0%, rgba(30,41,59,0.5) 100%);
+  border-radius: inherit;
+}
+
+.hero-content--banner {
+  max-width: 600px;
+}
+
 .home-hero::before {
   content: '';
   position: absolute;

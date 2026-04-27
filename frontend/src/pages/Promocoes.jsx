@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { FaTag, FaBoxOpen, FaFire, FaSortAmountDown } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
+import Breadcrumb from '../components/Breadcrumb';
 import { fetchProducts } from '../services/productsApi';
+import { useSEO } from '../hooks/useSEO';
 import './Promocoes.css';
 
 export default function Promocoes({ onAddToCart }) {
+  useSEO({ title: "Promoções", description: "Aproveite as melhores ofertas e promoções da nossa loja. Produtos com desconto por tempo limitado." });
   const [products, setProducts]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
@@ -29,6 +32,9 @@ export default function Promocoes({ onAddToCart }) {
   return (
     <main className="promo-page">
       <div className="container">
+
+          {/* ── Breadcrumb ── */}
+        <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Promoções' }]} />
 
         {/* ── Hero ── */}
         <section className="promo-hero">

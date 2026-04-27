@@ -31,9 +31,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.ecommerce.Product.Entity.Dtos.CsvImportResult;
 import com.ecommerce.Product.Entity.Dtos.ProductCategoryRequest;
 import com.ecommerce.Product.Entity.Dtos.ProductCategoryResponse;
 import com.ecommerce.Product.Service.ProductService;
@@ -106,5 +109,13 @@ public class ProductCategoryController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteById(@PathVariable UUID id) {
         this.service.delete(id);
+    }
+
+    // POST /api/product-category/import
+    // Importa produtos em lote via arquivo CSV (multipart/form-data, campo "file").
+    // Retorna HTTP 200 com CsvImportResult: total importados + lista de erros por linha.
+    @PostMapping("/import")
+    public CsvImportResult importCsv(@RequestParam("file") MultipartFile file) {
+        return service.importFromCsv(file);
     }
 }

@@ -239,3 +239,11 @@ export async function registerRequest(payload) {
 
   return response.json();
 }
+
+export async function deleteAccount() {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    method: "DELETE",
+    headers: { ...getAuthHeader(), Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+}

@@ -91,3 +91,31 @@ export async function deleteProductByRef(ref) {
   });
   // DELETE retorna 204 No Content — apiFetch retorna null, que ignoramos aqui
 }
+
+// Importa produtos em lote via arquivo CSV.
+// Usa fetch diretamente (sem Content-Type JSON) para enviar multipart/form-data.
+export async function importProductsCsv(file) {
+  const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api").replace(/\/+$/, "");
+  const raw = sessionStorage.getItem("dashboard_admin_session");
+  const token = raw ? JSON.parse(raw)?.token : null;
+
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/product-category/import`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    let msg = `Erro ${res.status}`;
+    try { msg = JSON.parse(text).message || msg; } catch { if (text) msg = text; }
+    throw new Error(msg);
+  }
+  return res.json();
+}

@@ -12,6 +12,7 @@ package com.ecommerce.Order.Service;
 
 import com.ecommerce.Auth.Entity.User;
 import com.ecommerce.Auth.Repository.UserRepository;
+import com.ecommerce.Auth.Service.EmailService;
 import com.ecommerce.Order.Entity.Dto.*;
 import com.ecommerce.Order.Entity.Order;
 import com.ecommerce.Order.Entity.OrderItem;
@@ -20,17 +21,29 @@ import com.ecommerce.Order.Repository.OrderRepository;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import com.ecommerce.Product.Repository.ProductCategoryRepository;
+import com.ecommerce.Shipping.MelhorEnvioTrackingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     @Autowired
     private OrderRepository orderRepository;
@@ -40,6 +53,12 @@ public class OrderService {
 
     @Autowired
     private ProductCategoryRepository productCategoryRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private MelhorEnvioTrackingService trackingService;
 
     // ── UTILITÁRIO INTERNO ────────────────────────────────────────
     // Recupera o usuário autenticado a partir do contexto de segurança do Spring
@@ -127,11 +146,17 @@ public class OrderService {
     }
 
     // ── ADMIN: TODOS OS PEDIDOS ───────────────────────────────────
-    // Retorna todos os pedidos do sistema, do mais recente ao mais antigo
-    // Apenas ADMIN e MASTER têm acesso (controlado no SecurityConfig)
     public List<OrderResponse> getAllOrders() {
         return orderRepository.findAllByOrderByCreatedAtDesc()
                 .stream().map(this::toResponse).toList();
+    }
+
+    // ── ADMIN: PEDIDOS PAGINADOS ──────────────────────────────────
+    // Suporta filtros opcionais de status e e-mail; retorna Page<OrderResponse>
+    public Page<OrderResponse> getAllOrdersPaginated(int page, int size, OrderStatus status, String email) {
+        String emailFilter = (email != null && !email.isBlank()) ? email.trim() : null;
+        return orderRepository.findAllFiltered(status, emailFilter, PageRequest.of(page, size))
+                .map(this::toResponse);
     }
 
     // ── ADMIN: DETALHE DE QUALQUER PEDIDO ─────────────────────────
@@ -153,12 +178,26 @@ public class OrderService {
         OrderStatus previousStatus = order.getStatus();
         order.setStatus(request.status());
 
+        if (request.status() == OrderStatus.SHIPPED) {
+            if (request.trackingCode() != null) order.setTrackingCode(request.trackingCode());
+            if (request.trackingUrl() != null) order.setTrackingUrl(request.trackingUrl());
+        }
+
         if (request.status() == OrderStatus.CANCELLED
                 && (previousStatus == OrderStatus.PAID || previousStatus == OrderStatus.PREPARING)) {
             restoreOrderStock(order.getItems());
         }
 
-        return toResponse(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+
+        if (request.status() == OrderStatus.SHIPPED || request.status() == OrderStatus.DELIVERED
+                || request.status() == OrderStatus.CANCELLED) {
+            try { emailService.sendStatusUpdate(saved); } catch (Exception e) {
+                log.warn("Falha ao enviar e-mail de status: {}", e.getMessage());
+            }
+        }
+
+        return toResponse(saved);
     }
 
     private void restoreOrderStock(List<OrderItem> items) {
@@ -171,11 +210,68 @@ public class OrderService {
         }
     }
 
+    // ── RASTREIO VIA MELHOR ENVIO ─────────────────────────────────
+    // Retorna os eventos de rastreio do pedido do usuário logado.
+    // Verifica ownership — cliente só acessa seus próprios pedidos.
+    // Delega ao MelhorEnvioTrackingService; retorna lista vazia em fallback.
+    public List<TrackingEventResponse> getOrderTracking(UUID id) {
+        User user = getCurrentUser();
+        Order order = orderRepository.findByIdAndUserId(id, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+        if (order.getTrackingCode() == null || order.getTrackingCode().isBlank()) {
+            return List.of();
+        }
+        return trackingService.getTrackingEvents(order.getTrackingCode());
+    }
+
+    // ── RELATÓRIO GERENCIAL ───────────────────────────────────────
+    public OrderSummaryResponse getAdminSummary(LocalDate from, LocalDate to) {
+        var fromInstant = from.atStartOfDay(ZoneOffset.UTC).toInstant();
+        var toInstant   = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        // Receita, total de pedidos e ticket médio
+        Object[] rev = orderRepository.findRevenueSummary(fromInstant, toInstant);
+        BigDecimal totalRevenue   = (BigDecimal) rev[0];
+        long       totalOrders    = ((Number) rev[1]).longValue();
+        BigDecimal avgOrderValue  = (BigDecimal) rev[2];
+
+        // Contagem por status
+        Map<String, Long> ordersByStatus = orderRepository
+                .countByStatusInRange(fromInstant, toInstant)
+                .stream()
+                .collect(Collectors.toMap(
+                        r -> (String) r[0],
+                        r -> ((Number) r[1]).longValue(),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        // Receita por dia
+        List<OrderSummaryResponse.RevenueByDay> revenueByDay = orderRepository
+                .findRevenueByDay(fromInstant, toInstant)
+                .stream()
+                .map(r -> new OrderSummaryResponse.RevenueByDay((String) r[0], (BigDecimal) r[1]))
+                .toList();
+
+        // Top produtos
+        List<OrderSummaryResponse.TopProduct> topProducts = orderRepository
+                .findTopProducts(fromInstant, toInstant)
+                .stream()
+                .map(r -> new OrderSummaryResponse.TopProduct(
+                        r[0] != null ? r[0].toString() : null,
+                        (String) r[1],
+                        ((Number) r[2]).longValue(),
+                        (BigDecimal) r[3]
+                ))
+                .toList();
+
+        return new OrderSummaryResponse(totalRevenue, totalOrders, avgOrderValue,
+                ordersByStatus, revenueByDay, topProducts);
+    }
+
     // ── MAPEAMENTO ────────────────────────────────────────────────
-    // Converte a entidade Order (banco) para OrderResponse (JSON de resposta)
-    // Esse padrão (DTO) evita expor campos internos como senha ou IDs internos
+    // Suporta pedidos de convidados (user == null): usa guestEmail como fallback
     private OrderResponse toResponse(Order order) {
-        // Mapeia cada item do pedido para o DTO de resposta
         List<OrderItemResponse> items = order.getItems().stream().map(i ->
                 new OrderItemResponse(
                         i.getId(),
@@ -187,13 +283,18 @@ public class OrderService {
                 )
         ).toList();
 
+        String email = order.getUser() != null
+                ? order.getUser().getEmail()
+                : order.getGuestEmail();
+
         return new OrderResponse(
                 order.getId(),
-                order.getUser().getEmail(), // e-mail do cliente (não o objeto User completo)
+                email,
                 order.getStatus(),
                 order.getPaymentMethod(),
                 order.getTotalAmount(),
-                order.getTrackingCode(),    // código de rastreio (pode ser null)
+                order.getTrackingCode(),
+                order.getTrackingUrl(),
                 order.getDeliveryAddress(),
                 items,
                 order.getCreatedAt(),

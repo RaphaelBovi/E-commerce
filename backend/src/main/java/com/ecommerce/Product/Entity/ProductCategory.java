@@ -15,7 +15,6 @@ import lombok.Getter;
 @Getter
 public class ProductCategory {
 
-    // JPA requires a no-arg constructor. Sets safe defaults so no field is null.
     protected ProductCategory() {
         this.name  = "";
         this.ref   = "";
@@ -27,10 +26,10 @@ public class ProductCategory {
         this.images = new ArrayList<>();
     }
 
-    // Used by ProductCategoryRequest.toEntity() to create a new product.
     public ProductCategory(String name, String ref, BigDecimal price, Integer qnt,
                            String marca, String category, String image,
-                           BigDecimal promotionalPrice, List<String> images) {
+                           BigDecimal promotionalPrice, List<String> images,
+                           BigDecimal weightKg, Integer widthCm, Integer heightCm, Integer lengthCm) {
         this.name  = name;
         this.ref   = ref;
         this.price = price;
@@ -40,12 +39,16 @@ public class ProductCategory {
         this.image = image;
         this.promotionalPrice = promotionalPrice;
         this.images = images != null ? images : new ArrayList<>();
+        this.weightKg = weightKg;
+        this.widthCm  = widthCm;
+        this.heightCm = heightCm;
+        this.lengthCm = lengthCm;
     }
 
-    // Called by ProductService.update() to apply new values to an existing product.
     public void update(String name, String ref, BigDecimal price, Integer qnt,
                        String marca, String category, String image,
-                       BigDecimal promotionalPrice, List<String> images) {
+                       BigDecimal promotionalPrice, List<String> images,
+                       BigDecimal weightKg, Integer widthCm, Integer heightCm, Integer lengthCm) {
         this.name  = name;
         this.ref   = ref;
         this.price = price;
@@ -55,6 +58,10 @@ public class ProductCategory {
         this.image = image;
         this.promotionalPrice = promotionalPrice;
         this.images = images != null ? images : new ArrayList<>();
+        this.weightKg = weightKg;
+        this.widthCm  = widthCm;
+        this.heightCm = heightCm;
+        this.lengthCm = lengthCm;
     }
 
     @Id
@@ -63,11 +70,8 @@ public class ProductCategory {
 
     private String name;
     private String ref;
-
     private BigDecimal price;
 
-    // Promotional price — null means no active promotion.
-    // isPromo = (promotionalPrice != null && promotionalPrice < price)
     @Column(name = "promotional_price")
     private BigDecimal promotionalPrice;
 
@@ -75,20 +79,27 @@ public class ProductCategory {
     private String marca;
     private String category;
 
-    // Legacy single-image field kept for backward compatibility.
     @Column(columnDefinition = "TEXT")
     private String image;
 
-    // Up to 5 product images (base64 or URLs), ordered by display priority.
-    // Stored in a separate table (product_images) joined by the product UUID.
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(
-        name = "product_images",
-        joinColumns = @JoinColumn(name = "product_id")
-    )
+    @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "image_url", columnDefinition = "TEXT")
     @OrderColumn(name = "image_order")
     private List<String> images = new ArrayList<>();
+
+    // Shipping dimensions — nullable, fallback to defaults in FreightService
+    @Column(name = "weight_kg", precision = 8, scale = 3)
+    private BigDecimal weightKg;
+
+    @Column(name = "width_cm")
+    private Integer widthCm;
+
+    @Column(name = "height_cm")
+    private Integer heightCm;
+
+    @Column(name = "length_cm")
+    private Integer lengthCm;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

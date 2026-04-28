@@ -354,10 +354,12 @@ export default function Checkout({ cartItems, onClearCart }) {
         items: [
           ...cartItems.map((item) => ({
             productId:    item.id,
-            productName:  item.name,
+            productName:  item.variantName ? `${item.name} — ${item.variantName}` : item.name,
             productImage: item.image || null,
             unitPrice:    item.price,
             quantity:     item.quantity,
+            variantId:    item.variantId   || null,
+            variantName:  item.variantName || null,
           })),
           ...freightItem,
         ],

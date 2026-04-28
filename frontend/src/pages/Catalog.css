@@ -67,7 +67,10 @@
 .catalog-content {
   min-width: 0;
   width: 100%;
-  min-height: 400px;
+  /* Mantém a área de conteúdo sempre alta o suficiente para que a página
+     não fique menor que o viewport — impede o jank de scrollbar aparecer/
+     desaparecer quando poucos produtos são exibidos após filtrar. */
+  min-height: calc(100vh - var(--navbar-h) - 8rem);
 }
 
 /* ─── Toolbar ────────────────────────────────── */

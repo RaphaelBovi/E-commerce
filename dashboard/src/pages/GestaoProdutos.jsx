@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes, FaTag, FaImages, FaUpload, FaChevronLeft, FaChevronRight, FaFileCsv } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaTimes, FaTag, FaImages, FaUpload, FaChevronLeft, FaChevronRight, FaFileCsv, FaLayerGroup } from "react-icons/fa";
+import { apiFetch } from "../services/apiClient.js";
 
 const PAGE_SIZE = 20;
 import {
@@ -97,6 +98,15 @@ export default function GestaoProdutos() {
   const [csvResult, setCsvResult]       = useState(null);
   const csvInputRef = useRef(null);
 
+  // ── Variantes ──────────────────────────────────────────────────
+  const [activeTab, setActiveTab]           = useState("produto");
+  const [editProductId, setEditProductId]   = useState(null);
+  const [variants, setVariants]             = useState([]);
+  const [variantForm, setVariantForm]       = useState({ name: "", sku: "", price: "", qnt: "", attrKey: "", attrVal: "" });
+  const [variantAttrs, setVariantAttrs]     = useState([]); // [{key, val}]
+  const [variantSaving, setVariantSaving]   = useState(false);
+  const [variantError, setVariantError]     = useState("");
+
   const load = () => {
     setLoading(true);
     fetchProducts()
@@ -134,7 +144,13 @@ export default function GestaoProdutos() {
   const openCreate = () => {
     setForm(EMPTY_FORM);
     setEditRef(null);
+    setEditProductId(null);
     setFormError("");
+    setActiveTab("produto");
+    setVariants([]);
+    setVariantAttrs([]);
+    setVariantForm({ name: "", sku: "", price: "", qnt: "", attrKey: "", attrVal: "" });
+    setVariantError("");
     setShowModal(true);
   };
 
@@ -147,7 +163,7 @@ export default function GestaoProdutos() {
       qnt:   String(p.qnt),
       marca: p.marca,
       category: p.category,
-      image: "",       // legacy field not shown in edit
+      image: "",
       images: p.images || [],
       weightKg: p.weightKg != null ? String(p.weightKg) : "",
       widthCm:  p.widthCm  != null ? String(p.widthCm)  : "",
@@ -155,11 +171,69 @@ export default function GestaoProdutos() {
       lengthCm: p.lengthCm != null ? String(p.lengthCm) : "",
     });
     setEditRef(p.ref);
+    setEditProductId(p.id);
     setFormError("");
+    setActiveTab("produto");
+    setVariants(p.variants || []);
+    setVariantForm({ name: "", sku: "", price: "", qnt: "", attrKey: "", attrVal: "" });
+    setVariantAttrs([]);
+    setVariantError("");
     setShowModal(true);
   };
 
-  const closeModal = () => { setShowModal(false); setFormError(""); };
+  const closeModal = () => {
+    setShowModal(false);
+    setFormError("");
+    setActiveTab("produto");
+    setEditProductId(null);
+  };
+
+  // ── Variant handlers ──────────────────────────────────────────
+  const handleAddAttr = () => {
+    const key = variantForm.attrKey.trim();
+    const val = variantForm.attrVal.trim();
+    if (!key || !val) return;
+    setVariantAttrs((prev) => [...prev.filter((a) => a.key !== key), { key, val }]);
+    setVariantForm((f) => ({ ...f, attrKey: "", attrVal: "" }));
+  };
+
+  const handleCreateVariant = async (e) => {
+    e.preventDefault();
+    if (!variantForm.name.trim()) { setVariantError("Nome é obrigatório."); return; }
+    if (!variantForm.qnt && variantForm.qnt !== "0") { setVariantError("Quantidade é obrigatória."); return; }
+    setVariantSaving(true);
+    setVariantError("");
+    try {
+      const attrs = Object.fromEntries(variantAttrs.map(({ key, val }) => [key, val]));
+      const created = await apiFetch(`/product-category/${editProductId}/variants`, {
+        method: "POST",
+        body: JSON.stringify({
+          name:  variantForm.name.trim(),
+          sku:   variantForm.sku.trim() || null,
+          price: variantForm.price ? Number(variantForm.price) : null,
+          qnt:   Number(variantForm.qnt),
+          attributes: attrs,
+        }),
+      });
+      setVariants((prev) => [...prev, created]);
+      setVariantForm({ name: "", sku: "", price: "", qnt: "", attrKey: "", attrVal: "" });
+      setVariantAttrs([]);
+    } catch (err) {
+      setVariantError(err.message);
+    } finally {
+      setVariantSaving(false);
+    }
+  };
+
+  const handleDeleteVariant = async (variantId) => {
+    if (!window.confirm("Excluir esta variante?")) return;
+    try {
+      await apiFetch(`/product-category/${editProductId}/variants/${variantId}`, { method: "DELETE" });
+      setVariants((prev) => prev.filter((v) => v.id !== variantId));
+    } catch (err) {
+      setVariantError(err.message);
+    }
+  };
 
   // ── Upload + compress image files ──────────────────────────────
   const handleImageFiles = async (e) => {
@@ -510,9 +584,112 @@ export default function GestaoProdutos() {
               <button className="modal-close" onClick={closeModal}><FaTimes /></button>
             </div>
 
+            {/* ── Tabs (só mostra em edição) ── */}
+            {editRef && (
+              <div className="gp-tabs">
+                <button type="button" className={`gp-tab${activeTab === "produto" ? " gp-tab--active" : ""}`}
+                  onClick={() => setActiveTab("produto")}>Produto</button>
+                <button type="button" className={`gp-tab${activeTab === "variantes" ? " gp-tab--active" : ""}`}
+                  onClick={() => setActiveTab("variantes")}><FaLayerGroup style={{ marginRight: 4 }} />Variantes{variants.length > 0 && <span className="gp-tab-badge">{variants.length}</span>}</button>
+              </div>
+            )}
+
             {formError && <div className="alert alert-error">{formError}</div>}
 
-            <form onSubmit={handleSubmit}>
+            {/* ── Aba Variantes ── */}
+            {activeTab === "variantes" && (
+              <div className="gp-variants-panel">
+                {variantError && <div className="alert alert-error">{variantError}</div>}
+
+                {/* Lista de variantes existentes */}
+                {variants.length > 0 && (
+                  <div className="gp-variants-list">
+                    <table className="admin-table">
+                      <thead><tr><th>Nome</th><th>SKU</th><th>Preço</th><th>Estoque</th><th>Atributos</th><th></th></tr></thead>
+                      <tbody>
+                        {variants.map((v) => (
+                          <tr key={v.id}>
+                            <td style={{ fontWeight: 600 }}>{v.name}</td>
+                            <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>{v.sku || "—"}</td>
+                            <td>{v.price != null ? Number(v.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : <span style={{ color: "var(--text-muted)" }}>Herda</span>}</td>
+                            <td>{v.qnt}</td>
+                            <td style={{ fontSize: "0.78rem" }}>
+                              {v.attributes && Object.entries(v.attributes).map(([k, val]) => (
+                                <span key={k} className="badge badge-pending" style={{ marginRight: 4 }}>{k}: {val}</span>
+                              ))}
+                            </td>
+                            <td>
+                              <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteVariant(v.id)}>
+                                <FaTrash />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Formulário para nova variante */}
+                <form onSubmit={handleCreateVariant} className="gp-variant-form">
+                  <h3 className="gp-variant-form-title"><FaPlus /> Nova Variante</h3>
+                  <div className="grid-2">
+                    <div className="input-group col-span-2">
+                      <label>Nome da variante *</label>
+                      <input placeholder="Ex: M / Azul" value={variantForm.name}
+                        onChange={(e) => setVariantForm((f) => ({ ...f, name: e.target.value }))} />
+                    </div>
+                    <div className="input-group">
+                      <label>SKU <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span></label>
+                      <input placeholder="Ex: ABC-M-AZ" value={variantForm.sku}
+                        onChange={(e) => setVariantForm((f) => ({ ...f, sku: e.target.value }))} />
+                    </div>
+                    <div className="input-group">
+                      <label>Preço (R$) <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(vazio = herda do produto)</span></label>
+                      <input type="number" min="0.01" step="0.01" placeholder="Deixe vazio para herdar"
+                        value={variantForm.price} onChange={(e) => setVariantForm((f) => ({ ...f, price: e.target.value }))} />
+                    </div>
+                    <div className="input-group">
+                      <label>Estoque *</label>
+                      <input type="number" min="0" step="1" placeholder="0" value={variantForm.qnt}
+                        onChange={(e) => setVariantForm((f) => ({ ...f, qnt: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  {/* Atributos dinâmicos */}
+                  <div className="input-group">
+                    <label>Atributos (ex: cor, tamanho)</label>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <input placeholder="Chave (ex: cor)" value={variantForm.attrKey}
+                        onChange={(e) => setVariantForm((f) => ({ ...f, attrKey: e.target.value }))}
+                        style={{ flex: 1 }} />
+                      <input placeholder="Valor (ex: Azul)" value={variantForm.attrVal}
+                        onChange={(e) => setVariantForm((f) => ({ ...f, attrVal: e.target.value }))}
+                        style={{ flex: 1 }} />
+                      <button type="button" className="btn btn-outline" onClick={handleAddAttr}>+</button>
+                    </div>
+                    {variantAttrs.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.5rem" }}>
+                        {variantAttrs.map(({ key, val }) => (
+                          <span key={key} className="badge badge-shipped" style={{ cursor: "pointer" }}
+                            onClick={() => setVariantAttrs((prev) => prev.filter((a) => a.key !== key))}>
+                            {key}: {val} ×
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+                    <button type="submit" className="btn btn-primary" disabled={variantSaving}>
+                      {variantSaving ? "Salvando…" : "Adicionar Variante"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} style={{ display: activeTab === "variantes" ? "none" : "block" }}>
               <div className="grid-2">
                 {/* Nome */}
                 <div className="input-group col-span-2">

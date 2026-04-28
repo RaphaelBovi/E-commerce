@@ -215,3 +215,64 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
+/* ─── Variant tabs ────────────────────────────────────────────── */
+.gp-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 1rem;
+  padding: 0 0.25rem;
+}
+
+.gp-tab {
+  padding: 0.55rem 1.1rem;
+  border: none;
+  background: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.gp-tab:hover { color: var(--primary); }
+
+.gp-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.gp-tab-badge {
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0 0.4rem;
+  min-width: 1.2rem;
+  text-align: center;
+}
+
+/* ─── Variants panel ──────────────────────────────────────────── */
+.gp-variants-panel { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.gp-variants-list { overflow-x: auto; }
+
+.gp-variant-form { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; }
+
+.gp-variant-form-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text);
+}

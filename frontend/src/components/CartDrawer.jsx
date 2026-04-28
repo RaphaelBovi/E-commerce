@@ -50,41 +50,38 @@ export default function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantit
             // Estado vazio: exibido quando não há itens no carrinho
             <p className="empty-cart">Seu carrinho está vazio.</p>
           ) : (
-            // Lista de itens do carrinho
-            cartItems.map((item, index) => (
-              <div key={index} className="cart-item">
-                {/* Imagem do produto em miniatura */}
-                <img src={item.image} alt={item.name} />
-
-                <div className="item-details">
-                  {/* Nome do produto */}
-                  <h4>{item.name}</h4>
-
-                  {/* Preço unitário formatado em Real */}
-                  <p className="item-price">
-                    {item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </p>
-
-                  <div className="cart-item-actions">
-                    {/* Controles de quantidade: diminui / exibe valor / aumenta */}
-                    <div className="cart-quantity-controls">
-                      <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
-                      <span>{item.quantity}</span>
-                      <button
-                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                        disabled={item.qnt != null && item.quantity >= item.qnt}
-                        title={item.qnt != null && item.quantity >= item.qnt ? 'Estoque máximo atingido' : undefined}
-                      >+</button>
+            cartItems.map((item) => {
+              const itemKey = item._key || String(item.id);
+              const maxQty  = item.variantQnt != null ? item.variantQnt : item.qnt;
+              return (
+                <div key={itemKey} className="cart-item">
+                  <img src={item.image} alt={item.name} />
+                  <div className="item-details">
+                    <h4>{item.name}</h4>
+                    {item.variantName && (
+                      <p className="item-variant">{item.variantName}</p>
+                    )}
+                    <p className="item-price">
+                      {item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
+                    <div className="cart-item-actions">
+                      <div className="cart-quantity-controls">
+                        <button onClick={() => onUpdateQuantity(itemKey, item.quantity - 1)}>-</button>
+                        <span>{item.quantity}</span>
+                        <button
+                          onClick={() => onUpdateQuantity(itemKey, item.quantity + 1)}
+                          disabled={maxQty != null && item.quantity >= maxQty}
+                          title={maxQty != null && item.quantity >= maxQty ? 'Estoque máximo atingido' : undefined}
+                        >+</button>
+                      </div>
+                      <button className="btn-remove-item" onClick={() => onRemoveItem(itemKey)}>
+                        <FaTrash />
+                      </button>
                     </div>
-
-                    {/* Botão de remover item completamente do carrinho */}
-                    <button className="btn-remove-item" onClick={() => onRemoveItem(item.id)}>
-                      <FaTrash />
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

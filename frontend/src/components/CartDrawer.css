@@ -148,6 +148,13 @@
   -webkit-box-orient: vertical;
 }
 
+.item-variant {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+  font-weight: 500;
+}
+
 .item-price {
   font-size: 0.9rem;
   font-weight: 700;

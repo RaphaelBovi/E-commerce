@@ -76,11 +76,16 @@ function RecentlyViewedSection({ products, currentId, onAddToCart }) {
   );
 }
 
+function capitalize(str) {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+}
+
 function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
-  const [quantity, setQuantity]     = useState(1);
-  const [activeImg, setActiveImg]   = useState(0);
-  const [favorited, setFavorited]   = useState(false);
-  const [favLoading, setFavLoading] = useState(false);
+  const [quantity, setQuantity]         = useState(1);
+  const [activeImg, setActiveImg]       = useState(0);
+  const [favorited, setFavorited]       = useState(false);
+  const [favLoading, setFavLoading]     = useState(false);
+  const [selectedAttrs, setSelectedAttrs] = useState({});
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -150,17 +155,50 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
       .catch(() => {});
   }, [isAuthenticated, product?.id]);
 
-  const isOutOfStock = product.qnt === 0;
-  const isLowStock   = product.qnt > 0 && product.qnt <= 3;
+  // ── Variant logic ─────────────────────────────────────────────
+  const variants   = product.variants || [];
+  const hasVariants = variants.length > 0;
 
-  // Clamp quantity when stock decreases below current selection
+  // Collect unique attribute keys from all variants (e.g. ["cor", "tamanho"])
+  const attrKeys = hasVariants
+    ? [...new Set(variants.flatMap((v) => Object.keys(v.attributes || {})))]
+    : [];
+
+  // Reset selections when product changes
+  useEffect(() => { setSelectedAttrs({}); }, [product?.id]);
+
+  // Find matching variant when all attributes are chosen
+  const allAttrsChosen = attrKeys.length > 0 && attrKeys.every((k) => selectedAttrs[k]);
+  const selectedVariant = allAttrsChosen
+    ? variants.find((v) => attrKeys.every((k) => v.attributes?.[k] === selectedAttrs[k]))
+    : null;
+
+  // Effective price: variant overrides product price (null = inherit)
+  const basePrice    = product.isPromo && product.promotionalPrice ? product.promotionalPrice : product.price;
+  const effectivePrice = selectedVariant?.price != null ? selectedVariant.price : basePrice;
+
+  // Effective stock
+  const effectiveQnt = selectedVariant ? selectedVariant.qnt : product.qnt;
+
+  const isOutOfStock = effectiveQnt === 0;
+  const isLowStock   = effectiveQnt > 0 && effectiveQnt <= 3;
+
+  // Clamp quantity when stock changes
   useEffect(() => {
-    if (product.qnt > 0 && quantity > product.qnt) setQuantity(product.qnt);
-  }, [product.qnt]);
+    if (effectiveQnt > 0 && quantity > effectiveQnt) setQuantity(effectiveQnt);
+  }, [effectiveQnt]);
+
+  // Whether the add-to-cart buttons should be blocked (variants required but not fully selected)
+  const variantRequired = hasVariants && attrKeys.length > 0 && !allAttrsChosen;
+
+  const variantOpts = selectedVariant
+    ? { variantId: selectedVariant.id, variantName: selectedVariant.name,
+        variantQnt: selectedVariant.qnt, variantPrice: selectedVariant.price }
+    : null;
 
   const handleComprarAgora = () => {
-    if (isOutOfStock) return;
-    onAddToCart(product, quantity);
+    if (isOutOfStock || variantRequired) return;
+    onAddToCart(product, quantity, variantOpts);
     navigate('/checkout');
   };
 
@@ -226,12 +264,11 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
     : (product.image ? [product.image] : []);
 
   const isPromo = Boolean(product.isPromo);
-  const displayPrice = isPromo ? product.promotionalPrice : product.price;
-  const formattedPrice = Number(displayPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const formattedOriginalPrice = isPromo
+  const formattedPrice = Number(effectivePrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formattedOriginalPrice = isPromo && !selectedVariant?.price
     ? Number(product.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
     : null;
-  const discountPct = isPromo && product.price > 0
+  const discountPct = isPromo && product.price > 0 && !selectedVariant?.price
     ? Math.round((1 - product.promotionalPrice / product.price) * 100)
     : 0;
 
@@ -323,12 +360,50 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
             <p className="details-installments">Parcelamento conforme política da loja</p>
           </div>
 
-          {/* ── Indicadores de estoque ── */}
-          {isOutOfStock && (
-            <p className="pd-out-of-stock">Produto esgotado — indisponível no momento</p>
+          {/* ── Variantes ── */}
+          {hasVariants && attrKeys.map((key) => {
+            const options = [...new Set(variants.map((v) => v.attributes?.[key]).filter(Boolean))];
+            return (
+              <div key={key} className="pd-variant-group">
+                <span className="pd-variant-label">{capitalize(key)}</span>
+                <div className="pd-variant-options">
+                  {options.map((opt) => {
+                    const available = variants.some(
+                      (v) => v.attributes?.[key] === opt && v.qnt > 0
+                    );
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={[
+                          'pd-variant-btn',
+                          selectedAttrs[key] === opt ? 'pd-variant-btn--active' : '',
+                          !available ? 'pd-variant-btn--unavailable' : '',
+                        ].join(' ').trim()}
+                        onClick={() => setSelectedAttrs((prev) => ({ ...prev, [key]: opt }))}
+                        title={!available ? 'Sem estoque' : undefined}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {variantRequired && (
+            <p className="pd-variant-prompt">Selecione as opções acima para adicionar ao carrinho.</p>
           )}
-          {isLowStock && (
-            <p className="pd-low-stock">Restam apenas {product.qnt} {product.qnt === 1 ? 'unidade' : 'unidades'}!</p>
+
+          {/* ── Indicadores de estoque ── */}
+          {!variantRequired && isOutOfStock && (
+            <p className="pd-out-of-stock">
+              {selectedVariant ? 'Variante esgotada — escolha outra opção.' : 'Produto esgotado — indisponível no momento'}
+            </p>
+          )}
+          {!variantRequired && isLowStock && (
+            <p className="pd-low-stock">Restam apenas {effectiveQnt} {effectiveQnt === 1 ? 'unidade' : 'unidades'}!</p>
           )}
 
           {/* ── Quantidade ── */}
@@ -339,16 +414,16 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 aria-label="Diminuir quantidade"
-                disabled={quantity <= 1 || isOutOfStock}
+                disabled={quantity <= 1 || isOutOfStock || variantRequired}
               >
                 −
               </button>
               <span className="quantity-display">{quantity}</span>
               <button
                 type="button"
-                onClick={() => setQuantity((q) => Math.min(product.qnt, q + 1))}
+                onClick={() => setQuantity((q) => Math.min(effectiveQnt, q + 1))}
                 aria-label="Aumentar quantidade"
-                disabled={isOutOfStock || quantity >= product.qnt}
+                disabled={isOutOfStock || variantRequired || quantity >= effectiveQnt}
               >
                 +
               </button>
@@ -361,17 +436,17 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
               type="button"
               className="btn-gold btn-large"
               onClick={handleComprarAgora}
-              disabled={isOutOfStock}
+              disabled={isOutOfStock || variantRequired}
             >
-              {isOutOfStock ? 'Produto esgotado' : 'Comprar agora'}
+              {isOutOfStock ? 'Produto esgotado' : variantRequired ? 'Selecione as opções' : 'Comprar agora'}
             </button>
             <button
               type="button"
               className="btn-outline btn-large"
-              onClick={() => !isOutOfStock && onAddToCart(product, quantity)}
-              disabled={isOutOfStock}
+              onClick={() => !isOutOfStock && !variantRequired && onAddToCart(product, quantity, variantOpts)}
+              disabled={isOutOfStock || variantRequired}
             >
-              {isOutOfStock ? 'Indisponível' : 'Adicionar ao carrinho'}
+              {isOutOfStock ? 'Indisponível' : variantRequired ? 'Selecione as opções' : 'Adicionar ao carrinho'}
             </button>
           </div>
 

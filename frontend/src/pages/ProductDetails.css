@@ -402,6 +402,67 @@
   font-size: 0.875rem;
 }
 
+/* ─── Variantes ──────────────────────────────── */
+.pd-variant-group {
+  margin-bottom: 1rem;
+}
+
+.pd-variant-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pd-variant-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pd-variant-btn {
+  padding: 0.35rem 0.85rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.pd-variant-btn:hover:not(.pd-variant-btn--unavailable) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.pd-variant-btn--active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.pd-variant-btn--unavailable {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.pd-variant-prompt {
+  font-size: 0.82rem;
+  color: var(--warning);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
 /* ─── Stock indicators ───────────────────────── */
 .pd-out-of-stock {
   background: var(--danger-soft);

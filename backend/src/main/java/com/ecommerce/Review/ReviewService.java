@@ -13,6 +13,7 @@ import com.ecommerce.Review.Dto.ReviewSummaryResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +37,7 @@ public class ReviewService {
     }
 
     // ── LISTAR AVALIAÇÕES DE UM PRODUTO ──────────────────────────
+    @Transactional(readOnly = true)
     public ReviewSummaryResponse getProductReviews(UUID productId) {
         List<Review> reviews = reviewRepository.findByProductIdOrderByCreatedAtDesc(productId);
         long total = reviews.size();
@@ -54,6 +56,7 @@ public class ReviewService {
 
     // ── CRIAR AVALIAÇÃO ───────────────────────────────────────────
     // Só pode avaliar se tiver um pedido DELIVERED com o produto
+    @Transactional
     public ReviewResponse createReview(UUID productId, CreateReviewRequest req) {
         User user = getCurrentUser();
 
@@ -84,6 +87,7 @@ public class ReviewService {
     }
 
     // ── VERIFICAR SE USUÁRIO PODE AVALIAR ────────────────────────
+    @Transactional(readOnly = true)
     public boolean canReview(UUID productId) {
         User user = getCurrentUser();
         if (reviewRepository.existsByUserIdAndProductId(user.getId(), productId)) return false;
@@ -95,6 +99,7 @@ public class ReviewService {
     }
 
     // ── ADMIN: LISTAR TODAS ───────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<ReviewResponse> listAll() {
         return reviewRepository.findAllByOrderByCreatedAtDesc()
                 .stream().map(this::toResponse).toList();

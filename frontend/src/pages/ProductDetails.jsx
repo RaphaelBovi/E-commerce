@@ -157,7 +157,7 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
   }, [isAuthenticated, product?.id]);
 
   // ── Variant logic ─────────────────────────────────────────────
-  const variants   = product.variants || [];
+  const variants   = product?.variants || [];
   const hasVariants = variants.length > 0;
 
   // Collect unique attribute keys from all variants (e.g. ["cor", "tamanho"])
@@ -175,11 +175,11 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
     : null;
 
   // Effective price: variant overrides product price (null = inherit)
-  const basePrice    = product.isPromo && product.promotionalPrice ? product.promotionalPrice : product.price;
+  const basePrice    = product?.isPromo && product?.promotionalPrice ? product.promotionalPrice : product?.price;
   const effectivePrice = selectedVariant?.price != null ? selectedVariant.price : basePrice;
 
   // Effective stock
-  const effectiveQnt = selectedVariant ? selectedVariant.qnt : product.qnt;
+  const effectiveQnt = selectedVariant ? selectedVariant.qnt : (product?.qnt ?? 0);
 
   const isOutOfStock = effectiveQnt === 0;
   const isLowStock   = effectiveQnt > 0 && effectiveQnt <= 3;

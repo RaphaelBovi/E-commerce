@@ -8,6 +8,7 @@ import com.ecommerce.Product.Repository.ProductCategoryRepository;
 import com.ecommerce.Product.Repository.ProductVariantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ public class ProductVariantService {
         return ProductVariantDto.from(variantRepository.save(variant));
     }
 
+    @Transactional
     public ProductVariantDto update(UUID productId, UUID variantId, ProductVariantRequest req) {
         var variant = variantRepository.findById(variantId)
                 .filter(v -> v.getProduct().getId().equals(productId))
@@ -50,6 +52,7 @@ public class ProductVariantService {
         return ProductVariantDto.from(variantRepository.save(variant));
     }
 
+    @Transactional
     public void delete(UUID productId, UUID variantId) {
         variantRepository.findById(variantId)
                 .filter(v -> v.getProduct().getId().equals(productId))

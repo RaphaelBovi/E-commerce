@@ -369,7 +369,7 @@ export default function Checkout({ cartItems, onClearCart }) {
         guestEmail: isAuthenticated ? null : guestEmail.trim() || null,
       }, captchaToken);
 
-      trackPurchase(result.orderId || '', totalAmount, cartItems);
+      trackPurchase(result.orderId || '', total, cartItems);
       onClearCart();
       setStep(4);
       setTimeout(() => { window.location.href = result.paymentUrl; }, 1400);

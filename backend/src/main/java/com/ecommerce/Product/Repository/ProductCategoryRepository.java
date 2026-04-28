@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────────────────────────
 package com.ecommerce.Product.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +39,11 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 
     @Query("SELECT p FROM ProductCategory p LEFT JOIN FETCH p.variants WHERE p.id = :id")
     Optional<ProductCategory> findByIdWithVariants(@Param("id") UUID id);
+
+    // JOIN FETCH de variantes para o endpoint de listagem completa.
+    // DISTINCT evita duplicação de produtos quando cada um tem múltiplas variantes.
+    @Query("SELECT DISTINCT p FROM ProductCategory p LEFT JOIN FETCH p.variants")
+    List<ProductCategory> findAllWithVariants();
 
     void deleteByRefIgnoreCase(String ref);
 

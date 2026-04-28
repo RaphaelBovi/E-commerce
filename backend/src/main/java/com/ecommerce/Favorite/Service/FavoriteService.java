@@ -27,10 +27,11 @@ public class FavoriteService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 
+    @Transactional(readOnly = true)
     public List<ProductCategoryResponse> getFavorites() {
         User user = getCurrentUser();
         return favoriteRepo.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(f -> productRepo.findById(f.getProductId()).map(ProductCategoryResponse::from).orElse(null))
+                .map(f -> productRepo.findByIdWithVariants(f.getProductId()).map(ProductCategoryResponse::from).orElse(null))
                 .filter(Objects::nonNull)
                 .toList();
     }

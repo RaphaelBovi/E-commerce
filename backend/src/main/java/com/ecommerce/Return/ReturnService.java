@@ -8,6 +8,7 @@ import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -20,6 +21,7 @@ public class ReturnService {
     @Autowired private ReturnRequestRepository repository;
     @Autowired private OrderRepository orderRepository;
 
+    @Transactional
     public ReturnDto create(User user, UUID orderId, ReturnReason reason, String itemsJson) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
@@ -41,16 +43,19 @@ public class ReturnService {
         return ReturnDto.from(repository.save(req));
     }
 
+    @Transactional(readOnly = true)
     public List<ReturnDto> getMyReturns(User user) {
         return repository.findByUserIdOrderByCreatedAtDesc(user.getId())
                 .stream().map(ReturnDto::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ReturnDto> getAll() {
         return repository.findAllByOrderByCreatedAtDesc()
                 .stream().map(ReturnDto::from).toList();
     }
 
+    @Transactional
     public ReturnDto updateStatus(UUID id, ReturnStatus status, String notes) {
         var req = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitação de devolução não encontrada"));

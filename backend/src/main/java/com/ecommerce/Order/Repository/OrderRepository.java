@@ -51,16 +51,24 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     // Retorno: Optional<Order> — vazio se o pedido não existir ou não pertencer ao usuário
     Optional<Order> findByIdAndUserId(UUID id, UUID userId);
 
-    // Paginação para admin — LEFT JOIN para incluir pedidos de convidados (sem user)
-    @Query("""
+    // Paginação para admin — LEFT JOIN para incluir pedidos de convidados (sem user).
+    // countQuery explícita é obrigatória: Hibernate 6 falha ao derivar automaticamente
+    // a count query para queries customizadas com JOIN e ORDER BY.
+    // O emailPattern deve chegar já formatado com % (ex: "%foo%") pelo service.
+    @Query(value = """
         SELECT o FROM Order o LEFT JOIN o.user u
         WHERE (:status IS NULL OR o.status = :status)
-          AND (:email IS NULL OR (u IS NOT NULL AND LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%'))))
+          AND (:emailPattern IS NULL OR (u IS NOT NULL AND LOWER(u.email) LIKE :emailPattern))
         ORDER BY o.createdAt DESC
+        """,
+        countQuery = """
+        SELECT COUNT(o) FROM Order o LEFT JOIN o.user u
+        WHERE (:status IS NULL OR o.status = :status)
+          AND (:emailPattern IS NULL OR (u IS NOT NULL AND LOWER(u.email) LIKE :emailPattern))
         """)
     Page<Order> findAllFiltered(
             @Param("status") OrderStatus status,
-            @Param("email") String email,
+            @Param("emailPattern") String emailPattern,
             Pageable pageable);
 
     // ── Queries para relatório gerencial (A2) ─────────────────────

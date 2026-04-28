@@ -23,6 +23,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import com.ecommerce.Config.CloudinaryService;
 import com.ecommerce.Product.Entity.ProductCategory;
@@ -90,11 +91,13 @@ public class ProductService {
         );
     }
 
-    // Retorna a lista completa de todos os produtos cadastrados.
-    // Usa stream e map para converter cada entidade em ProductCategoryResponse.
-    // Retorno: lista (possivelmente vazia) de todos os produtos
+    // Retorna a lista completa de todos os produtos com variantes.
+    // @Transactional(readOnly = true) mantém a sessão Hibernate aberta durante o
+    // mapeamento, evitando LazyInitializationException ao acessar variants.
+    // findAllWithVariants() usa JOIN FETCH + DISTINCT para carregar produtos e
+    // variantes em uma única query, eliminando o problema N+1.
+    @Transactional(readOnly = true)
     public List<ProductCategoryResponse> findProduct() {
-        // Build a map of productId -> [avgRating, reviewCount] in one query
         Map<UUID, double[]> ratingMap = new HashMap<>();
         for (Object[] row : reviewRepository.findRatingSummaryForAllProducts()) {
             UUID pid   = (UUID) row[0];
@@ -103,7 +106,7 @@ public class ProductService {
             ratingMap.put(pid, new double[]{ avg, cnt });
         }
 
-        return repository.findAll().stream().map(p -> {
+        return repository.findAllWithVariants().stream().map(p -> {
             ProductCategoryResponse r = ProductCategoryResponse.from(p);
             double[] rd = ratingMap.get(p.getId());
             if (rd != null) {

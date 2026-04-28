@@ -111,7 +111,7 @@ public class OrderService {
     }
 
     // ── MEUS PEDIDOS ──────────────────────────────────────────────
-    // Retorna todos os pedidos do usuário logado, ordenados do mais recente
+    @Transactional(readOnly = true)
     public List<OrderResponse> getMyOrders() {
         User user = getCurrentUser();
         return orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
@@ -119,8 +119,7 @@ public class OrderService {
     }
 
     // ── DETALHE DE UM PEDIDO ──────────────────────────────────────
-    // Retorna um pedido específico — verifica que o pedido pertence ao usuário logado
-    // findByIdAndUserId impede que um usuário acesse pedidos de outro
+    @Transactional(readOnly = true)
     public OrderResponse getMyOrderById(UUID id) {
         User user = getCurrentUser();
         Order order = orderRepository.findByIdAndUserId(id, user.getId())
@@ -130,7 +129,7 @@ public class OrderService {
 
     // ── CANCELAR PEDIDO ───────────────────────────────────────────
     // O cliente só pode cancelar se o status ainda for PENDING_PAYMENT
-    // Pedidos já pagos, em separação ou enviados não podem ser cancelados pelo cliente
+    @Transactional
     public OrderResponse cancelOrder(UUID id) {
         User user = getCurrentUser();
         Order order = orderRepository.findByIdAndUserId(id, user.getId())
@@ -146,21 +145,26 @@ public class OrderService {
     }
 
     // ── ADMIN: TODOS OS PEDIDOS ───────────────────────────────────
+    @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrders() {
         return orderRepository.findAllByOrderByCreatedAtDesc()
                 .stream().map(this::toResponse).toList();
     }
 
     // ── ADMIN: PEDIDOS PAGINADOS ──────────────────────────────────
-    // Suporta filtros opcionais de status e e-mail; retorna Page<OrderResponse>
+    // emailPattern é pré-formatado com % aqui para simplificar a query JPQL
+    // e evitar uso de CONCAT no lado do banco (problemático no Hibernate 6).
+    @Transactional(readOnly = true)
     public Page<OrderResponse> getAllOrdersPaginated(int page, int size, OrderStatus status, String email) {
-        String emailFilter = (email != null && !email.isBlank()) ? email.trim() : null;
-        return orderRepository.findAllFiltered(status, emailFilter, PageRequest.of(page, size))
+        String emailPattern = (email != null && !email.isBlank())
+                ? "%" + email.trim().toLowerCase() + "%"
+                : null;
+        return orderRepository.findAllFiltered(status, emailPattern, PageRequest.of(page, size))
                 .map(this::toResponse);
     }
 
     // ── ADMIN: DETALHE DE QUALQUER PEDIDO ─────────────────────────
-    // Retorna um pedido pelo ID sem verificar ownership (admin pode ver qualquer pedido)
+    @Transactional(readOnly = true)
     public OrderResponse getOrderById(UUID id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
@@ -211,9 +215,7 @@ public class OrderService {
     }
 
     // ── RASTREIO VIA MELHOR ENVIO ─────────────────────────────────
-    // Retorna os eventos de rastreio do pedido do usuário logado.
-    // Verifica ownership — cliente só acessa seus próprios pedidos.
-    // Delega ao MelhorEnvioTrackingService; retorna lista vazia em fallback.
+    @Transactional(readOnly = true)
     public List<TrackingEventResponse> getOrderTracking(UUID id) {
         User user = getCurrentUser();
         Order order = orderRepository.findByIdAndUserId(id, user.getId())
@@ -225,6 +227,7 @@ public class OrderService {
     }
 
     // ── RELATÓRIO GERENCIAL ───────────────────────────────────────
+    @Transactional(readOnly = true)
     public OrderSummaryResponse getAdminSummary(LocalDate from, LocalDate to) {
         var fromInstant = from.atStartOfDay(ZoneOffset.UTC).toInstant();
         var toInstant   = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();

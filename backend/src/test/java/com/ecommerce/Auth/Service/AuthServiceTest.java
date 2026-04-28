@@ -4,6 +4,7 @@ import com.ecommerce.Auth.Entity.Dto.*;
 import com.ecommerce.Auth.Entity.PendingRegistration;
 import com.ecommerce.Auth.Entity.User;
 import com.ecommerce.Auth.Repository.PasswordResetTokenRepository;
+import com.ecommerce.Auth.Repository.PendingGoogleSetupRepository;
 import com.ecommerce.Auth.Repository.PendingRegistrationRepository;
 import com.ecommerce.Auth.Repository.UserRepository;
 import com.ecommerce.Product.Exception.BusinessException;
@@ -30,6 +31,7 @@ class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private PendingRegistrationRepository pendingRepo;
+    @Mock private PendingGoogleSetupRepository pendingGoogleSetupRepo;
     @Mock private PasswordResetTokenRepository resetTokenRepo;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtUtil jwtUtil;
@@ -43,7 +45,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         authService = new AuthService(
-            userRepository, pendingRepo, resetTokenRepo,
+            userRepository, pendingRepo, pendingGoogleSetupRepo, resetTokenRepo,
             passwordEncoder, authenticationManager, jwtUtil, emailService
         );
     }

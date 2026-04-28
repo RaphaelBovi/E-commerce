@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { initAnalytics } from '../services/analytics';
 import './CookieBanner.css';
 
 const CONSENT_KEY = 'cookie_consent';
@@ -17,6 +18,7 @@ export default function CookieBanner() {
 
   const accept = () => {
     try { localStorage.setItem(CONSENT_KEY, 'accepted'); } catch { /* ignore */ }
+    initAnalytics();
     setVisible(false);
   };
 

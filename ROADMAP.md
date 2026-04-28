@@ -1,115 +1,244 @@
 # Roadmap — E-commerce
 
-## Contexto técnico (leia antes de implementar qualquer item)
+## Contexto técnico
 
 **Stack:**
 - Frontend: React 19 + Vite, CSS puro, React Router v7, react-hot-toast, react-icons/fa
 - Dashboard: Vite separado em `dashboard/` — usa `apiFetch()` de `dashboard/src/services/apiClient.js`
-- Backend: Spring Boot, PostgreSQL (Render), JWT auth
+- Backend: Spring Boot 4 + PostgreSQL (Render), JWT stateless, Flyway migrations
 - API base: `VITE_API_BASE_URL` (padrão `http://localhost:8080/api`)
+- Config: `application.yml` (JWT, mail, reCAPTCHA, PagSeguro API URL) + `application.properties` (banco, Flyway, CORS, gateways, Cloudinary)
 
 **Entidade central de produto:** `ProductCategory.java`
-- Campos: `id` (UUID), `name`, `ref`, `price`, `promotionalPrice`, `isPromo`, `qnt`, `marca`, `category` (slug), `image` (TEXT base64), `images` (List\<String\> base64), `weightKg`, `widthCm`, `heightCm`, `lengthCm`, `averageRating`, `reviewCount`, `createdAt`
+- Campos: `id` (UUID), `name`, `ref`, `price`, `promotionalPrice`, `isPromo`, `qnt`, `marca`, `category`, `image` (TEXT), `images` (List), `weightKg`, `widthCm`, `heightCm`, `lengthCm`, `createdAt`
+- Variantes: `ProductVariant.java` com `id`, `productId`, `name`, `sku`, `price`, `qnt`, `attributes` (JSON Map)
 
 **Auth:**
-- Token JWT em `localStorage` → `Authorization: Bearer <token>`
+- JWT em `localStorage` → `Authorization: Bearer <token>`
 - Roles: `CUSTOMER`, `ADMIN`, `MASTER`
 - `SecurityConfig.java` controla acesso por rota
 - `useAuth()` expõe `{ user, isAuthenticated, login, logout }` — `user.role`
 
-**Convenções de código:**
-- CSS: sempre variáveis (`var(--primary)`, `var(--accent)`, `var(--surface)`, etc.) — tokens em `frontend/src/index.css`
-- Componentes: PascalCase.jsx + PascalCase.css, classes CSS prefixadas pelo componente
-- Handlers: prefixo `handle`, booleans: `is`/`has`/`can`
-- Sem TypeScript, sem Tailwind, sem Axios (usar fetch API)
+---
 
-**Serviços frontend existentes:**
-`productsApi.js`, `authApi.js`, `ordersApi.js`, `categoriesApi.js`, `freightApi.js`, `couponsApi.js`, `reviewsApi.js`, `favoritesApi.js`, `ticketsApi.js`
+## 🚀 Amanhã — Pré-Lançamento
+
+> Todos esses itens são de configuração e código. Nenhum exige nova feature — são ajustes para a loja funcionar corretamente em produção.
+
+---
+
+### P1 · Consolidar application.yml + application.properties
+
+**Problema:** O projeto tem dois arquivos de configuração com responsabilidades sobrepostas. O `application.yml` guarda JWT, mail, reCAPTCHA e PagSeguro API URL. O `application.properties` guarda banco, Flyway, CORS, gateways e Cloudinary. Além de confuso, os defaults de CORS diferem entre os dois arquivos — `yml` só tem localhost, `properties` tem o dashboard do Render. Isso vai gerar dúvida em toda manutenção futura.
+
+**O que fazer:**
+- Mover todas as propriedades do `application.yml` para o `application.properties`
+- Deletar `application.yml` após a migração
+- Garantir que o `application.properties` final tenha todos os blocos abaixo:
+
+```properties
+# JWT
+app.jwt.secret=${JWT_SECRET:dev-secret-key-change-in-production-min-256-bits}
+app.jwt.expiration-ms=${JWT_EXPIRATION_MS:86400000}
+
+# Mail
+spring.mail.host=${SPRING_MAIL_HOST:}
+spring.mail.port=${SPRING_MAIL_PORT:587}
+spring.mail.username=${SPRING_MAIL_USERNAME:}
+spring.mail.password=${SPRING_MAIL_PASSWORD:}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+app.mail.from=${MAIL_FROM:noreply@sualoja.com}
+
+# Google OAuth + reCAPTCHA
+app.google.client-id=${GOOGLE_CLIENT_ID:}
+google.recaptcha.secret=${GOOGLE_RECAPTCHA_SECRET:}
+
+# PagSeguro (mantido em sandbox até comercialização da plataforma)
+pagseguro.token=${PAGSEGURO_TOKEN:}
+pagseguro.api-url=${PAGSEGURO_API_URL:https://sandbox.api.pagseguro.com}
+pagseguro.notification-url=${PAGSEGURO_NOTIFICATION_URL:}
+pagseguro.redirect-url=${PAGSEGURO_REDIRECT_URL:http://localhost:5173/minha-conta}
+```
+
+**Verificar:** após subir o backend, checar nos logs que `jwt.secret` não está usando o valor default de dev.
+
+---
+
+### P2 · CORS — adicionar domínio do frontend de produção
+
+**Problema:** `APP_CORS_ALLOWED_ORIGINS` no Render precisa incluir o domínio onde o frontend está publicado. Se o frontend estiver em outro subdomínio do Render (ex: `https://ecommerce-frontend-xxxx.onrender.com`) e esse domínio não estiver na lista, **todas as requisições do browser falharão com erro CORS** — a loja vai estar no ar mas completamente quebrada para os clientes.
+
+**O que fazer:**
+1. Acessar o Render → serviço do backend → Environment Variables
+2. Localizar `APP_CORS_ALLOWED_ORIGINS`
+3. Garantir que o valor inclua **todos** os domínios ativos:
+   ```
+   https://ecommerce-dashboard-wfvy.onrender.com,https://<url-do-frontend>.onrender.com
+   ```
+4. Se o frontend ainda não tiver domínio próprio, adicionar quando for publicado
+
+**Verificar:** no browser, abrir o frontend de produção, abrir DevTools → Network → checar se alguma request retorna erro `CORS policy`.
+
+---
+
+### P3 · JWT Secret forte em produção
+
+**Problema:** O `JWT_SECRET` no `application.yml` tem fallback `dev-secret-key-change-in-production-min-256-bits`. Se essa variável não estiver configurada no Render, **todos os tokens JWT são assinados com esse segredo fraco e previsível**, permitindo que qualquer pessoa forge tokens de admin.
+
+**O que fazer:**
+1. Gerar um segredo seguro (mínimo 64 chars hex):
+   ```bash
+   openssl rand -hex 64
+   ```
+2. No Render → backend → Environment Variables → adicionar:
+   ```
+   JWT_SECRET=<valor gerado acima>
+   ```
+
+**Verificar:** nos logs do backend ao subir, confirmar que não aparece o aviso de chave fraca (se implementado) ou simplesmente confirmar que a variável está configurada no painel do Render.
+
+---
+
+### P4 · reCAPTCHA — chave secreta em produção
+
+**Problema:** `RecaptchaService.java` lê `${google.recaptcha.secret:}`. Se `GOOGLE_RECAPTCHA_SECRET` não estiver configurado no Render, o serviço entra em modo permissivo (aceita qualquer token), inutilizando a proteção anti-bot no cadastro e checkout.
+
+**O que fazer:**
+1. No Render → backend → Environment Variables → confirmar que existe:
+   ```
+   GOOGLE_RECAPTCHA_SECRET=<chave secreta do Google reCAPTCHA>
+   ```
+2. A chave pública já está no frontend (`.env.production`): `VITE_RECAPTCHA_SITE_KEY=6LcK...`
+3. Confirmar que o par chave pública/privada é do mesmo site cadastrado no Google reCAPTCHA Admin
+
+**Onde obter:** [google.com/recaptcha/admin](https://www.google.com/recaptcha/admin) → selecionar o site → Configurações → Chaves
+
+---
+
+### P5 · Webhook URLs dos gateways de pagamento
+
+**Problema:** PagSeguro e Mercado Pago precisam de uma URL pública para notificar o backend quando um pagamento muda de status. Se `PAGSEGURO_NOTIFICATION_URL` e `MERCADOPAGO_NOTIFICATION_URL` não estiverem configurados, pedidos ficam travados em `PENDING` — **o estoque não é decrementado e o cliente não recebe confirmação por email**.
+
+**O que fazer:**
+1. No Render → backend → Environment Variables:
+   ```
+   PAGSEGURO_NOTIFICATION_URL=https://ecommerce-backend-lkv7.onrender.com/api/payments/webhook
+   MERCADOPAGO_NOTIFICATION_URL=https://ecommerce-backend-lkv7.onrender.com/api/payments/webhook/mercadopago
+   ```
+2. No painel do PagSeguro Sandbox: configurar a mesma URL em Webhooks
+3. No painel do Mercado Pago: configurar a URL de notificação nas configurações de integração
+4. Testar fazendo um pedido de teste e verificar no log do Render se o webhook é recebido:
+   ```
+   grep "webhook" <logs do Render>
+   ```
+
+---
+
+### P6 · Variáveis de ambiente — checklist completo no Render
+
+Antes de abrir para clientes, confirmar que **todas** estão configuradas no Render (sem valor em branco):
+
+| Variável | Obrigatório | Status |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | Sim | Banco PostgreSQL |
+| `SPRING_DATASOURCE_USERNAME` | Sim | — |
+| `SPRING_DATASOURCE_PASSWORD` | Sim | — |
+| `JWT_SECRET` | Sim | Mínimo 64 chars |
+| `GOOGLE_CLIENT_ID` | Sim | Login Google |
+| `GOOGLE_RECAPTCHA_SECRET` | Sim | Anti-bot |
+| `APP_MASTER_EMAIL` | Sim | Conta admin inicial |
+| `APP_MASTER_PASSWORD` | Sim | Mínimo 12 chars |
+| `APP_CORS_ALLOWED_ORIGINS` | Sim | Domínios do frontend + dashboard |
+| `SPRING_MAIL_HOST` | Sim | SMTP (email já funciona) |
+| `SPRING_MAIL_USERNAME` | Sim | — |
+| `SPRING_MAIL_PASSWORD` | Sim | — |
+| `PAGSEGURO_TOKEN` | Sim | Token sandbox OK |
+| `PAGSEGURO_NOTIFICATION_URL` | Sim | URL do webhook |
+| `PAGSEGURO_WEBHOOK_SECRET` | Sim | Verificação HMAC |
+| `MERCADOPAGO_ACCESS_TOKEN` | Sim | Token de produção/sandbox |
+| `MERCADOPAGO_NOTIFICATION_URL` | Sim | URL do webhook |
+| `MELHOR_ENVIO_TOKEN` | Sim | Cálculo de frete |
+| `MELHOR_ENVIO_ORIGIN_ZIP` | Sim | CEP de origem |
+| `CLOUDINARY_URL` | Recomendado | Upload de imagens (ver C1) |
+
+---
+
+### P7 · Teste de ponta a ponta antes de divulgar
+
+Roteiro de smoke test para executar após configurar tudo acima:
+
+1. **Cadastro:** criar conta nova → receber email com OTP → confirmar → login
+2. **Google Login:** entrar com conta Google → perfil carregado
+3. **Catálogo:** listar produtos → abrir detalhe → variantes aparecem
+4. **Frete:** no checkout, digitar CEP → opções de frete aparecem com preço
+5. **Cupom:** aplicar cupom válido → desconto aplicado no total
+6. **Checkout sandbox:** finalizar pedido com PagSeguro sandbox → pedido aparece em "Minha Conta" com status `PENDING`
+7. **Webhook:** no painel do PagSeguro sandbox, simular pagamento aprovado → status muda para `PAID` → email de confirmação chega
+8. **Admin:** logar com conta MASTER → acessar dashboard → criar produto → produto aparece no frontend
 
 ---
 
 ## ✅ Concluído
 
-- **Estoque:** `decrementStock`/`incrementStock` em `ProductCategory.java`, validação em `PaymentService`, restauração em cancelamento
-- **Webhook PagSeguro:** HMAC-SHA256 em `PaymentController` + `PaymentService`
+- **Estoque:** `decrementStock`/`incrementStock` em `ProductCategory.java`, `StockService` extraído do `PaymentService`, restauração em cancelamento
+- **Webhook PagSeguro:** HMAC-SHA256 em `PaymentController` + `WebhookService` (extraído do `PaymentService`)
+- **Webhook Mercado Pago:** `handleMercadoPago()` em `WebhookService`
+- **Rate Limiting:** `RateLimitFilter.java` — sliding window por IP em login, register/initiate, freight, coupons (retorna 429)
+- **Flyway:** `V1__init_schema.sql` (16 tabelas), `V2__add_locked_column_to_users.sql`, `ddl-auto=validate`
+- **Testes unitários:** `AuthServiceTest` (10 testes — duplicate email/CPF, OTP expirado, lockout, OTP correto) + `StockServiceTest` (11 testes — estoque suficiente/insuficiente, variante, decrement, restore)
+- **Lazy loading de variantes:** `FetchType.LAZY` em `ProductCategory.variants` + `JOIN FETCH` no endpoint de detalhe
+- **Constructor injection:** `AuthService` e `PaymentService` migrados de `@Autowired` campo para construtor (`@RequiredArgsConstructor`)
+- **User.locked:** campo `locked`, `isAccountNonLocked()`, sem `@Data` (risco de `LazyInitializationException`)
+- **Registro em duas etapas:** `initiateRegistration` + `confirmRegistration` com OTP, `@Transactional`, endpoint legado `register()` removido
 - **Carrinho persistido:** localStorage em `App.jsx`, limpo no logout
-- **Email:** confirmação de pedido + status update em `EmailService.java`
+- **Email:** OTP de cadastro, recuperação de senha, confirmação de pedido, status update
 - **Rastreio Melhor Envio:** `MelhorEnvioTrackingService`, endpoint `GET /api/orders/my/{id}/tracking`, timeline em `MinhaConta.jsx`
-- **Cupons:** entidade `Coupon`, `CouponService`, `CouponController` (`POST /api/coupons/validate`), `AdminCouponController` (`/api/admin/coupons`), `CuponsAdmin.jsx`, campo no `Checkout.jsx`
-- **Reviews:** `Review.java`, `ReviewService`, `ReviewController` (`/api/reviews`), `AdminReviewController`, `ReviewsAdmin.jsx`, seção em `ProductDetails.jsx`, estrelas no `ProductCard.jsx`
-- **Paginação admin:** `OrderController` tem `GET /api/orders/paginated`, `GestaoPedidos.jsx` usa com filtros de status/email; `GestaoProdutos.jsx` tem paginação client-side (20/página)
-- **SEO:** `useSEO.js` (title, description, og:*, twitter:*, robots), `robots.txt`, `sitemap.xml`
+- **Cupons:** entidade `Coupon`, validação, admin CRUD, campo no `Checkout.jsx`
+- **Reviews:** `Review.java`, endpoints, estrelas no `ProductCard.jsx`, seção em `ProductDetails.jsx`
+- **Paginação admin:** pedidos com filtros de status/email, produtos com paginação client-side
+- **SEO:** `useSEO.js`, `robots.txt`, `sitemap.xml`, Open Graph, Twitter Cards
 - **LGPD:** `CookieBanner.jsx`, `PoliticaPrivacidade.jsx`, `TermosDeUso.jsx`, `DELETE /api/auth/me`
-- **Frete real:** `FreightService` + Melhor Envio, `FreightController` (`POST /api/freight/calculate`), seleção de opção no `Checkout.jsx`
-- **Categorias:** entidade `Category.java`, `CategoryController` (`GET /api/categories`), `AdminCategoryController`, `CategoriasAdmin.jsx`, filtro do catálogo usa API
-- **Toasts:** react-hot-toast em todo o app (carrinho, favoritos, cupom, comparação)
-- **Breadcrumb:** `Breadcrumb.jsx` em `Catalog.jsx`, `Promocoes.jsx`, `MinhaConta.jsx`; `ProductDetails.jsx` tem nav própria
+- **Frete real:** `FreightService` + Melhor Envio, seleção de opção no `Checkout.jsx`
+- **Categorias:** `Category.java`, filtro do catálogo via API
+- **Toasts:** react-hot-toast em todo o app
+- **Breadcrumb:** `Breadcrumb.jsx` em `Catalog.jsx`, `Promocoes.jsx`, `MinhaConta.jsx`
 - **Skeleton loading:** `SkeletonDetails` em `ProductDetails.jsx`, `SkeletonCard` em `Catalog.jsx`
-- **404:** `NotFound.jsx` com rota `path="*"` em `App.jsx`
+- **404:** `NotFound.jsx` com rota `path="*"`
 - **Comparação:** `CompareContext.jsx`, `CompareBar.jsx`, `Comparar.jsx` (máx. 3 produtos)
-- **Tickets de suporte:** `Ticket.java`, `TicketController`, `AdminTicketController`, `TicketsAdmin.jsx`, seção em `MinhaConta.jsx`
-- **Contas admin:** `AdminUserController` (`POST/GET /api/admin/users`), `AdminDataInitializer` (seed MASTER via env vars), `UsuariosAdmin.jsx`
-- **Open Graph:** `useSEO.js` gerencia og:title, og:description, og:image, og:url; `ProductDetails.jsx` passa imagem do produto
+- **Tickets de suporte:** `Ticket.java`, endpoints, seção em `MinhaConta.jsx`, `TicketsAdmin.jsx`
+- **Contas admin:** `AdminUserController`, `AdminDataInitializer` (seed MASTER via env vars), `UsuariosAdmin.jsx`
+- **Devoluções:** `ReturnRequest.java`, endpoints customer e admin, `DevolucoesAdmin.jsx`
+- **Carrinho abandonado:** `AbandonedCart.java`, `AbandonedCartService`, `CartSyncController`
+- **Banners:** `Banner.java`, `BannerController`, `BannersAdmin.jsx`, `Home.jsx` usa API
+- **Variantes:** `ProductVariant.java`, seletor em `ProductDetails.jsx`, CRUD no dashboard
+- **Headers de segurança:** HSTS, CSP, X-Frame-Options, Referrer-Policy via `SecurityConfig`
 
 ---
 
-## 🔴 Crítico para operação real
+## 🔴 Crítico para escala
 
 ### C1 · Imagens em CDN (Cloudinary)
 
-**Problema:** Imagens salvas como base64 TEXT no PostgreSQL. Com 50+ produtos o banco fica gigante, as respostas da API ficam lentas e o Render free tier estoura limites.
+**Problema:** Imagens salvas como base64 TEXT no PostgreSQL. Com 50+ produtos o banco fica gigante, as respostas da API ficam lentas e o Render free tier pode estoura limites de armazenamento.
 
 **Backend:**
-- Adicionar dependência Cloudinary SDK (`com.cloudinary:cloudinary-http5`)
-- Criar `CloudinaryService.java` com método `upload(byte[] bytes, String folder)` → retorna URL pública
-- Em `ProductService.create()` e `update()`: se `request.image` começa com `data:image`, chamar `cloudinaryService.upload()` e salvar URL em vez de base64
-- Mesmo para cada item de `request.images`
+- `CloudinaryService.java` já existe em `com.ecommerce.Config` — verificar se está sendo chamado em `ProductService`
+- Se não estiver integrado: em `ProductService.create()` e `update()`, se `request.image` começa com `data:image`, chamar `cloudinaryService.upload()` e salvar URL em vez de base64
 - Env vars: `CLOUDINARY_URL` (formato `cloudinary://api_key:api_secret@cloud_name`)
 
-**Dashboard (`GestaoProdutos.jsx`):** sem mudança — já envia base64, o backend converte
-
-**Validação:** criar produto com imagem → `product.images[0]` no response começa com `https://res.cloudinary.com`
+**Verificar:** criar produto com imagem → `product.images[0]` começa com `https://res.cloudinary.com`
 
 ---
 
 ### C2 · Lazy Loading de Imagens
 
-**Problema:** Todas as imagens do catálogo carregam ao abrir a página — sem `loading="lazy"`.
+**Problema:** Todas as imagens do catálogo carregam ao abrir a página — sem `loading="lazy"`. Em catálogos com 30+ produtos, isso gera uma requisição de rede para cada imagem na carga inicial.
 
 **Arquivos:**
-- `frontend/src/components/ProductCard.jsx` linha ~117: adicionar `loading="lazy"` no `<img>`
-- `frontend/src/pages/ProductDetails.jsx`: adicionar `loading="lazy"` nas thumbnails (não na imagem principal)
-- `frontend/src/pages/Home.jsx`: qualquer `<img>` que esteja abaixo do fold
-
----
-
-### C3 · Rate Limiting nos Endpoints Públicos
-
-**Problema:** `/api/auth/login`, `/api/auth/register`, `/api/freight/calculate`, `/api/coupons/validate` sem proteção contra força bruta.
-
-**Backend:**
-- Adicionar dependência `bucket4j-spring-boot-starter` ou usar `spring-boot-starter-cache` + mapa em memória
-- Criar `RateLimitFilter.java` (implementa `OncePerRequestFilter`)
-- Limites sugeridos: login → 10 req/min por IP; register → 5 req/min por IP; freight/coupon → 20 req/min por IP
-- Retorna `429 Too Many Requests` com header `Retry-After`
-- Configurar os paths em `SecurityConfig.java`
-
----
-
-### C4 · Checkout como Convidado
-
-**Problema:** `Checkout.jsx` exige login (rota protegida por `ProtectedRoute`). Isso reduz conversão drasticamente.
-
-**Frontend:**
-- Remover `ProtectedRoute` da rota `/checkout` em `App.jsx`
-- Em `Checkout.jsx` Step 1: se `!isAuthenticated`, mostrar campo de e-mail (obrigatório) e CPF para identificação
-- Em `Checkout.jsx` Step 3: ao submeter, enviar `guestEmail` no body do checkout se não autenticado
-- `createCheckoutSession()` em `checkoutApi.js`: adicionar campo `guestEmail` opcional
-
-**Backend:**
-- `CreateCheckoutSessionRequest.java`: adicionar campo `String guestEmail` (nullable)
-- `PaymentService.processCheckout()`: se usuário não autenticado e `guestEmail` presente, criar pedido sem userId (ou com userId nulo) e enviar confirmação para `guestEmail`
-- `Order.java`: campo `guestEmail` nullable
+- `frontend/src/components/ProductCard.jsx`: adicionar `loading="lazy"` no `<img>`
+- `frontend/src/pages/ProductDetails.jsx`: `loading="lazy"` nas thumbnails (não na imagem principal)
+- `frontend/src/pages/Home.jsx`: qualquer `<img>` abaixo do fold
 
 ---
 
@@ -117,59 +246,31 @@
 
 ### A1 · Busca com Autocomplete na Navbar
 
-**Problema:** Não há busca global acessível — usuário precisa ir ao catálogo para filtrar.
-
-**Frontend:**
-- `Navbar.jsx`: adicionar `<input>` de busca com debounce de 300ms
-- Ao digitar, filtrar os `products` (já carregados em `App.jsx`) pelo nome/ref
-- Exibir dropdown com até 6 sugestões (thumbnail pequena + nome + preço)
-- Clicar em sugestão → navega para `/produto/:id`
-- Pressionar Enter → navega para `/catalogo?q=<termo>`
+**Frontend — `Navbar.jsx`:**
+- `<input>` de busca com debounce de 300ms
+- Filtrar `products` pelo nome/ref — dropdown com até 6 sugestões (thumbnail + nome + preço)
+- Clicar → navega para `/produto/:ref`; Enter → `/catalogo?q=<termo>`
 - Fechar ao clicar fora (`useRef` + `useEffect` com `mousedown`)
-- `products` precisa ser passado para `Navbar` via prop ou Context
-
-**CSS:** `.navbar-search`, `.search-dropdown`, `.search-suggestion-item`
 
 ---
 
 ### A2 · Dashboard de Relatórios
 
-**Problema:** Admin não tem visibilidade de receita, conversão ou produtos mais vendidos.
-
-**Backend — `OrderController.java`:**
+**Backend — novo endpoint:**
 ```
 GET /api/orders/admin/summary?from=2025-01-01&to=2025-12-31
 ```
-Retorna:
-```json
-{
-  "totalRevenue": 0.00,
-  "totalOrders": 0,
-  "avgOrderValue": 0.00,
-  "ordersByStatus": { "PAID": 0, "SHIPPED": 0, ... },
-  "revenueByDay": [{ "date": "2025-01-01", "revenue": 0.00 }],
-  "topProducts": [{ "productId": "", "name": "", "qtySold": 0, "revenue": 0.00 }]
-}
-```
-Query com `@Query` no `OrderRepository` somando `order_items.price * quantity` agrupado por dia e por produto.
+Retorna: `totalRevenue`, `totalOrders`, `avgOrderValue`, `ordersByStatus`, `revenueByDay[]`, `topProducts[]`
 
 **Dashboard:**
-- Nova página `RelatoriosAdmin.jsx` + `RelatoriosAdmin.css`
-- Cards de KPI: Receita total, Pedidos, Ticket médio, Cancelamentos
-- Gráfico de receita por dia (usar `<svg>` simples ou biblioteca leve como `recharts`)
-- Tabela top 10 produtos mais vendidos
-- Seletor de período (últimos 7d / 30d / 90d / personalizado)
-- Adicionar rota `/relatorios` no `dashboard/src/App.jsx` e link no `AdminNavbar.jsx`
+- Nova página `RelatoriosAdmin.jsx`: cards de KPI, gráfico de receita por dia (SVG ou recharts), tabela top 10 produtos, seletor de período
 
 ---
 
 ### A3 · JSON-LD / Dados Estruturados (Schema.org)
 
-**Problema:** Google não exibe estrelas e preço nos resultados de busca sem structured data.
-
 **Frontend — `ProductDetails.jsx`:**
 ```jsx
-// Dentro do componente, após ter o produto:
 useEffect(() => {
   const script = document.createElement('script');
   script.type = 'application/ld+json';
@@ -179,7 +280,6 @@ useEffect(() => {
     "@type": "Product",
     "name": product.name,
     "image": product.images?.[0] || product.image,
-    "description": `${product.name} — ${product.marca}`,
     "sku": product.ref,
     "brand": { "@type": "Brand", "name": product.marca },
     "offers": {
@@ -189,14 +289,7 @@ useEffect(() => {
       "availability": product.qnt > 0
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock"
-    },
-    ...(product.reviewCount > 0 && {
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": product.averageRating,
-        "reviewCount": product.reviewCount
-      }
-    })
+    }
   });
   document.head.appendChild(script);
   return () => document.getElementById('product-jsonld')?.remove();
@@ -207,146 +300,38 @@ useEffect(() => {
 
 ### A4 · Importação de Produtos via CSV
 
-**Problema:** Cadastrar catálogo grande pelo formulário é inviável.
+**Backend:** `POST /api/product-category/import` (ADMIN+, multipart/form-data) com Apache Commons CSV
+- Colunas: `name,ref,price,promotionalPrice,qnt,marca,category,weightKg,widthCm,heightCm,lengthCm`
+- Retorna `{ imported: N, errors: [{ row, message }] }`
 
-**Backend:**
-- Endpoint `POST /api/product-category/import` (ADMIN+, multipart/form-data)
-- Parsear CSV com Apache Commons CSV (dependência `commons-csv`)
-- Colunas esperadas: `name,ref,price,promotionalPrice,qnt,marca,category,weightKg,widthCm,heightCm,lengthCm`
-- Retornar `{ imported: N, errors: [{ row: N, message: "..." }] }`
-- `SecurityConfig`: adicionar permissão para ADMIN e MASTER
-
-**Dashboard — `GestaoProdutos.jsx`:**
-- Botão "Importar CSV" ao lado de "Novo Produto"
-- Input `type="file" accept=".csv"` → POST para `/api/product-category/import`
-- Exibir resultado: "X produtos importados" + lista de erros se houver
-- Link para download de template CSV com as colunas corretas
+**Dashboard:** botão "Importar CSV" em `GestaoProdutos.jsx` + link para template
 
 ---
 
-### A5 · Recuperação de Carrinho Abandonado
+### A5 · Email Templates HTML
 
-**Problema:** Cliente adiciona ao carrinho, não finaliza — nenhum follow-up.
-
-**Backend:**
-- Nova entidade `AbandonedCart.java`: `userId`, `items` (JSON), `createdAt`, `emailSentAt` (nullable)
-- Endpoint `POST /api/cart/sync` (autenticado): salva/atualiza carrinho do usuário no banco
-- `ScheduledTask.java` (`@Scheduled(cron = "0 0 * * * *")`): busca carrinhos com `emailSentAt IS NULL` e `createdAt < NOW() - 2h`, envia email via `EmailService`, atualiza `emailSentAt`
-- Email: "Você esqueceu algo!" com lista de itens e link para `/catalogo`
-
-**Frontend — `App.jsx`:**
-- Quando `isAuthenticated` e `cartItems.length > 0`: chamar `POST /api/cart/sync` com debounce de 5s após mudança no carrinho
-- Quando `cartItems` esvazia ou usuário finaliza compra: chamar `DELETE /api/cart/sync` para remover do banco
-
----
-
-### A6 · Gestão de Banners da Home via Admin
-
-**Problema:** Conteúdo da `Home.jsx` (banners, destaques) está hardcoded — qualquer mudança exige deploy.
-
-**Backend:**
-- Nova entidade `Banner.java`: `id`, `title`, `subtitle`, `imageUrl`, `linkUrl`, `position` (enum: HERO, PROMO_BAR, FEATURED), `active`, `order` (int), `createdAt`
-- `BannerController` (`GET /api/banners?position=HERO` — público; `POST/PUT/DELETE /api/admin/banners` — ADMIN+)
-
-**Dashboard:**
-- Nova página `BannersAdmin.jsx`: lista de banners por posição, toggle ativo, reordenar (drag ou botões ↑↓), upload de imagem, link de destino
-
-**Frontend — `Home.jsx`:**
-- `useEffect`: buscar `GET /api/banners?position=HERO` e substituir o hero hardcoded
-- Fallback: se API falhar, mostrar banner padrão estático
-
----
-
-### A7 · Devolução/Troca Self-Service
-
-**Problema:** Cliente precisa abrir ticket de suporte para solicitar devolução — não há fluxo formal.
-
-**Backend:**
-- Nova entidade `ReturnRequest.java`: `id`, `orderId`, `userId`, `reason` (enum), `items` (JSON com productId + qty), `status` (REQUESTED/APPROVED/REJECTED/COMPLETED), `createdAt`
-- `ReturnController` (`POST /api/returns` — autenticado; `GET /api/returns/my` — autenticado)
-- `AdminReturnController` (`GET /api/admin/returns`, `PATCH /api/admin/returns/{id}/status`)
-- Regra: só permitir solicitação se pedido está `DELIVERED` e `createdAt < 30 dias`
-
-**Frontend — `MinhaConta.jsx`:**
-- Na seção de detalhes do pedido (`renderOrderDetail`): botão "Solicitar Devolução" se elegível
-- Modal com motivo (dropdown) + itens a devolver (checkbox por item do pedido)
-
-**Dashboard:**
-- Nova página `DevolucoesAdmin.jsx`: lista com status, aprovar/rejeitar, observação
+**Backend — `EmailService.java`:**
+- Thymeleaf para templates HTML (já vem no Spring Boot)
+- `resources/templates/email/order-confirmation.html` e `status-update.html`
+- Layout: logo, cores da marca, tabela de itens, botão CTA, rodapé
 
 ---
 
 ## 🟡 Média Prioridade
 
-### M1 · Email Templates HTML
-
-**Problema:** Emails enviados por `EmailService.java` são provavelmente texto simples. Lojas profissionais usam HTML responsivo.
-
-**Backend — `EmailService.java`:**
-- Usar Thymeleaf para templates HTML (já vem no Spring Boot)
-- Criar `resources/templates/email/order-confirmation.html` e `status-update.html`
-- Layout: logo, cores da marca, tabela de itens, botão CTA, rodapé com links
-- `application.properties`: `spring.mail.properties.mail.smtp.mime.charset=UTF-8`
-
----
-
-### M2 · Produtos Recentemente Visualizados
-
-**Problema:** Nenhuma personalização baseada em comportamento do usuário.
+### M1 · Produtos Recentemente Visualizados
 
 **Frontend — puro localStorage:**
-- Criar `useRecentlyViewed.js`: ao abrir `ProductDetails.jsx`, salvar `product.id` em `localStorage['recentlyViewed']` (array de até 8 ids, FIFO)
-- `Home.jsx`: ler ids, filtrar dos `products` existentes, exibir seção "Vistos recentemente" com `ProductCard`
-- `ProductDetails.jsx`: exibir seção "Você também viu" abaixo dos produtos relacionados
-- Não requer backend
+- `useRecentlyViewed.js`: ao abrir `ProductDetails.jsx`, salvar `product.id` em `localStorage` (array de até 8, FIFO)
+- `Home.jsx`: seção "Vistos recentemente" com `ProductCard`
 
 ---
 
-### M4 · Segundo Gateway de Pagamento (Mercado Pago)
+### M2 · PWA / Service Worker
 
-**Problema:** Só PagSeguro. Se cair, a loja para de vender.
-
-**Backend:**
-- Criar `MercadoPagoService.java` como alternativa a `PaymentService`
-- `PaymentController`: parâmetro `?gateway=pagseguro|mercadopago` no `POST /api/payment/checkout`
-- Env vars: `MERCADOPAGO_ACCESS_TOKEN`
-- Webhook separado em `POST /api/payment/webhook/mercadopago`
-
-**Frontend — `Checkout.jsx`:**
-- Step 3: seletor de gateway (radio buttons) antes de confirmar
-
----
-
-### M5 · PWA / Service Worker
-
-**Problema:** Nenhum suporte offline, sem instalação no celular.
-
-**Frontend:**
-- Instalar `vite-plugin-pwa` no `frontend/`
-- Configurar `vite.config.js`: manifest com nome, ícone, cor de tema
-- `public/manifest.json`: `name`, `short_name`, `icons`, `start_url`, `display: standalone`
-- Service worker: cache de assets estáticos (CSS, JS, fontes) via `workbox`
-- Não cachear chamadas de API (dados dinâmicos)
-
-
-### M7 · Variantes de Produto (Cor / Tamanho)
-
-**Problema:** Cada variante (P/M/G, Preto/Branco) é um produto separado — fragmenta o catálogo.
-
-**Escopo:** Mudança significativa no modelo de dados.
-
-**Backend:**
-- Nova entidade `ProductVariant.java`: `id`, `productId` (FK), `name` (ex: "P / Preto"), `sku`, `price` (nullable, herda do pai se null), `qnt`, `attributes` (JSON: `{"size":"P","color":"Preto"}`)
-- `ProductCategory.java`: adicionar `List<ProductVariant> variants`
-- `ProductCategoryResponse.java`: incluir variantes no response
-- Estoque controlado por variante, não pelo produto pai
-
-**Frontend — `ProductDetails.jsx`:**
-- Seletores de atributo (botões de cor, dropdown de tamanho) antes do botão de compra
-- Ao selecionar variante: atualizar preço, estoque e imagem exibida
-
-**Dashboard — `GestaoProdutos.jsx`:**
-- Modal de edição: aba "Variantes" com CRUD de variantes
+- `vite-plugin-pwa` no `frontend/`
+- Manifest + cache de assets estáticos via Workbox
+- Não cachear chamadas de API
 
 ---
 
@@ -354,31 +339,23 @@ useEffect(() => {
 
 ### D1 · Nota Fiscal (NF-e)
 
-Integração com NFe.io ou Focus NFe. Emitir NF-e após pedido `PAID`. Env vars: `NFE_API_KEY`, `NFE_COMPANY_ID`. Endpoint admin para reemitir. Link de download na `MinhaConta.jsx`.
-
----
+Integração com NFe.io ou Focus NFe. Emitir após `PAID`. Env vars: `NFE_API_KEY`, `NFE_COMPANY_ID`. Link de download em `MinhaConta.jsx`.
 
 ### D2 · Google Analytics 4 + Meta Pixel
 
-`frontend/index.html`: adicionar scripts de GA4 (`G-XXXXXXXX`) e Meta Pixel. Eventos: `view_item`, `add_to_cart`, `begin_checkout`, `purchase`. Não disparar se cookie de analytics negado (integrar com `CookieBanner.jsx`).
+Scripts em `frontend/index.html`. Eventos: `view_item`, `add_to_cart`, `begin_checkout`, `purchase`. Integrar com `CookieBanner.jsx` (não disparar se cookie negado).
 
----
+### D3 · Notificações Push
 
-### D3 · Notificações Push (Web Push API)
-
-Service worker necessário (M5 primeiro). Backend: salvar `PushSubscription` por usuário. Disparar push ao mudar status do pedido e quando produto favorito volta ao estoque.
-
----
+Service worker (M2 primeiro). Backend: salvar `PushSubscription` por usuário. Disparar ao mudar status do pedido.
 
 ### D4 · Checkout B2B (CNPJ)
 
-Campo de CNPJ no checkout (Step 1). Validação de CNPJ (algoritmo de dígito verificador). Campo de Inscrição Estadual. Emitir NF-e com dados da empresa (D1 necessário).
-
----
+Campo de CNPJ + Inscrição Estadual no checkout. Emitir NF-e com dados da empresa (D1 necessário).
 
 ### D5 · Carrinho Compartilhável
 
-`POST /api/cart/share` → salva snapshot do carrinho no banco com token UUID → retorna URL `/carrinho/:token`. `GET /api/cart/:token` → retorna itens. Frontend: botão "Compartilhar carrinho" no `CartDrawer.jsx`.
+`POST /api/cart/share` → snapshot com token UUID → URL `/carrinho/:token`. Botão "Compartilhar" em `CartDrawer.jsx`.
 
 ---
 
@@ -387,36 +364,19 @@ Campo de CNPJ no checkout (Step 1). Validação de CNPJ (algoritmo de dígito ve
 | Domínio | Backend | Frontend/Dashboard |
 |---|---|---|
 | Produtos | `ProductCategory.java`, `ProductService`, `ProductCategoryController` | `GestaoProdutos.jsx`, `ProductCard.jsx`, `ProductDetails.jsx` |
-| Pedidos | `Order.java`, `OrderService`, `OrderController` | `GestaoPedidos.jsx`, `MinhaConta.jsx` (seção orders) |
-| Pagamento | `PaymentService`, `PaymentController` | `Checkout.jsx`, `checkoutApi.js` |
+| Variantes | `ProductVariant.java`, `ProductVariantRepository` | `ProductDetails.jsx` (seletor), `GestaoProdutos.jsx` (aba Variantes) |
+| Pedidos | `Order.java`, `OrderService`, `OrderController` | `GestaoPedidos.jsx`, `MinhaConta.jsx` |
+| Pagamento | `PaymentService`, `StockService`, `WebhookService`, `PaymentController` | `Checkout.jsx`, `checkoutApi.js` |
 | Auth | `User.java`, `AuthService`, `AuthController`, `SecurityConfig` | `AuthProvider.jsx`, `useAuth.js`, `authApi.js` |
 | Frete | `FreightService`, `FreightController` | `Checkout.jsx` (step 2), `freightApi.js` |
 | Categorias | `Category.java`, `CategoryController`, `AdminCategoryController` | `CategoriasAdmin.jsx`, `categoriesApi.js` |
-| Cupons | `Coupon.java`, `CouponService`, `CouponController`, `AdminCouponController` | `CuponsAdmin.jsx`, `Checkout.jsx` (step 1) |
-| Reviews | `Review.java`, `ReviewService`, `ReviewController` | `ProductDetails.jsx` (seção reviews), `ReviewsAdmin.jsx` |
+| Cupons | `Coupon.java`, `CouponService`, `CouponController` | `CuponsAdmin.jsx`, `Checkout.jsx` |
+| Reviews | `Review.java`, `ReviewService`, `ReviewController` | `ProductDetails.jsx`, `ReviewsAdmin.jsx` |
 | Favoritos | `Favorite.java`, `FavoriteService`, `FavoriteController` | `FavoritesProvider.jsx`, `Favoritos.jsx` |
-| Suporte | `Ticket.java`, `TicketService`, `TicketController` | `MinhaConta.jsx` (seção support), `TicketsAdmin.jsx` |
-| SEO | — | `useSEO.js`, `index.html`, `robots.txt`, `sitemap.xml` |
+| Suporte | `Ticket.java`, `TicketService`, `TicketController` | `MinhaConta.jsx`, `TicketsAdmin.jsx` |
+| Devoluções | `ReturnRequest.java`, `ReturnController` | `MinhaConta.jsx`, `DevolucoesAdmin.jsx` |
+| Carrinho abandonado | `AbandonedCart.java`, `AbandonedCartService` | `App.jsx` (sync) |
+| Banners | `Banner.java`, `BannerController` | `BannersAdmin.jsx`, `Home.jsx` |
+| SEO | `useSEO.js` | `index.html`, `robots.txt`, `sitemap.xml` |
 | Email | `EmailService.java` | — |
-| Imagens | `ProductCategory.java` campo `image`/`images` (TEXT base64 → migrar para CDN) | `GestaoProdutos.jsx` (upload via canvas compressImage) |
-
----
-
-## Variáveis de ambiente necessárias
-
-| Variável | Onde | Uso |
-|---|---|---|
-| `VITE_API_BASE_URL` | frontend/.env | URL do backend |
-| `VITE_GOOGLE_CLIENT_ID` | frontend/.env | Login Google |
-| `VITE_RECAPTCHA_SITE_KEY` | frontend/.env | reCAPTCHA no cadastro |
-| `PAGSEGURO_TOKEN` | backend | Pagamentos |
-| `PAGSEGURO_WEBHOOK_SECRET` | backend | Verificação HMAC webhook |
-| `MELHOR_ENVIO_TOKEN` | backend | Cálculo de frete + rastreio |
-| `MELHOR_ENVIO_API_URL` | backend | sandbox ou produção |
-| `MELHOR_ENVIO_ORIGIN_ZIP` | backend | CEP de origem dos envios |
-| `SPRING_MAIL_*` | backend | Envio de emails |
-| `APP_MASTER_EMAIL` | backend | Seed do usuário MASTER |
-| `APP_MASTER_PASSWORD` | backend | Seed do usuário MASTER |
-| `CLOUDINARY_URL` | backend | Upload de imagens (C1) |
-| `MERCADOPAGO_ACCESS_TOKEN` | backend | Segundo gateway (M4) |
-| `NFE_API_KEY` / `NFE_COMPANY_ID` | backend | Emissão de NF-e (D1) |
+| Imagens | `CloudinaryService.java` | `GestaoProdutos.jsx` |

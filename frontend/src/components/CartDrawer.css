@@ -257,3 +257,41 @@
   color: var(--text);
   letter-spacing: -0.03em;
 }
+
+/* ─── Share button ───────────────────────────── */
+.cart-share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.cart-share-btn:hover:not(:disabled) {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft-border);
+  color: var(--primary);
+}
+
+.cart-share-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.cart-share-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -17,18 +17,35 @@
 // dentro do cart-footer antes do total.
 // ─────────────────────────────────────────────────────────────────
 
-import React from 'react';
-import { FaTrash } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaTrash, FaShare, FaCheck, FaSpinner } from 'react-icons/fa';
 import './CartDrawer.css';
 import { useNavigate } from 'react-router-dom';
+import { shareCart } from '../services/cartShareApi';
+import { useAuth } from '../context/useAuth';
 
 // Props recebidas do App.jsx
 export default function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem }) {
-  // useNavigate permite redirecionar para /checkout ao clicar em "Finalizar Compra"
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [shareState, setShareState] = useState('idle'); // idle | loading | copied
 
-  // Calcula o valor total somando (preço × quantidade) de cada item
   const total = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+  const handleShare = async () => {
+    if (shareState === 'loading') return;
+    setShareState('loading');
+    try {
+      const { token } = await shareCart(cartItems);
+      const url = `${window.location.origin}/carrinho/${token}`;
+      await navigator.clipboard.writeText(url);
+      setShareState('copied');
+      setTimeout(() => setShareState('idle'), 3000);
+    } catch {
+      setShareState('idle');
+      alert('Não foi possível gerar o link. Tente novamente.');
+    }
+  };
 
   return (
     // Overlay escuro: cobre a tela inteira quando aberto
@@ -95,6 +112,23 @@ export default function CartDrawer({ isOpen, onClose, cartItems, onUpdateQuantit
                 {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </span>
             </div>
+
+            {isAuthenticated && (
+              <button
+                className="cart-share-btn"
+                onClick={handleShare}
+                disabled={shareState === 'loading'}
+                title="Copiar link do carrinho"
+              >
+                {shareState === 'loading' ? (
+                  <><FaSpinner className="cart-share-spin" /> Gerando link...</>
+                ) : shareState === 'copied' ? (
+                  <><FaCheck /> Link copiado!</>
+                ) : (
+                  <><FaShare /> Compartilhar carrinho</>
+                )}
+              </button>
+            )}
 
             {/* Botão "Finalizar Compra": fecha o drawer e redireciona para /checkout */}
             <button

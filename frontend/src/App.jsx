@@ -14,6 +14,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { initAnalytics, trackPageView, trackAddToCart as analyticsAddToCart } from './services/analytics';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from './context/useAuth';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -44,6 +45,14 @@ import CookieBanner from './components/CookieBanner';
 import NotFound from './pages/NotFound';
 import Comparar from './pages/Comparar';
 import CompareBar from './components/CompareBar';
+import CartShare from './pages/CartShare';
+
+// Tracks SPA route changes for GA4 + Meta Pixel
+function AnalyticsRouteTracker() {
+  const location = useLocation();
+  useEffect(() => { trackPageView(location.pathname + location.search); }, [location]);
+  return null;
+}
 
 // Debounced cart sync — must live inside AuthProvider to access useAuth
 function CartSyncEffect({ cartItems }) {
@@ -117,6 +126,9 @@ function App() {
 
   // Mensagem de erro exibida quando a API falha (usa dados locais como fallback)
   const [productsError, setProductsError] = useState('');
+
+  // Inicializa analytics se o usuário já aceitou cookies em visita anterior
+  useEffect(() => { initAnalytics(); }, []);
 
   // ─── Busca de produtos ───────────────────────────────────────────
   // Executa uma vez ao montar o componente.
@@ -207,6 +219,7 @@ function App() {
       }];
     });
 
+    analyticsAddToCart(product, quantity);
     toast.success('Adicionado ao carrinho!', { duration: 2000, position: 'top-right' });
     setIsCartOpen(true);
   };
@@ -242,6 +255,7 @@ function App() {
       <div className="app">
         {/* Navbar fixa no topo; recebe contagem do carrinho e callback para abrir o drawer */}
         <CartSyncEffect cartItems={cartItems} />
+        <AnalyticsRouteTracker />
         <Navbar
           cartCount={totalCartItemsCount}
           onOpenCart={() => setIsCartOpen(true)}
@@ -341,6 +355,8 @@ function App() {
           <Route path="/termos-de-uso" element={<TermosDeUso />} />
           {/* Comparação de produtos */}
           <Route path="/comparar" element={<Comparar onAddToCart={handleAddToCart} />} />
+          {/* Carrinho compartilhado via link */}
+          <Route path="/carrinho/:token" element={<CartShare onAddToCart={handleAddToCart} />} />
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>

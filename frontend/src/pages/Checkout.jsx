@@ -13,6 +13,7 @@ import { getUserProfile } from '../services/authApi';
 import { useAuth } from '../context/useAuth';
 import { calculateFreight } from '../services/freightApi';
 import { useSEO } from '../hooks/useSEO';
+import { trackBeginCheckout, trackPurchase } from '../services/analytics';
 import './Checkout.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -311,6 +312,7 @@ export default function Checkout({ cartItems, onClearCart }) {
       setError('Preencha todos os campos obrigatórios do endereço.');
       return;
     }
+    trackBeginCheckout(cartItems, cartItems.reduce((s, i) => s + i.price * i.quantity, 0));
     setStep(3);
   };
 
@@ -367,6 +369,7 @@ export default function Checkout({ cartItems, onClearCart }) {
         guestEmail: isAuthenticated ? null : guestEmail.trim() || null,
       }, captchaToken);
 
+      trackPurchase(result.orderId || '', totalAmount, cartItems);
       onClearCart();
       setStep(4);
       setTimeout(() => { window.location.href = result.paymentUrl; }, 1400);

@@ -10,6 +10,7 @@ import { toggleFavorite, checkFavorites } from '../services/favoritesApi';
 import { getProductReviews, canReviewProduct, submitReview } from '../services/reviewsApi';
 import { useSEO } from '../hooks/useSEO';
 import { addRecentlyViewed, getRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { trackViewItem } from '../services/analytics';
 import './ProductDetails.css';
 
 // ─── Skeleton de loading ──────────────────────────────────────────
@@ -110,7 +111,7 @@ function ProductDetailsContent({ productId, onAddToCart, products = [] }) {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (product) addRecentlyViewed(product.id);
+    if (product) { addRecentlyViewed(product.id); trackViewItem(product); }
   }, []);
 
   // JSON-LD structured data (Schema.org Product)

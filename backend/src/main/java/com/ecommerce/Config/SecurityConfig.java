@@ -117,6 +117,8 @@ public class SecurityConfig {
                         // Pedidos admin — somente ADMIN ou MASTER
                         .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "MASTER")
 
+                        // Carrinho compartilhável — leitura pública, escrita autenticada
+                        .requestMatchers(HttpMethod.GET, "/api/cart/share/**").permitAll()
                         // Sincronização de carrinho abandonado — usuário autenticado
                         .requestMatchers("/api/cart/**").authenticated()
 

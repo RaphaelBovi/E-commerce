@@ -46,6 +46,7 @@ import NotFound from './pages/NotFound';
 import Comparar from './pages/Comparar';
 import CompareBar from './components/CompareBar';
 import CartShare from './pages/CartShare';
+import GoogleSetup from './pages/GoogleSetup';
 
 // Tracks SPA route changes for GA4 + Meta Pixel
 function AnalyticsRouteTracker() {
@@ -340,6 +341,8 @@ function App() {
           } />
           {/* Página de login e cadastro */}
           <Route path="/login" element={<Login />} />
+          {/* Complemento de cadastro para novos usuários Google */}
+          <Route path="/completar-cadastro" element={<GoogleSetup />} />
           {/* Recuperação de senha */}
           <Route path="/recuperar-senha" element={<RecuperarSenha />} />
           {/* Painel do usuário */}

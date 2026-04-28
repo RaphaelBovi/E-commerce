@@ -115,4 +115,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
         LIMIT 10
         """, nativeQuery = true)
     List<Object[]> findTopProducts(@Param("from") Instant from, @Param("to") Instant to);
+
+    // Retorna todos os pedidos PENDING_PAYMENT cujo prazo de pagamento já venceu.
+    // O scheduler usa esta query para cancelar automaticamente os pedidos expirados.
+    @Query("SELECT o FROM Order o WHERE o.status = com.ecommerce.Order.Entity.OrderStatus.PENDING_PAYMENT AND o.expiresAt IS NOT NULL AND o.expiresAt < :now")
+    List<Order> findExpiredPendingPaymentOrders(@Param("now") Instant now);
 }

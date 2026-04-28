@@ -301,7 +301,8 @@ public class OrderService {
                 order.getDeliveryAddress(),
                 items,
                 order.getCreatedAt(),
-                order.getUpdatedAt()
+                order.getUpdatedAt(),
+                order.getExpiresAt()
         );
     }
 }

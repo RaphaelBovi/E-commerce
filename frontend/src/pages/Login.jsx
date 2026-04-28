@@ -6,7 +6,7 @@ import {
 import { GoogleLogin } from "@react-oauth/google";
 import ReCAPTCHA from "react-google-recaptcha";
 import { useAuth } from "../context/useAuth";
-import { sendVerificationCode, confirmRegistration as confirmRegistrationApi } from "../services/authApi";
+import { sendVerificationCode, confirmRegistration as confirmRegistrationApi, googleLoginRequest } from "../services/authApi";
 import "./Login.css";
 
 const RECAPTCHA_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "";
@@ -99,7 +99,7 @@ export default function Login() {
   const [captchaLogin,  setCaptchaLogin]  = useState("");
   const [captchaReg,    setCaptchaReg]    = useState("");
 
-  const { login, googleLogin, loginWithToken, isAuthenticated } = useAuth();
+  const { login, loginWithToken, isAuthenticated } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
   const from = location.state?.from?.pathname || "/";
@@ -153,7 +153,17 @@ export default function Login() {
     clearError();
     setSubmitting(true);
     try {
-      await googleLogin(credential);
+      const result = await googleLoginRequest(credential);
+      if (result.newUser) {
+        sessionStorage.setItem("google_setup", JSON.stringify({
+          email: result.email,
+          fullName: result.fullName,
+          setupToken: result.setupToken,
+        }));
+        navigate("/completar-cadastro");
+      } else {
+        loginWithToken(result);
+      }
     } catch (err) {
       setError(err?.message || "Falha no login com Google. Tente novamente.");
       setSubmitting(false);

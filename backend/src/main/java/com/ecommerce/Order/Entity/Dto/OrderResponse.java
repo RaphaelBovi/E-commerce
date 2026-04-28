@@ -26,31 +26,20 @@ import java.util.List;
 import java.util.UUID;
 
 public record OrderResponse(
-        // Identificador único do pedido
         UUID id,
-
-        // E-mail do usuário que realizou o pedido — útil para o painel administrativo
         String userEmail,
-
-        // Status atual do pedido (ex.: PENDING_PAYMENT, SHIPPED, DELIVERED)
         OrderStatus status,
-
-        // Método de pagamento escolhido (PIX, CREDIT_CARD, BOLETO, DEBIT_CARD)
         PaymentMethod paymentMethod,
-
-        // Valor total do pedido (soma de unitPrice × quantity de todos os itens)
         BigDecimal totalAmount,
-
         String trackingCode,
         String trackingUrl,
         String deliveryAddress,
-
-        // Lista de itens do pedido com nome, imagem, preço e quantidade de cada produto
         List<OrderItemResponse> items,
-
-        // Data e hora de criação do pedido em UTC (ISO-8601)
         Instant createdAt,
+        Instant updatedAt,
 
-        // Data e hora da última atualização do pedido (ex.: quando o status foi alterado)
-        Instant updatedAt
+        // Prazo máximo para pagamento (null = sem expiração definida).
+        // Presente apenas em pedidos do fluxo redirect (PIX/Boleto/PagSeguro checkout).
+        // O frontend exibe contagem regressiva e o botão "Finalizar Pagamento" enquanto este prazo não vencer.
+        Instant expiresAt
 ) {}

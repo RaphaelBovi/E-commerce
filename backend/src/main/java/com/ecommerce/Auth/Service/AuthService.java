@@ -2,10 +2,12 @@ package com.ecommerce.Auth.Service;
 
 import com.ecommerce.Auth.Entity.Dto.*;
 import com.ecommerce.Auth.Entity.PasswordResetToken;
+import com.ecommerce.Auth.Entity.PendingGoogleSetup;
 import com.ecommerce.Auth.Entity.PendingRegistration;
 import com.ecommerce.Auth.Entity.Role;
 import com.ecommerce.Auth.Entity.User;
 import com.ecommerce.Auth.Repository.PasswordResetTokenRepository;
+import com.ecommerce.Auth.Repository.PendingGoogleSetupRepository;
 import com.ecommerce.Auth.Repository.PendingRegistrationRepository;
 import com.ecommerce.Auth.Repository.UserRepository;
 import com.ecommerce.Product.Exception.BusinessException;
@@ -40,6 +42,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PendingRegistrationRepository pendingRepo;
+    private final PendingGoogleSetupRepository pendingGoogleSetupRepo;
     private final PasswordResetTokenRepository resetTokenRepo;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -153,31 +156,123 @@ public class AuthService {
     }
 
     // ── GOOGLE LOGIN ──────────────────────────────────────────────
-    // Verifies Google ID token, finds or creates user, returns JWT.
-    public AuthResponse googleLogin(GoogleAuthRequest request) {
+    // Verifies Google ID token.
+    // Existing user → returns JWT immediately.
+    // New user      → creates a PendingGoogleSetup and returns setupToken.
+    @Transactional
+    public GoogleAuthResponse googleLogin(GoogleAuthRequest request) {
         Map<String, Object> claims = verifyGoogleToken(request.idToken());
 
         String email = String.valueOf(claims.get("email"));
         boolean emailVerified = Boolean.parseBoolean(String.valueOf(claims.getOrDefault("email_verified", "false")));
-
         if (!emailVerified) throw new BusinessException("E-mail do Google não verificado.");
 
         String name = String.valueOf(claims.getOrDefault("name", email.split("@")[0]));
 
-        var user = userRepository.findByEmail(email).orElseGet(() -> {
-            var newUser = User.builder()
-                    .email(email)
-                    .password(passwordEncoder.encode(UUID.randomUUID().toString()))
-                    .role(Role.CUSTOMER)
-                    .fullName(name)
-                    .googleAccount(true)
-                    .build();
-            userRepository.save(newUser);
-            log.info("Novo usuário via Google: {}", email);
-            return newUser;
-        });
+        var existing = userRepository.findByEmail(email);
+        if (existing.isPresent()) {
+            var user = existing.get();
+            log.info("Login via Google (conta existente): {}", email);
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+            return new GoogleAuthResponse(false, token, user.getEmail(), user.getRole().name(), null, null);
+        }
 
-        log.info("Login via Google: {}", email);
+        // First access with this Google account — create pending setup record
+        String setupToken = UUID.randomUUID().toString();
+        var pending = PendingGoogleSetup.builder()
+                .email(email)
+                .fullName(name)
+                .setupToken(setupToken)
+                .expiresAt(Instant.now().plusSeconds(600))
+                .attempts(0)
+                .build();
+        pendingGoogleSetupRepo.save(pending);
+        log.info("Novo usuário Google detectado, setup pendente: {}", email);
+        return new GoogleAuthResponse(true, null, email, null, name, setupToken);
+    }
+
+    // ── GOOGLE SETUP — define senha e envia OTP ───────────────────
+    @Transactional
+    public void googleSetup(GoogleSetupRequest request) {
+        String email = request.email().trim().toLowerCase();
+
+        var pending = pendingGoogleSetupRepo.findById(email)
+                .orElseThrow(() -> new BusinessException(
+                        "Sessão expirada. Faça login com Google novamente."));
+
+        if (Instant.now().isAfter(pending.getExpiresAt())) {
+            pendingGoogleSetupRepo.delete(pending);
+            throw new BusinessException("Sessão expirada. Faça login com Google novamente.");
+        }
+
+        if (!pending.getSetupToken().equals(request.setupToken())) {
+            throw new BusinessException("Token inválido. Faça login com Google novamente.");
+        }
+
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            pending.setFullName(request.fullName().trim());
+        }
+
+        String otp = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+        pending.setPasswordHash(passwordEncoder.encode(request.password()));
+        pending.setOtpHash(passwordEncoder.encode(otp));
+        pending.setExpiresAt(Instant.now().plusSeconds(600));
+        pendingGoogleSetupRepo.save(pending);
+
+        emailService.sendVerificationCode(email, otp);
+        log.info("OTP de setup Google enviado para: {}", email);
+    }
+
+    // ── GOOGLE SETUP CONFIRM — verifica OTP e cria a conta ────────
+    @Transactional
+    public AuthResponse googleSetupConfirm(GoogleSetupConfirmRequest request) {
+        String email = request.email().trim().toLowerCase();
+
+        var pending = pendingGoogleSetupRepo.findById(email)
+                .orElseThrow(() -> new BusinessException(
+                        "Sessão expirada. Faça login com Google novamente."));
+
+        if (Instant.now().isAfter(pending.getExpiresAt())) {
+            pendingGoogleSetupRepo.delete(pending);
+            throw new BusinessException("Código expirado. Inicie o processo novamente.");
+        }
+
+        if (!pending.getSetupToken().equals(request.setupToken())) {
+            throw new BusinessException("Token inválido. Faça login com Google novamente.");
+        }
+
+        if (pending.getAttempts() >= 5) {
+            pendingGoogleSetupRepo.delete(pending);
+            throw new BusinessException("Muitas tentativas incorretas. Inicie o processo novamente.");
+        }
+
+        if (!passwordEncoder.matches(request.code(), pending.getOtpHash())) {
+            pending.setAttempts(pending.getAttempts() + 1);
+            pendingGoogleSetupRepo.save(pending);
+            int remaining = 5 - pending.getAttempts();
+            throw new BusinessException("Código incorreto. " + remaining + " tentativa(s) restante(s).");
+        }
+
+        // Race condition guard — e-mail already registered
+        if (userRepository.existsByEmail(email)) {
+            pendingGoogleSetupRepo.delete(pending);
+            var user = userRepository.findByEmail(email).orElseThrow();
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+            return new AuthResponse(token, user.getEmail(), user.getRole().name());
+        }
+
+        var user = User.builder()
+                .email(email)
+                .password(pending.getPasswordHash())
+                .role(Role.CUSTOMER)
+                .fullName(pending.getFullName())
+                .googleAccount(true)
+                .build();
+
+        userRepository.save(user);
+        pendingGoogleSetupRepo.delete(pending);
+        log.info("Conta criada via Google setup: {}", email);
+
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getEmail(), user.getRole().name());
     }

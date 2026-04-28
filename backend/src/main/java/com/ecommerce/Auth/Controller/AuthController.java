@@ -40,10 +40,27 @@ public class AuthController {
     }
 
     // ── POST /api/auth/google ─────────────────────────────────────
-    // Google Sign-In: verifies Google ID token, finds/creates user, returns JWT.
+    // Existing user → { newUser:false, token, email, role }
+    // New user      → { newUser:true, email, fullName, setupToken }
     @PostMapping("/google")
-    public AuthResponse googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
+    public GoogleAuthResponse googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
         return authService.googleLogin(request);
+    }
+
+    // ── POST /api/auth/google/setup ───────────────────────────────
+    // Sets password for a pending Google account and sends OTP.
+    @PostMapping("/google/setup")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void googleSetup(@Valid @RequestBody GoogleSetupRequest request) {
+        authService.googleSetup(request);
+    }
+
+    // ── POST /api/auth/google/setup/confirm ───────────────────────
+    // Verifies OTP, creates the account and returns JWT.
+    @PostMapping("/google/setup/confirm")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AuthResponse googleSetupConfirm(@Valid @RequestBody GoogleSetupConfirmRequest request) {
+        return authService.googleSetupConfirm(request);
     }
 
     // ── POST /api/auth/login ──────────────────────────────────────

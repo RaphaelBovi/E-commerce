@@ -207,12 +207,38 @@ export async function confirmPasswordReset(email, token, newPassword) {
 }
 
 // ─── googleLoginRequest ──────────────────────────────────────────
-// Sends Google ID token to backend for verification. Returns { token, email, role }.
+// Sends Google ID token to backend.
+// Returns { newUser:false, token, email, role } for existing accounts,
+// or { newUser:true, email, fullName, setupToken } for first-time Google users.
 export async function googleLoginRequest(idToken) {
   const response = await fetch(`${API_BASE_URL}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ idToken }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+  return response.json();
+}
+
+// ─── googleSetupSendOtp ──────────────────────────────────────────
+// Sets password for a pending Google account and triggers OTP email.
+// POST /auth/google/setup — returns 202, no body.
+export async function googleSetupSendOtp(email, fullName, password, setupToken) {
+  const response = await fetch(`${API_BASE_URL}/auth/google/setup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, fullName, password, setupToken }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+}
+
+// ─── googleSetupConfirm ──────────────────────────────────────────
+// Verifies OTP and creates the account. Returns { token, email, role }.
+export async function googleSetupConfirm(email, code, setupToken) {
+  const response = await fetch(`${API_BASE_URL}/auth/google/setup/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ email, code, setupToken }),
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response));
   return response.json();

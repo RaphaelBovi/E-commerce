@@ -116,4 +116,21 @@ public class Order {
     // ID da cobrança gerada no PagSeguro — preenchido após processamento do pagamento
     @Column
     private String pagseguroChargeId;
+
+    // Prazo máximo para pagamento — definido como createdAt + 24h para pedidos do fluxo redirect.
+    // NULL para pedidos de cobrança direta (cartão inline) que são resolvidos sincronamente.
+    // O scheduler cancela automaticamente pedidos PENDING_PAYMENT após este prazo.
+    @Column
+    private Instant expiresAt;
+
+    // Gateway de pagamento utilizado: "pagseguro" | "mercadopago" | null
+    // Necessário para recriar a URL de pagamento corretamente ao retomar o pedido.
+    @Column(length = 50)
+    private String paymentGateway;
+
+    // JSON com os campos estruturados do endereço informados no checkout redirect
+    // (recipientName, street, streetNumber, complement, neighborhood, city, state, zipCode, etc.)
+    // Armazenado para permitir recriar a sessão de pagamento sem pedir os dados novamente.
+    @Column(columnDefinition = "TEXT")
+    private String deliveryAddressData;
 }

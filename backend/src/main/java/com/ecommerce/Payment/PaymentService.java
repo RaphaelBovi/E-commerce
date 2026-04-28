@@ -28,6 +28,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
@@ -35,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Slf4j
@@ -66,6 +69,7 @@ public class PaymentService {
     private final ProductVariantRepository productVariantRepository;
     private final StockService stockService;
     private final WebhookService webhookService;
+    private final ObjectMapper objectMapper;
 
     private final RestClient restClient = RestClient.create();
 
@@ -331,6 +335,13 @@ public class PaymentService {
         Order savedOrder = orderRepository.save(order);
 
         boolean isMercadoPago = "mercadopago".equalsIgnoreCase(request.gateway());
+
+        // Persiste metadados necessários para retomada de pagamento posterior
+        savedOrder.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
+        savedOrder.setPaymentGateway(isMercadoPago ? "mercadopago" : "pagseguro");
+        savedOrder.setDeliveryAddressData(buildAddressJson(request));
+        orderRepository.save(savedOrder);
+
         String paymentUrl = isMercadoPago
                 ? mercadoPagoService.createPreference(savedOrder, customerEmail)
                 : callPagseguroCheckout(savedOrder, customerEmail, total, request);
@@ -352,6 +363,167 @@ public class PaymentService {
                 ).filter(s -> s != null && !s.isBlank())
                 .toArray(String[]::new)
         );
+    }
+
+    // Serializa os campos estruturados do endereço como JSON para armazenamento no pedido.
+    // Usado para recriar a sessão de pagamento ao retomar um pedido pendente.
+    private String buildAddressJson(CreateCheckoutSessionRequest r) {
+        try {
+            Map<String, String> addr = new LinkedHashMap<>();
+            addr.put("recipientName",  r.recipientName());
+            addr.put("recipientCpf",   r.recipientCpf()   != null ? r.recipientCpf()   : "");
+            addr.put("recipientPhone", r.recipientPhone()  != null ? r.recipientPhone()  : "");
+            addr.put("recipientPhone2",r.recipientPhone2() != null ? r.recipientPhone2() : "");
+            addr.put("street",         r.street());
+            addr.put("streetNumber",   r.streetNumber());
+            addr.put("complement",     r.complement()      != null ? r.complement()      : "");
+            addr.put("neighborhood",   r.neighborhood()    != null ? r.neighborhood()    : "");
+            addr.put("city",           r.city());
+            addr.put("state",          r.state());
+            addr.put("zipCode",        r.zipCode());
+            return objectMapper.writeValueAsString(addr);
+        } catch (Exception e) {
+            log.warn("Falha ao serializar endereço do pedido: {}", e.getMessage());
+            return "{}";
+        }
+    }
+
+    // ── RECRIAR LINK DE PAGAMENTO ─────────────────────────────────
+    // Gera uma nova URL de pagamento para um pedido existente com status PENDING_PAYMENT.
+    // Valida propriedade do pedido, prazo de expiração e disponibilidade dos dados de endereço.
+    @Transactional(readOnly = true)
+    public CheckoutSessionResponse generatePaymentLink(UUID orderId) {
+        User currentUser = getCurrentUser();
+        Order order = orderRepository.findByIdAndUserId(orderId, currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+
+        if (order.getStatus() != com.ecommerce.Order.Entity.OrderStatus.PENDING_PAYMENT) {
+            throw new BusinessException("Apenas pedidos com pagamento pendente podem ter o link de pagamento regenerado.");
+        }
+
+        if (order.getExpiresAt() != null && Instant.now().isAfter(order.getExpiresAt())) {
+            throw new BusinessException("O prazo para pagamento deste pedido expirou. O pedido será cancelado em breve.");
+        }
+
+        if (order.getDeliveryAddressData() == null || order.getDeliveryAddressData().isBlank()) {
+            throw new BusinessException("Dados de entrega indisponíveis — não é possível recriar o link de pagamento para este pedido.");
+        }
+
+        String customerEmail = currentUser.getEmail();
+        String gateway = order.getPaymentGateway();
+
+        if ("mercadopago".equalsIgnoreCase(gateway)) {
+            String url = mercadoPagoService.createPreference(order, customerEmail);
+            return new CheckoutSessionResponse(orderId, url);
+        }
+
+        // PagSeguro: reconstrói o payload a partir dos dados armazenados
+        String url = callPagseguroCheckoutFromStoredData(order, customerEmail);
+        return new CheckoutSessionResponse(orderId, url);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String callPagseguroCheckoutFromStoredData(Order order, String userEmail) {
+        if (pagseguroToken == null || pagseguroToken.isBlank()) {
+            throw new BusinessException("Token do PagSeguro não configurado.");
+        }
+
+        Map<String, String> addr;
+        try {
+            addr = objectMapper.readValue(order.getDeliveryAddressData(),
+                    new TypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            throw new BusinessException("Dados de endereço corrompidos — não é possível recriar o pagamento.");
+        }
+
+        String baseUrl = pagseguroApiUrl.replaceAll("/+$", "");
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("reference_id", order.getId().toString());
+        body.put("expiration_date",
+                java.time.OffsetDateTime.now().plusHours(2)
+                        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS)
+                        .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+
+        Map<String, Object> customer = new LinkedHashMap<>();
+        customer.put("name", addr.getOrDefault("recipientName", userEmail));
+        customer.put("email", userEmail);
+        String cpf = addr.getOrDefault("recipientCpf", "");
+        if (!cpf.isBlank()) customer.put("tax_id", digitsOnly(cpf));
+        List<Map<String, Object>> phones = new ArrayList<>();
+        addPhone(phones, addr.getOrDefault("recipientPhone", ""), "MOBILE");
+        addPhone(phones, addr.getOrDefault("recipientPhone2", ""), "HOME");
+        if (!phones.isEmpty()) customer.put("phones", phones);
+        body.put("customer", customer);
+
+        List<Map<String, Object>> itemsList = order.getItems().stream().map(item -> {
+            Map<String, Object> i = new LinkedHashMap<>();
+            i.put("reference_id", item.getProductId() != null ? item.getProductId().toString() : "item");
+            i.put("name", item.getProductName());
+            i.put("quantity", item.getQuantity());
+            i.put("unit_amount", item.getUnitPrice().multiply(BigDecimal.valueOf(100)).intValue());
+            return i;
+        }).collect(java.util.stream.Collectors.toList());
+        body.put("items", itemsList);
+
+        Map<String, Object> shipAddr = new LinkedHashMap<>();
+        shipAddr.put("street",      addr.getOrDefault("street", ""));
+        shipAddr.put("number",      addr.getOrDefault("streetNumber", ""));
+        String complement = addr.getOrDefault("complement", "");
+        if (!complement.isBlank()) shipAddr.put("complement", complement);
+        String neighborhood = addr.getOrDefault("neighborhood", "");
+        if (!neighborhood.isBlank()) shipAddr.put("locality", neighborhood);
+        shipAddr.put("city",        addr.getOrDefault("city", ""));
+        shipAddr.put("region_code", addr.getOrDefault("state", "").toUpperCase());
+        shipAddr.put("country",     "BRA");
+        shipAddr.put("postal_code", digitsOnly(addr.getOrDefault("zipCode", "")));
+
+        Map<String, Object> shipping = new LinkedHashMap<>();
+        shipping.put("type",    "FIXED");
+        shipping.put("amount",  0);
+        shipping.put("address", shipAddr);
+        body.put("shipping", shipping);
+
+        if (redirectUrl != null && !redirectUrl.isBlank()) body.put("redirect_url", redirectUrl);
+        if (notificationUrl != null && !notificationUrl.isBlank())
+            body.put("notification_urls", List.of(notificationUrl));
+
+        // Restringe ao método de pagamento original do pedido
+        String pmType = order.getPaymentMethod().name();
+        body.put("payment_methods", List.of(Map.of("type", pmType)));
+
+        try {
+            Map<String, Object> response = restClient.post()
+                    .uri(baseUrl + "/checkouts")
+                    .header("Authorization", "Bearer " + pagseguroToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(MAP_TYPE);
+
+            if (response == null) throw new BusinessException("Resposta vazia do PagSeguro");
+
+            List<Map<String, Object>> links = (List<Map<String, Object>>) response.get("links");
+            if (links == null) throw new BusinessException("PagSeguro não retornou links.");
+
+            return links.stream()
+                    .filter(l -> "PAY".equals(l.get("rel")))
+                    .map(l -> (String) l.get("href"))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("PagSeguro não retornou URL de pagamento."));
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (HttpClientErrorException e) {
+            log.error("PagSeguro 4xx ao recriar checkout [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new BusinessException("PagSeguro recusou a requisição: " + e.getStatusCode());
+        } catch (HttpServerErrorException e) {
+            log.error("PagSeguro 5xx ao recriar checkout [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new BusinessException("Serviço PagSeguro indisponível.");
+        } catch (RestClientException e) {
+            log.error("Falha de conexão com PagSeguro ao recriar checkout", e);
+            throw new BusinessException("Não foi possível conectar ao PagSeguro.");
+        }
     }
 
     @SuppressWarnings("unchecked")

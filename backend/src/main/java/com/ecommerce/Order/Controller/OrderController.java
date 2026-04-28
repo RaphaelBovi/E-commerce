@@ -21,6 +21,8 @@ package com.ecommerce.Order.Controller;
 import com.ecommerce.Order.Entity.Dto.*;
 import com.ecommerce.Order.Entity.OrderStatus;
 import com.ecommerce.Order.Service.OrderService;
+import com.ecommerce.Payment.Dto.CheckoutSessionResponse;
+import com.ecommerce.Payment.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -39,6 +41,9 @@ public class OrderController {
 
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private PaymentService paymentService;
 
     // ─────────────────────────────────────────────────────────────
     // ENDPOINTS DO CLIENTE AUTENTICADO
@@ -83,6 +88,14 @@ public class OrderController {
     @GetMapping("/my/{id}/tracking")
     public ResponseEntity<List<TrackingEventResponse>> getOrderTracking(@PathVariable UUID id) {
         return ResponseEntity.ok(orderService.getOrderTracking(id));
+    }
+
+    // POST /api/orders/my/{id}/payment-link
+    // Gera uma nova URL de pagamento para um pedido PENDING_PAYMENT ainda dentro do prazo.
+    // Útil quando o usuário saiu da página do gateway sem concluir o pagamento.
+    @PostMapping("/my/{id}/payment-link")
+    public ResponseEntity<CheckoutSessionResponse> getPaymentLink(@PathVariable UUID id) {
+        return ResponseEntity.ok(paymentService.generatePaymentLink(id));
     }
 
     // ─────────────────────────────────────────────────────────────

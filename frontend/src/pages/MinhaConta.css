@@ -1241,3 +1241,140 @@
   outline-offset: 2px;
   border-color: var(--primary);
 }
+
+/* ─── Expiração de pedidos ────────────────────────────────────── */
+
+/* Badge compacto no OrderCard */
+.mc-expiry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-soft);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.6rem;
+  margin: 0.4rem 0 0;
+}
+
+.mc-expiry-badge.urgent {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: #fca5a5;
+}
+
+.mc-expiry-badge.expired {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* Layout do rodapé do card com ações */
+.mc-order-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Botão "Finalizar Pagamento" no card */
+.mc-pay-now-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  white-space: nowrap;
+}
+
+.mc-pay-now-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.mc-pay-now-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Card de expiração no detalhe do pedido */
+.mc-expiry-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: var(--warning-soft);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.mc-expiry-card.urgent {
+  background: var(--danger-soft);
+  border-color: #fca5a5;
+}
+
+.mc-expiry-card.expired {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.mc-expiry-icon {
+  color: var(--warning);
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.mc-expiry-card.urgent .mc-expiry-icon  { color: var(--danger); }
+.mc-expiry-card.expired .mc-expiry-icon { color: var(--text-muted); }
+
+.mc-expiry-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mc-expiry-card strong {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.mc-expiry-card span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Botão "Finalizar Pagamento" no detalhe do pedido */
+.mc-pay-now-detail-btn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  margin-bottom: 0.5rem;
+}
+
+.mc-pay-now-detail-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.mc-pay-now-detail-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

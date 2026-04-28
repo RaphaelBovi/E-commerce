@@ -50,3 +50,13 @@ export async function getOrderTracking(id) {
   });
   return handleResponse(response);
 }
+
+// Gera uma nova URL de pagamento para um pedido PENDING_PAYMENT dentro do prazo.
+// Retorna { orderId, paymentUrl } para redirecionar o usuário ao gateway.
+export async function getOrderPaymentLink(id) {
+  const response = await fetch(`${API_BASE_URL}/orders/my/${id}/payment-link`, {
+    method: 'POST',
+    headers: { ...getAuthHeader(), Accept: 'application/json' },
+  });
+  return handleResponse(response);
+}

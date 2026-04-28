@@ -8,7 +8,7 @@ import {
   FaPlus, FaComments, FaChevronDown, FaPaperPlane, FaTag,
 } from 'react-icons/fa';
 import { useAuth } from '../context/useAuth';
-import { getMyOrders, cancelMyOrder, getOrderTracking } from '../services/ordersApi';
+import { getMyOrders, cancelMyOrder, getOrderTracking, getOrderPaymentLink } from '../services/ordersApi';
 import { createReturn } from '../services/returnsApi';
 import { getUserProfile, updateProfile, changePassword, deleteAccount } from '../services/authApi';
 import { fetchFavorites, toggleFavorite } from '../services/favoritesApi';
@@ -82,6 +82,19 @@ function formatZip(v) {
   return d.length === 8 ? `${d.slice(0,5)}-${d.slice(5)}` : v;
 }
 
+// Retorna informações de expiração para exibição no UI.
+// Retorna null se expiresAt não estiver definido (pedidos sem prazo).
+function getExpiryInfo(expiresAt) {
+  if (!expiresAt) return null;
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  if (remaining <= 0) return { expired: true, label: 'Prazo expirado' };
+  const hours   = Math.floor(remaining / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  const urgent  = hours < 2;
+  if (hours > 0) return { expired: false, urgent, label: `Expira em ${hours}h ${minutes}min` };
+  return { expired: false, urgent: true, label: `Expira em ${minutes} min` };
+}
+
 // ─── Toast ────────────────────────────────────────────────────────
 
 function Toast({ message, type, onClose }) {
@@ -100,9 +113,11 @@ function Toast({ message, type, onClose }) {
 
 // ─── OrderCard ────────────────────────────────────────────────────
 
-function OrderCard({ order, onView }) {
-  const cfg = STATUS_CONFIG[order.status] ?? { label: order.status, color: 'status-info' };
-  const count = order.items?.length ?? 0;
+function OrderCard({ order, onView, onPayNow, payingId }) {
+  const cfg    = STATUS_CONFIG[order.status] ?? { label: order.status, color: 'status-info' };
+  const count  = order.items?.length ?? 0;
+  const expiry = order.status === 'PENDING_PAYMENT' ? getExpiryInfo(order.expiresAt) : null;
+
   return (
     <div className="mc-order-card">
       <div className="mc-order-card-header">
@@ -116,9 +131,25 @@ function OrderCard({ order, onView }) {
         <span>·</span>
         <span>{PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</span>
       </div>
+      {expiry && (
+        <div className={`mc-expiry-badge ${expiry.expired ? 'expired' : expiry.urgent ? 'urgent' : ''}`}>
+          <FaClock /> {expiry.label}
+        </div>
+      )}
       <div className="mc-order-card-footer">
         <strong className="mc-order-total-value">{formatCurrency(order.totalAmount)}</strong>
-        <button className="mc-view-btn" onClick={onView}>Ver detalhes →</button>
+        <div className="mc-order-card-actions">
+          {expiry && !expiry.expired && (
+            <button
+              className="mc-pay-now-btn"
+              onClick={() => onPayNow(order.id)}
+              disabled={payingId === order.id}
+            >
+              {payingId === order.id ? 'Aguarde…' : 'Finalizar Pagamento'}
+            </button>
+          )}
+          <button className="mc-view-btn" onClick={onView}>Ver detalhes →</button>
+        </div>
       </div>
     </div>
   );
@@ -138,6 +169,7 @@ export default function MinhaConta() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [ordersError, setOrdersError]       = useState('');
   const [cancellingId, setCancellingId]     = useState(null);
+  const [payingId, setPayingId]             = useState(null);
   const [toast, setToast]                   = useState(null);
   const [returnModal, setReturnModal]       = useState(null); // { orderId }
   const [returnReason, setReturnReason]     = useState('DEFECTIVE');
@@ -183,6 +215,17 @@ export default function MinhaConta() {
       if (selectedOrder?.id === orderId) setSelectedOrder(updated);
     } catch (err) { alert(err.message); }
     finally { setCancellingId(null); }
+  }
+
+  async function handlePayNow(orderId) {
+    setPayingId(orderId);
+    try {
+      const { paymentUrl } = await getOrderPaymentLink(orderId);
+      window.location.href = paymentUrl;
+    } catch (err) {
+      showToast(err.message || 'Não foi possível gerar o link de pagamento.', 'error');
+      setPayingId(null);
+    }
   }
 
   function goToSection(id) { setSection(id); setSelectedOrder(null); }
@@ -242,7 +285,7 @@ export default function MinhaConta() {
             </div>
             <div className="mc-orders-list">
               {orders.slice(0, 3).map(o => (
-                <OrderCard key={o.id} order={o} onView={() => { setSelectedOrder(o); setSection('orders'); }} />
+                <OrderCard key={o.id} order={o} onView={() => { setSelectedOrder(o); setSection('orders'); }} onPayNow={handlePayNow} payingId={payingId} />
               ))}
             </div>
           </div>
@@ -275,7 +318,7 @@ export default function MinhaConta() {
         )}
         {!loadingOrders && orders.length > 0 && (
           <div className="mc-orders-list">
-            {orders.map(o => <OrderCard key={o.id} order={o} onView={() => setSelectedOrder(o)} />)}
+            {orders.map(o => <OrderCard key={o.id} order={o} onView={() => setSelectedOrder(o)} onPayNow={handlePayNow} payingId={payingId} />)}
           </div>
         )}
       </div>
@@ -292,6 +335,8 @@ export default function MinhaConta() {
     const within30Days = isDelivered && order.updatedAt
       && (Date.now() - new Date(order.updatedAt).getTime()) < 30 * 24 * 60 * 60 * 1000;
     const canReturn    = within30Days;
+    const expiry       = order.status === 'PENDING_PAYMENT' ? getExpiryInfo(order.expiresAt) : null;
+    const canPayNow    = expiry && !expiry.expired;
 
     return (
       <div className="mc-section">
@@ -366,6 +411,24 @@ export default function MinhaConta() {
                 <h3>Endereço de Entrega</h3>
                 <p className="mc-address-text">{order.deliveryAddress}</p>
               </div>
+            )}
+            {expiry && (
+              <div className={`mc-expiry-card ${expiry.expired ? 'expired' : expiry.urgent ? 'urgent' : ''}`}>
+                <FaClock className="mc-expiry-icon" />
+                <div>
+                  <strong>{expiry.expired ? 'Prazo encerrado' : 'Aguardando pagamento'}</strong>
+                  <span>{expiry.label}</span>
+                </div>
+              </div>
+            )}
+            {canPayNow && (
+              <button
+                className="mc-pay-now-detail-btn"
+                onClick={() => handlePayNow(order.id)}
+                disabled={payingId === order.id}
+              >
+                {payingId === order.id ? 'Gerando link…' : 'Finalizar Pagamento'}
+              </button>
             )}
             {canCancel && (
               <button className="mc-cancel-btn" onClick={() => handleCancelOrder(order.id)} disabled={cancellingId === order.id}>

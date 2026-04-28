@@ -154,11 +154,10 @@ export default function Navbar({ cartCount, onOpenCart, products = [] }) {
           <div className="user-actions">
             <div className="login-register">
               {isAuthenticated ? (
-                <div className="user-session">
+                <Link to="/minha-conta" className="login-link-nav" aria-label="Minha conta">
                   <span className="icon-user" aria-hidden><FaRegUser /></span>
-                  <Link to="/minha-conta" className="user-email">Minha conta</Link>
-                  <button type="button" className="btn-logout-nav" onClick={logout}>Sair</button>
-                </div>
+                  <span className="login-text-nav">Minha conta</span>
+                </Link>
               ) : (
                 <Link to="/login" className="login-link-nav" aria-label="Entrar na conta">
                   <span className="icon-user" aria-hidden><FaRegUser /></span>

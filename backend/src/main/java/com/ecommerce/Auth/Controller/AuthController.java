@@ -46,16 +46,6 @@ public class AuthController {
         return authService.googleLogin(request);
     }
 
-    // ── POST /api/auth/register (legacy) ─────────────────────────
-    @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse register(
-            @Valid @RequestBody RegisterRequest request,
-            @RequestHeader(value = "X-Captcha-Token", required = false) String captchaToken) {
-        recaptchaService.verify(captchaToken);
-        return authService.register(request);
-    }
-
     // ── POST /api/auth/login ──────────────────────────────────────
     @PostMapping("/login")
     public AuthResponse login(

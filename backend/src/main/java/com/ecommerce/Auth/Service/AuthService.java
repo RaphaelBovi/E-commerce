@@ -11,9 +11,9 @@ import com.ecommerce.Auth.Repository.UserRepository;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import com.ecommerce.Security.JwtUtil;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -21,6 +21,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -32,17 +33,18 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
-    @Autowired private UserRepository userRepository;
-    @Autowired private PendingRegistrationRepository pendingRepo;
-    @Autowired private PasswordResetTokenRepository resetTokenRepo;
-    @Autowired private PasswordEncoder passwordEncoder;
-    @Autowired private AuthenticationManager authenticationManager;
-    @Autowired private JwtUtil jwtUtil;
-    @Autowired private EmailService emailService;
+    private final UserRepository userRepository;
+    private final PendingRegistrationRepository pendingRepo;
+    private final PasswordResetTokenRepository resetTokenRepo;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
+    private final EmailService emailService;
 
     @Value("${app.google.client-id:}")
     private String googleClientId;
@@ -50,6 +52,7 @@ public class AuthService {
     // ── INITIATE REGISTRATION ─────────────────────────────────────
     // Validates all data, stores pending registration and sends OTP.
     // Account is NOT created yet — only after confirmRegistration().
+    @Transactional
     public void initiateRegistration(RegisterRequest request) {
         String email = request.email().trim().toLowerCase();
 
@@ -97,6 +100,7 @@ public class AuthService {
 
     // ── CONFIRM REGISTRATION ──────────────────────────────────────
     // Verifies OTP, creates the user account and returns JWT.
+    @Transactional
     public AuthResponse confirmRegistration(ConfirmRegistrationRequest request) {
         String email = request.email().trim().toLowerCase();
 
@@ -174,45 +178,6 @@ public class AuthService {
         });
 
         log.info("Login via Google: {}", email);
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-        return new AuthResponse(token, user.getEmail(), user.getRole().name());
-    }
-
-    // ── REGISTER (legacy — kept for backward compat / admin tooling) ──
-    public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new BusinessException("Email já cadastrado");
-        }
-        String cpfDigits = digitsOnly(request.cpf());
-        if (cpfDigits.length() != 11) throw new BusinessException("CPF deve conter 11 dígitos");
-        if (userRepository.existsByCpf(cpfDigits)) throw new BusinessException("CPF já cadastrado");
-
-        String phoneDigits = digitsOnly(request.phone());
-        if (phoneDigits.length() < 10 || phoneDigits.length() > 11) {
-            throw new BusinessException("Telefone deve ter 10 ou 11 dígitos");
-        }
-        String zipDigits = digitsOnly(request.zipCode());
-        if (zipDigits.length() != 8) throw new BusinessException("CEP deve conter 8 dígitos");
-        String stateUf = request.state().trim().toUpperCase();
-        if (!stateUf.matches("[A-Z]{2}")) throw new BusinessException("UF deve ter 2 letras");
-
-        var user = User.builder()
-                .email(request.email().trim())
-                .password(passwordEncoder.encode(request.password()))
-                .role(Role.CUSTOMER)
-                .fullName(request.fullName().trim())
-                .cpf(cpfDigits)
-                .birthDate(request.birthDate())
-                .phone(phoneDigits)
-                .address(request.address().trim())
-                .city(request.city().trim())
-                .state(stateUf)
-                .zipCode(zipDigits)
-                .build();
-
-        userRepository.save(user);
-        log.info("Novo usuário registrado: {}", request.email());
-
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         return new AuthResponse(token, user.getEmail(), user.getRole().name());
     }

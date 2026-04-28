@@ -28,10 +28,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     // path exato → { maxRequests, windowSeconds }
     private static final Map<String, int[]> LIMITS = Map.of(
-        "/api/auth/login",         new int[]{10, 60},
-        "/api/auth/register",      new int[]{5,  60},
-        "/api/freight/calculate",  new int[]{20, 60},
-        "/api/coupons/validate",   new int[]{20, 60}
+        "/api/auth/login",                   new int[]{10, 60},
+        "/api/auth/admin/login",             new int[]{10, 60},
+        "/api/auth/register/initiate",       new int[]{5,  60},
+        "/api/auth/forgot-password",         new int[]{5,  60},
+        "/api/freight/calculate",            new int[]{20, 60},
+        "/api/coupons/validate",             new int[]{20, 60}
     );
 
     // "IP:path" → timestamps das requisições dentro da janela

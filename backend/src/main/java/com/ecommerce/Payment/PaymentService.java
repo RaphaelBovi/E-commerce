@@ -15,8 +15,8 @@ import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
 import com.ecommerce.Product.Repository.ProductCategoryRepository;
 import com.ecommerce.Product.Repository.ProductVariantRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -39,6 +39,7 @@ import java.util.*;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PaymentService {
 
     @Value("${pagseguro.token:}")
@@ -56,26 +57,15 @@ public class PaymentService {
     @Value("${pagseguro.redirect-url:http://localhost:5173/minha-conta}")
     private String redirectUrl;
 
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private ProductCategoryRepository productCategoryRepository;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private CouponService couponService;
-
-    @Autowired
-    private MercadoPagoService mercadoPagoService;
-
-    @Autowired
-    private ProductVariantRepository productVariantRepository;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final ProductCategoryRepository productCategoryRepository;
+    private final EmailService emailService;
+    private final CouponService couponService;
+    private final MercadoPagoService mercadoPagoService;
+    private final ProductVariantRepository productVariantRepository;
+    private final StockService stockService;
+    private final WebhookService webhookService;
 
     private final RestClient restClient = RestClient.create();
 
@@ -528,117 +518,22 @@ public class PaymentService {
 
     // ── WEBHOOK ───────────────────────────────────────────────────
     // Recebe notificações assíncronas do PagSeguro quando o status muda
-    @Transactional
+    // Webhook delegados ao WebhookService — ver WebhookService.java
     public void handleWebhook(Map<String, Object> payload) {
-        String chargeId    = (String) payload.get("id");
-        String status      = (String) payload.get("status");
-        String referenceId = (String) payload.get("reference_id");
-
-        if (referenceId == null || status == null) return;
-
-        try {
-            UUID orderId = UUID.fromString(referenceId);
-            orderRepository.findById(orderId).ifPresent(order -> {
-                if (chargeId != null) order.setPagseguroChargeId(chargeId);
-                boolean wasFirstConfirmation = false;
-                if ("PAID".equals(status) || "AUTHORIZED".equals(status)) {
-                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
-                        decrementOrderStock(order.getItems());
-                        wasFirstConfirmation = true;
-                    }
-                    order.setStatus(OrderStatus.PAID);
-                } else if ("DECLINED".equals(status) && order.getStatus() == OrderStatus.PENDING_PAYMENT) {
-                    order.setStatus(OrderStatus.CANCELLED);
-                }
-                Order saved = orderRepository.save(order);
-                log.info("Webhook PagSeguro: pedido {} → {}", orderId, order.getStatus());
-                if (wasFirstConfirmation) {
-                    try { emailService.sendOrderConfirmation(saved); } catch (Exception e) {
-                        log.warn("Falha ao enviar e-mail de confirmação via webhook: {}", e.getMessage());
-                    }
-                }
-            });
-        } catch (IllegalArgumentException e) {
-            log.warn("reference_id inválido no webhook PagSeguro: {}", referenceId);
-        }
+        webhookService.handlePagSeguro(payload);
     }
 
-    // ── CONTROLE DE ESTOQUE ───────────────────────────────────────
-    // Valida estoque antes de criar o pedido — lança BusinessException se insuficiente
-    private void validateStock(List<com.ecommerce.Order.Entity.Dto.OrderItemRequest> items) {
-        for (var item : items) {
-            if (item.productId() == null) continue;
-            if (item.variantId() != null) {
-                productVariantRepository.findById(item.variantId()).ifPresent(variant -> {
-                    if (variant.getQnt() < item.quantity()) {
-                        throw new BusinessException(
-                            "Estoque insuficiente para \"" + variant.getName() + "\". " +
-                            "Disponível: " + variant.getQnt() + ", solicitado: " + item.quantity());
-                    }
-                });
-            } else {
-                productCategoryRepository.findById(item.productId()).ifPresent(product -> {
-                    if (product.getQnt() < item.quantity()) {
-                        throw new BusinessException(
-                            "Estoque insuficiente para \"" + product.getName() + "\". " +
-                            "Disponível: " + product.getQnt() + ", solicitado: " + item.quantity());
-                    }
-                });
-            }
-        }
-    }
-
-    // Decrementa estoque dos produtos do pedido — chamado após pagamento confirmado
-    private void decrementOrderStock(List<com.ecommerce.Order.Entity.OrderItem> items) {
-        for (var item : items) {
-            if (item.getProductId() == null) continue;
-            if (item.getVariantId() != null) {
-                productVariantRepository.findById(item.getVariantId()).ifPresent(variant -> {
-                    variant.decrementStock(item.getQuantity());
-                    productVariantRepository.save(variant);
-                });
-            } else {
-                productCategoryRepository.findById(item.getProductId()).ifPresent(product -> {
-                    product.decrementStock(item.getQuantity());
-                    productCategoryRepository.save(product);
-                });
-            }
-        }
-    }
-
-    // ── WEBHOOK MERCADO PAGO ──────────────────────────────────────
-    @Transactional
     public void handleMercadoPagoWebhook(String paymentId) {
-        MercadoPagoService.MpPaymentDetails details = mercadoPagoService.getPaymentDetails(paymentId);
-        if (details == null || details.externalReference() == null) return;
+        webhookService.handleMercadoPago(paymentId);
+    }
 
-        try {
-            UUID orderId = UUID.fromString(details.externalReference());
-            orderRepository.findById(orderId).ifPresent(order -> {
-                boolean wasFirstConfirmation = false;
-                String status = details.status();
-                if ("approved".equals(status)) {
-                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
-                        decrementOrderStock(order.getItems());
-                        wasFirstConfirmation = true;
-                    }
-                    order.setStatus(OrderStatus.PAID);
-                } else if ("rejected".equals(status) || "cancelled".equals(status)) {
-                    if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
-                        order.setStatus(OrderStatus.CANCELLED);
-                    }
-                }
-                Order saved = orderRepository.save(order);
-                log.info("Webhook Mercado Pago: pedido {} → {}", orderId, order.getStatus());
-                if (wasFirstConfirmation) {
-                    try { emailService.sendOrderConfirmation(saved); } catch (Exception e) {
-                        log.warn("Falha ao enviar e-mail de confirmação via webhook MP: {}", e.getMessage());
-                    }
-                }
-            });
-        } catch (IllegalArgumentException e) {
-            log.warn("externalReference inválido no webhook MP: {}", details.externalReference());
-        }
+    // Estoque delegado ao StockService — ver StockService.java
+    private void validateStock(List<com.ecommerce.Order.Entity.Dto.OrderItemRequest> items) {
+        stockService.validateStock(items);
+    }
+
+    private void decrementOrderStock(List<com.ecommerce.Order.Entity.OrderItem> items) {
+        stockService.decrementStock(items);
     }
 
     private record ChargeResult(String chargeId, String status, String message) {}

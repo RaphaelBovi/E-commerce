@@ -85,7 +85,7 @@ public class ProductService {
     // Lança: ResourceNotFoundException (HTTP 404) se nenhum produto for encontrado com a referência
     public ProductCategoryResponse findByRef(String ref) {
         return ProductCategoryResponse.from(
-                repository.findByRefIgnoreCase(ref)
+                repository.findByRefIgnoreCaseWithVariants(ref)
                         .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado com ref: " + ref))
         );
     }

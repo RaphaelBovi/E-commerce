@@ -119,7 +119,7 @@ public class ProductCategory {
         this.qnt += qty;
     }
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("name ASC")
     private List<ProductVariant> variants = new ArrayList<>();
 

@@ -18,29 +18,28 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.ecommerce.Product.Entity.ProductCategory;
 
-// @Repository — marca esta interface como repositório Spring Data,
-// ativando tradução de exceções JPA para exceções Spring (DataAccessException)
 @Repository
-// JpaRepository<ProductCategory, UUID> — herda CRUD completo para ProductCategory com chave UUID
 public interface ProductCategoryRepository extends JpaRepository<ProductCategory, UUID> {
 
-    // Verifica se existe algum produto com o código de referência informado (insensível a maiúsculas).
-    // Usado em ProductService.save() para impedir duplicatas de referência.
     boolean existsByRefIgnoreCase(String ref);
 
-    // Busca um produto pelo código de referência (insensível a maiúsculas).
-    // Retorna Optional para forçar tratamento do caso "não encontrado" no service.
     Optional<ProductCategory> findByRefIgnoreCase(String ref);
 
-    // Exclui o produto com o código de referência informado (insensível a maiúsculas).
-    // Atenção: requer @Transactional no método do service que o chama.
+    // JOIN FETCH de variantes — usado apenas no endpoint de detalhe do produto.
+    // Evita N+1: carrega produto + variantes em uma única query.
+    @Query("SELECT p FROM ProductCategory p LEFT JOIN FETCH p.variants WHERE LOWER(p.ref) = LOWER(:ref)")
+    Optional<ProductCategory> findByRefIgnoreCaseWithVariants(@Param("ref") String ref);
+
+    @Query("SELECT p FROM ProductCategory p LEFT JOIN FETCH p.variants WHERE p.id = :id")
+    Optional<ProductCategory> findByIdWithVariants(@Param("id") UUID id);
+
     void deleteByRefIgnoreCase(String ref);
 
-    // Exclui o produto pelo seu UUID — sobrescreve o deleteById do JpaRepository
-    // para deixar explícita a operação neste repositório.
     void deleteById(UUID id);
 }

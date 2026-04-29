@@ -124,7 +124,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     // Desassocia todos os pedidos de um usuário que está sendo excluído.
     // Mantém o histórico de pedidos mas remove a referência ao usuário.
-    @Modifying
-    @Query("UPDATE Order o SET o.user = null, o.guestEmail = COALESCE(o.guestEmail, :email) WHERE o.user.id = :userId")
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "UPDATE orders SET user_id = NULL, guest_email = COALESCE(guest_email, :email) WHERE user_id = :userId", nativeQuery = true)
     void disassociateUserFromOrders(@Param("userId") UUID userId, @Param("email") String email);
 }

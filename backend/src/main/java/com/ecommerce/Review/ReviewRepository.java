@@ -23,4 +23,8 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     // Returns [productId, avgRating, count] rows for all products that have reviews
     @Query("SELECT r.productId, AVG(r.rating), COUNT(r) FROM Review r GROUP BY r.productId")
     List<Object[]> findRatingSummaryForAllProducts();
+
+    List<Review> findByUserId(UUID userId);
+
+    void deleteByUserId(UUID userId);
 }

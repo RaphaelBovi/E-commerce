@@ -18,4 +18,6 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     long countAll();
 
     Optional<Ticket> findByTicketNumber(String ticketNumber);
+
+    void deleteByUserId(UUID userId);
 }

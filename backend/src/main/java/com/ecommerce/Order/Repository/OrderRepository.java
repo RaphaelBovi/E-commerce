@@ -20,6 +20,7 @@ import com.ecommerce.Order.Entity.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -120,4 +121,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     // O scheduler usa esta query para cancelar automaticamente os pedidos expirados.
     @Query("SELECT o FROM Order o WHERE o.status = com.ecommerce.Order.Entity.OrderStatus.PENDING_PAYMENT AND o.expiresAt IS NOT NULL AND o.expiresAt < :now")
     List<Order> findExpiredPendingPaymentOrders(@Param("now") Instant now);
+
+    // Desassocia todos os pedidos de um usuário que está sendo excluído.
+    // Mantém o histórico de pedidos mas remove a referência ao usuário.
+    @Modifying
+    @Query("UPDATE Order o SET o.user = null, o.guestEmail = COALESCE(o.guestEmail, :email) WHERE o.user.id = :userId")
+    void disassociateUserFromOrders(@Param("userId") UUID userId, @Param("email") String email);
 }

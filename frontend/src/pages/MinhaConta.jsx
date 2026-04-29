@@ -139,7 +139,7 @@ function OrderCard({ order, onView, onPayNow, payingId }) {
       <div className="mc-order-card-footer">
         <strong className="mc-order-total-value">{formatCurrency(order.totalAmount)}</strong>
         <div className="mc-order-card-actions">
-          {expiry && !expiry.expired && (
+          {order.status === 'PENDING_PAYMENT' && (!expiry || !expiry.expired) && (
             <button
               className="mc-pay-now-btn"
               onClick={() => onPayNow(order.id)}
@@ -336,7 +336,7 @@ export default function MinhaConta() {
       && (Date.now() - new Date(order.updatedAt).getTime()) < 30 * 24 * 60 * 60 * 1000;
     const canReturn    = within30Days;
     const expiry       = order.status === 'PENDING_PAYMENT' ? getExpiryInfo(order.expiresAt) : null;
-    const canPayNow    = expiry && !expiry.expired;
+    const canPayNow    = order.status === 'PENDING_PAYMENT' && (!expiry || !expiry.expired);
 
     return (
       <div className="mc-section">

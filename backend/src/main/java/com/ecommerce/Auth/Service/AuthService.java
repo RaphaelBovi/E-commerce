@@ -10,10 +10,15 @@ import com.ecommerce.Auth.Repository.PasswordResetTokenRepository;
 import com.ecommerce.Auth.Repository.PendingGoogleSetupRepository;
 import com.ecommerce.Auth.Repository.PendingRegistrationRepository;
 import com.ecommerce.Auth.Repository.UserRepository;
+import com.ecommerce.Favorite.Repository.FavoriteRepository;
+import com.ecommerce.Order.Repository.OrderRepository;
 import com.ecommerce.Product.Exception.BusinessException;
 import com.ecommerce.Product.Exception.ResourceNotFoundException;
+import com.ecommerce.Review.ReviewRepository;
 import com.ecommerce.Security.JwtUtil;
+import com.ecommerce.Ticket.Repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +53,12 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+
+    // Injetados via campo para não afetar o construtor (e o AuthServiceTest)
+    @Autowired private OrderRepository orderRepository;
+    @Autowired private FavoriteRepository favoriteRepository;
+    @Autowired private ReviewRepository reviewRepository;
+    @Autowired private TicketRepository ticketRepository;
 
     @Value("${app.google.client-id:}")
     private String googleClientId;
@@ -472,10 +483,20 @@ public class AuthService {
     }
 
     // ── DELETE ACCOUNT ────────────────────────────────────────────
+    @Transactional
     public void deleteAccount() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+        UUID userId = user.getId();
+
+        // Mantém pedidos mas remove a referência ao usuário (histórico preservado)
+        orderRepository.disassociateUserFromOrders(userId, email);
+        // Remove dados pessoais vinculados diretamente ao usuário
+        favoriteRepository.deleteByUserId(userId);
+        reviewRepository.deleteByUserId(userId);
+        ticketRepository.deleteByUserId(userId);
+
         userRepository.delete(user);
     }
 

@@ -3,6 +3,7 @@ package com.ecommerce.Auth.Service;
 import com.ecommerce.Auth.Entity.Dto.*;
 import com.ecommerce.Auth.Entity.PendingRegistration;
 import com.ecommerce.Auth.Entity.User;
+import com.ecommerce.Auth.Repository.AccountDeletionTokenRepository;
 import com.ecommerce.Auth.Repository.PasswordResetTokenRepository;
 import com.ecommerce.Auth.Repository.PendingGoogleSetupRepository;
 import com.ecommerce.Auth.Repository.PendingRegistrationRepository;
@@ -33,6 +34,7 @@ class AuthServiceTest {
     @Mock private PendingRegistrationRepository pendingRepo;
     @Mock private PendingGoogleSetupRepository pendingGoogleSetupRepo;
     @Mock private PasswordResetTokenRepository resetTokenRepo;
+    @Mock private AccountDeletionTokenRepository deletionTokenRepo;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtUtil jwtUtil;
     @Mock private EmailService emailService;
@@ -46,7 +48,7 @@ class AuthServiceTest {
     void setUp() {
         authService = new AuthService(
             userRepository, pendingRepo, pendingGoogleSetupRepo, resetTokenRepo,
-            passwordEncoder, authenticationManager, jwtUtil, emailService
+            deletionTokenRepo, passwordEncoder, authenticationManager, jwtUtil, emailService
         );
     }
 

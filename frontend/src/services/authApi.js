@@ -266,10 +266,19 @@ export async function registerRequest(payload) {
   return response.json();
 }
 
-export async function deleteAccount() {
+export async function requestAccountDeletion() {
+  const response = await fetch(`${API_BASE_URL}/auth/me/delete-request`, {
+    method: "POST",
+    headers: { ...getAuthHeader(), Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response));
+}
+
+export async function confirmAccountDeletion(token) {
   const response = await fetch(`${API_BASE_URL}/auth/me`, {
     method: "DELETE",
-    headers: { ...getAuthHeader(), Accept: "application/json" },
+    headers: { ...getAuthHeader(), "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ token }),
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response));
 }

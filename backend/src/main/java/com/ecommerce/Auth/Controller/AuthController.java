@@ -115,10 +115,19 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    // ── POST /api/auth/me/delete-request ─────────────────────────
+    // Step 1: generates a 6-digit OTP and emails it to the authenticated user.
+    @PostMapping("/me/delete-request")
+    public ResponseEntity<Void> requestAccountDeletion() {
+        authService.requestAccountDeletion();
+        return ResponseEntity.noContent().build();
+    }
+
     // ── DELETE /api/auth/me ───────────────────────────────────────
+    // Step 2: validates the OTP from the request body and deletes the account.
     @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteAccount() {
-        authService.deleteAccount();
+    public ResponseEntity<Void> confirmAccountDeletion(@RequestBody ConfirmDeletionRequest request) {
+        authService.confirmAccountDeletion(request.token());
         return ResponseEntity.noContent().build();
     }
 }

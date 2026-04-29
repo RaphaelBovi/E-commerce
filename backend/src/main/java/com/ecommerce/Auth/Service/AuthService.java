@@ -1,11 +1,13 @@
 package com.ecommerce.Auth.Service;
 
+import com.ecommerce.Auth.Entity.AccountDeletionToken;
 import com.ecommerce.Auth.Entity.Dto.*;
 import com.ecommerce.Auth.Entity.PasswordResetToken;
 import com.ecommerce.Auth.Entity.PendingGoogleSetup;
 import com.ecommerce.Auth.Entity.PendingRegistration;
 import com.ecommerce.Auth.Entity.Role;
 import com.ecommerce.Auth.Entity.User;
+import com.ecommerce.Auth.Repository.AccountDeletionTokenRepository;
 import com.ecommerce.Auth.Repository.PasswordResetTokenRepository;
 import com.ecommerce.Auth.Repository.PendingGoogleSetupRepository;
 import com.ecommerce.Auth.Repository.PendingRegistrationRepository;
@@ -49,6 +51,7 @@ public class AuthService {
     private final PendingRegistrationRepository pendingRepo;
     private final PendingGoogleSetupRepository pendingGoogleSetupRepo;
     private final PasswordResetTokenRepository resetTokenRepo;
+    private final AccountDeletionTokenRepository deletionTokenRepo;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
@@ -482,22 +485,71 @@ public class AuthService {
         }
     }
 
-    // ── DELETE ACCOUNT ────────────────────────────────────────────
+    // ── REQUEST ACCOUNT DELETION ──────────────────────────────────
+    // Generates a 6-digit OTP, saves it hashed, and emails it to the user.
+    // Called from POST /api/auth/me/delete-request (authenticated).
+    public void requestAccountDeletion() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+        // Replace any existing token for this email
+        deletionTokenRepo.deleteById(email);
+
+        String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+
+        var token = AccountDeletionToken.builder()
+                .email(email)
+                .tokenHash(passwordEncoder.encode(otp))
+                .expiresAt(Instant.now().plusSeconds(900)) // 15 minutes
+                .attempts(0)
+                .build();
+
+        deletionTokenRepo.save(token);
+        emailService.sendAccountDeletionCode(email, otp);
+        log.info("Código de exclusão de conta enviado para: {}", email);
+    }
+
+    // ── CONFIRM ACCOUNT DELETION ──────────────────────────────────
+    // Validates the OTP and permanently deletes the account.
+    // Called from DELETE /api/auth/me (authenticated) with body { token }.
     @Transactional
-    public void deleteAccount() {
+    public void confirmAccountDeletion(String token) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
-        UUID userId = user.getId();
 
-        // Mantém pedidos mas remove a referência ao usuário (histórico preservado)
+        var tokenEntry = deletionTokenRepo.findById(email)
+                .orElseThrow(() -> new BusinessException(
+                        "Nenhuma solicitação de exclusão ativa. Solicite o código novamente."));
+
+        if (Instant.now().isAfter(tokenEntry.getExpiresAt())) {
+            deletionTokenRepo.delete(tokenEntry);
+            throw new BusinessException("Código expirado. Solicite um novo código.");
+        }
+
+        if (tokenEntry.getAttempts() >= 5) {
+            deletionTokenRepo.delete(tokenEntry);
+            throw new BusinessException("Muitas tentativas incorretas. Solicite um novo código.");
+        }
+
+        if (!passwordEncoder.matches(token, tokenEntry.getTokenHash())) {
+            tokenEntry.setAttempts(tokenEntry.getAttempts() + 1);
+            deletionTokenRepo.save(tokenEntry);
+            int remaining = 5 - tokenEntry.getAttempts();
+            throw new BusinessException("Código incorreto. " + remaining + " tentativa(s) restante(s).");
+        }
+
+        deletionTokenRepo.delete(tokenEntry);
+
+        UUID userId = user.getId();
         orderRepository.disassociateUserFromOrders(userId, email);
-        // Remove dados pessoais vinculados diretamente ao usuário
         favoriteRepository.deleteByUserId(userId);
         reviewRepository.deleteByUserId(userId);
         ticketRepository.deleteByUserId(userId);
-
         userRepository.delete(user);
+
+        log.info("Conta excluída: {}", email);
     }
 
     private static String digitsOnly(String value) {

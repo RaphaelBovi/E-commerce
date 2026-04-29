@@ -1140,7 +1140,7 @@
 }
 .mc-danger-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1.5rem;
   padding: 1.25rem 1.5rem;
   background: var(--danger-soft);
@@ -1165,6 +1165,89 @@
 }
 .mc-delete-btn:hover:not(:disabled) { opacity: 0.85; }
 .mc-delete-btn:disabled { opacity: 0.6; cursor: default; }
+
+.mc-delete-confirm,
+.mc-delete-code-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.mc-delete-warning {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+.mc-delete-sent {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+.mc-delete-error {
+  font-size: 0.82rem;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-xs);
+  padding: 0.5rem 0.75rem;
+  margin: 0;
+}
+.mc-delete-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.mc-delete-cancel {
+  padding: 0.6rem 1.25rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.mc-delete-cancel:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.mc-delete-cancel:disabled { opacity: 0.6; cursor: default; }
+.mc-delete-code-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.mc-delete-code-input {
+  width: 7rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.25rem;
+  text-align: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: monospace;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.mc-delete-code-input:focus { border-color: var(--danger); }
+.mc-delete-resend {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  align-self: flex-start;
+}
+.mc-delete-resend:disabled { opacity: 0.5; cursor: default; }
 
 /* ── Return modal ────────────────────────────────── */
 .mc-modal-overlay {

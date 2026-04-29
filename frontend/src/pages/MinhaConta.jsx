@@ -10,7 +10,7 @@ import {
 import { useAuth } from '../context/useAuth';
 import { getMyOrders, cancelMyOrder, getOrderTracking, getOrderPaymentLink } from '../services/ordersApi';
 import { createReturn } from '../services/returnsApi';
-import { getUserProfile, updateProfile, changePassword, deleteAccount } from '../services/authApi';
+import { getUserProfile, updateProfile, changePassword, requestAccountDeletion, confirmAccountDeletion } from '../services/authApi';
 import { fetchFavorites, toggleFavorite } from '../services/favoritesApi';
 import {
   fetchMyTickets, fetchMyTicket, createTicket, replyTicket,
@@ -1069,29 +1069,104 @@ function SecuritySection({ isGoogleAccount, onSaved, onError }) {
   );
 }
 
+// STEP: 'idle' | 'confirm' | 'code'
 function DeleteAccountButton() {
   const { logout } = useAuth();
   const navigate   = useNavigate();
-  const [busy, setBusy] = useState(false);
+  const [step, setStep]   = useState('idle');
+  const [code, setCode]   = useState('');
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState('');
 
-  const handleDelete = async () => {
-    if (!window.confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')) return;
-    if (!window.confirm('Confirmação final: todos os seus dados serão excluídos permanentemente.')) return;
+  const handleRequestCode = async () => {
     setBusy(true);
+    setError('');
     try {
-      await deleteAccount();
-      logout();
-      navigate('/');
+      await requestAccountDeletion();
+      setStep('code');
     } catch (err) {
-      alert(err.message || 'Não foi possível excluir a conta. Tente novamente.');
+      setError(err.message || 'Não foi possível enviar o código. Tente novamente.');
+    } finally {
       setBusy(false);
     }
   };
 
+  const handleConfirm = async (e) => {
+    e.preventDefault();
+    if (!code.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      await confirmAccountDeletion(code.trim());
+      logout();
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Código inválido. Tente novamente.');
+      setBusy(false);
+    }
+  };
+
+  if (step === 'idle') {
+    return (
+      <button className="mc-delete-btn" onClick={() => setStep('confirm')} disabled={busy}>
+        Excluir conta
+      </button>
+    );
+  }
+
+  if (step === 'confirm') {
+    return (
+      <div className="mc-delete-confirm">
+        <p className="mc-delete-warning">
+          Ao continuar, enviaremos um código de confirmação para o seu e-mail cadastrado.
+          A conta só será excluída após inserir esse código.
+        </p>
+        {error && <p className="mc-delete-error">{error}</p>}
+        <div className="mc-delete-actions">
+          <button className="mc-delete-btn" onClick={handleRequestCode} disabled={busy}>
+            {busy ? 'Enviando…' : 'Enviar código por e-mail'}
+          </button>
+          <button className="mc-delete-cancel" onClick={() => { setStep('idle'); setError(''); }} disabled={busy}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <button className="mc-delete-btn" onClick={handleDelete} disabled={busy}>
-      {busy ? 'Excluindo…' : 'Excluir conta'}
-    </button>
+    <form className="mc-delete-code-form" onSubmit={handleConfirm}>
+      <p className="mc-delete-sent">
+        Código enviado para o seu e-mail. Insira abaixo para confirmar a exclusão.
+      </p>
+      <div className="mc-delete-code-row">
+        <input
+          className="mc-delete-code-input"
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          placeholder="000000"
+          value={code}
+          onChange={e => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+          autoFocus
+        />
+        <button className="mc-delete-btn" type="submit" disabled={busy || code.length < 6}>
+          {busy ? 'Excluindo…' : 'Confirmar exclusão'}
+        </button>
+      </div>
+      {error && <p className="mc-delete-error">{error}</p>}
+      <button
+        type="button"
+        className="mc-delete-resend"
+        onClick={handleRequestCode}
+        disabled={busy}
+      >
+        Reenviar código
+      </button>
+      <button type="button" className="mc-delete-cancel" onClick={() => { setStep('idle'); setCode(''); setError(''); }} disabled={busy}>
+        Cancelar
+      </button>
+    </form>
   );
 }
 

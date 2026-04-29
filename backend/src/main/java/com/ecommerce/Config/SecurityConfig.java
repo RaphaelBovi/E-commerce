@@ -77,6 +77,7 @@ public class SecurityConfig {
 
                         // Edição e exclusão de perfil — exige autenticação
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/me", "/api/auth/me/password").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/me/delete-request").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/me").authenticated()
 
                         // Público — qualquer pessoa pode acessar (sem token)

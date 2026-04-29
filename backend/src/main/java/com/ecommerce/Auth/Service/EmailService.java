@@ -291,6 +291,26 @@ public class EmailService {
             """.formatted(System.getenv().getOrDefault("APP_FRONTEND_URL", "https://sualoja.com.br") + "/checkout");
     }
 
+    public void sendAccountDeletionCode(String toEmail, String code) {
+        if (mailSender == null) {
+            log.warn("[DEV] E-mail não configurado — código de exclusão de conta para {}: {}", toEmail, code);
+            return;
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(toEmail);
+            helper.setSubject("Confirmação de exclusão de conta — Sua Loja");
+            helper.setText(buildDeletionHtml(code), true);
+            mailSender.send(message);
+            log.info("Código de exclusão de conta enviado para: {}", toEmail);
+        } catch (MessagingException | MailException e) {
+            log.error("Falha ao enviar código de exclusão para {}: {}", toEmail, e.getMessage());
+            throw new RuntimeException("Não foi possível enviar o e-mail de confirmação. Tente novamente.");
+        }
+    }
+
     public void sendPasswordChangedNotification(String toEmail, String fullName) {
         if (mailSender == null) {
             log.warn("[DEV] E-mail não configurado — notificação de troca de senha para: {}", toEmail);
@@ -425,5 +445,44 @@ public class EmailService {
                 .ofPattern("dd/MM/yyyy 'às' HH:mm")
                 .withZone(java.time.ZoneId.of("America/Sao_Paulo"))
                 .format(java.time.Instant.now()));
+    }
+
+    private String buildDeletionHtml(String code) {
+        return """
+            <!DOCTYPE html><html lang="pt-BR">
+            <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px">
+                <tr><td align="center">
+                  <table width="480" cellpadding="0" cellspacing="0"
+                    style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+                    <tr><td style="background:#0f172a;padding:28px 40px;text-align:center">
+                      <h1 style="color:#f59e0b;margin:0;font-size:22px;letter-spacing:-0.5px">Sua Loja</h1>
+                    </td></tr>
+                    <tr><td style="padding:40px">
+                      <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Excluir conta</h2>
+                      <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 16px">
+                        Recebemos uma solicitação para excluir permanentemente a sua conta.<br>
+                        Insira o código abaixo para confirmar — ele é válido por <strong>15 minutos</strong>.
+                      </p>
+                      <div style="background:#fef2f2;border:2px dashed #fecaca;border-radius:10px;padding:24px;text-align:center;margin-bottom:28px">
+                        <span style="font-size:40px;font-weight:900;letter-spacing:14px;color:#dc2626;font-family:monospace">%s</span>
+                      </div>
+                      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin-bottom:20px">
+                        <p style="color:#9a3412;font-size:13px;line-height:1.6;margin:0;font-weight:600">
+                          ⚠️ Esta ação é irreversível. Todos os seus dados serão removidos permanentemente.
+                        </p>
+                      </div>
+                      <p style="color:#9ca3af;font-size:13px;margin:0">
+                        Se você não solicitou a exclusão da conta, ignore este e-mail. Sua conta continuará ativa.
+                      </p>
+                    </td></tr>
+                    <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center">
+                      <p style="color:#9ca3af;font-size:12px;margin:0">© 2025 Sua Loja. Todos os direitos reservados.</p>
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body></html>
+            """.formatted(code);
     }
 }

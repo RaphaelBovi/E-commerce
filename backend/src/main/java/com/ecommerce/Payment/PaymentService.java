@@ -70,7 +70,7 @@ public class PaymentService {
     private final ProductVariantRepository productVariantRepository;
     private final StockService stockService;
     private final WebhookService webhookService;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final RestClient restClient = RestClient.create();
 
